@@ -1,0 +1,31 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv
+.venv
+*.egg-info
+.eggs
+
+# Node
+node_modules
+.next
+.npm
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Env (use .env.docker)
+backend/.env
+
+# Docs and misc
+*.md
+.DS_Store

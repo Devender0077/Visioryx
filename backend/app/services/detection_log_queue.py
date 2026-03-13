@@ -1,0 +1,110 @@
+"""
+Visioryx - Detection Log Queue
+Thread-safe queue for detection events from capture threads.
+Background task processes queue and calls log_detection / log_object_detection.
+"""
+import asyncio
+import queue
+import time
+from typing import Any, Optional
+
+from app.core.logger import get_logger
+from app.services.logging_service import log_detection, log_object_detection
+
+logger = get_logger("detection_log_queue")
+
+_detection_queue: queue.Queue = queue.Queue()
+_last_logged_face: dict[tuple[int, Optional[int]], float] = {}
+_last_logged_object: dict[tuple[int, str], float] = {}
+LOG_THROTTLE_SEC = 5.0  # Max 1 log per (camera_id, user_id) per 5 sec
+OBJECT_THROTTLE_SEC = 10.0  # Throttle object logs per (camera_id, object_name)
+
+
+def enqueue_detection(
+    camera_id: int,
+    user_id: Optional[int],
+    status: str,
+    confidence: float,
+    snapshot_path: Optional[str] = None,
+    embedding: Optional[list[float]] = None,
+):
+    """Enqueue a face detection for async logging (call from sync thread)."""
+    key = (camera_id, user_id)
+    now = time.time()
+    if key in _last_logged_face and (now - _last_logged_face[key]) < LOG_THROTTLE_SEC:
+        return
+    _last_logged_face[key] = now
+    try:
+        _detection_queue.put_nowait(
+            ("face", camera_id, user_id, status, confidence, snapshot_path, embedding)
+        )
+    except queue.Full:
+        pass
+
+
+def enqueue_object_detection(
+    camera_id: int,
+    object_name: str,
+    confidence: float,
+    bbox: Optional[list[float]] = None,
+):
+    """Enqueue an object detection for async logging (call from sync thread)."""
+    key = (camera_id, object_name)
+    now = time.time()
+    if key in _last_logged_object and (now - _last_logged_object[key]) < OBJECT_THROTTLE_SEC:
+        return
+    _last_logged_object[key] = now
+    try:
+        _detection_queue.put_nowait(("object", camera_id, object_name, confidence, bbox))
+    except queue.Full:
+        pass
+
+
+async def _process_queue():
+    """Process detection queue (run in main event loop)."""
+    while True:
+        try:
+            if _detection_queue.empty():
+                await asyncio.sleep(1)
+                continue
+            item = _detection_queue.get_nowait()
+            if item[0] == "face":
+                _, camera_id, user_id, status, confidence, snapshot_path, embedding = item
+                await log_detection(
+                    camera_id, user_id, status, confidence,
+                    snapshot=snapshot_path,
+                    bbox=None,
+                )
+                if status == "unknown" and snapshot_path and embedding:
+                    await _log_unknown_face(camera_id, snapshot_path, embedding)
+            elif item[0] == "object":
+                _, camera_id, object_name, confidence, bbox = item
+                await log_object_detection(camera_id, object_name, confidence, bbox)
+        except queue.Empty:
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.warning(f"Detection log error: {e}")
+            await asyncio.sleep(1)
+
+
+async def _log_unknown_face(camera_id: int, image_path: str, embedding: list[float]) -> None:
+    """Persist unknown face to database for clustering."""
+    try:
+        from app.database.connection import AsyncSessionLocal
+        from app.database.models import UnknownFace
+
+        async with AsyncSessionLocal() as db:
+            uf = UnknownFace(
+                camera_id=camera_id,
+                image=image_path,
+                embedding=embedding,
+            )
+            db.add(uf)
+            await db.commit()
+    except Exception as e:
+        logger.debug(f"Unknown face persist skip: {e}")
+
+
+def start_queue_processor():
+    """Start the background queue processor. Call from lifespan."""
+    return asyncio.create_task(_process_queue())

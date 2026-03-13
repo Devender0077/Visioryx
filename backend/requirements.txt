@@ -1,0 +1,36 @@
+# Visioryx - AI Surveillance System Backend Dependencies
+# Python 3.10+
+
+# Web Framework
+fastapi>=0.115.0,<0.116
+uvicorn[standard]>=0.32.0
+
+# Database
+sqlalchemy>=2.0.36
+asyncpg>=0.30.0
+alembic>=1.14.0
+psycopg2-binary>=2.9.10
+
+# AI & Computer Vision
+faiss-cpu>=1.8.0
+opencv-python-headless>=4.10.0
+numpy>=1.26.0,<2.0
+insightface>=0.7.3
+onnxruntime>=1.19.0
+ultralytics>=8.3.0
+
+# Security & Auth
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.2.0
+python-multipart>=0.0.12
+
+# WebSockets
+websockets>=14.0
+
+# Utilities
+python-dotenv>=1.0.1
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+
+# Async support
+aiofiles>=24.1.0

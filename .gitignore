@@ -1,0 +1,51 @@
+# Visioryx .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env
+*.egg-info/
+.eggs/
+
+# Node
+node_modules/
+.next/
+out/
+.env.local
+.env*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Storage (keep structure, ignore content)
+backend/storage/registered_faces/*
+backend/storage/unknown_faces/*
+backend/storage/snapshots/*
+!backend/storage/registered_faces/.gitkeep
+!backend/storage/unknown_faces/.gitkeep
+!backend/storage/snapshots/.gitkeep
+
+# AI Models (downloaded at runtime)
+backend/models/*
+!backend/models/.gitkeep
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
