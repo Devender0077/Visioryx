@@ -5,10 +5,12 @@ User/face registration endpoints.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser, CurrentUser
+from app.core.security import decode_access_token
 from app.database.connection import get_db
 from app.database.models import User
 from app.schemas.users import UserCreate, UserResponse, UserUpdate
@@ -119,3 +121,33 @@ async def upload_face_image(
         user.face_embedding = embeddings[0]
     await db.flush()
     return {"image_path": path, "embedding_extracted": bool(embeddings)}
+
+
+@router.get("/{user_id}/photo")
+async def get_user_photo(
+    user_id: int,
+    token: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Serve uploaded user photo.
+    Uses token query param because <img> cannot send Authorization headers.
+    """
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing token")
+    if decode_access_token(token) is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.image_path:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    import mimetypes
+
+    media_type, _ = mimetypes.guess_type(user.image_path)
+    return FileResponse(
+        user.image_path,
+        media_type=media_type or "application/octet-stream",
+        headers={"Cache-Control": "no-store"},
+    )

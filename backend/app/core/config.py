@@ -57,6 +57,17 @@ class Settings(BaseSettings):
     # WebSocket
     WS_HEARTBEAT_INTERVAL: int = 30
 
+    # Streaming
+    # - "mjpeg": OpenCV VideoCapture + MJPEG endpoint (best dev compatibility; can crash on some macOS setups)
+    # - "hls": FFmpeg subprocess generates HLS playlist + segments (recommended for stability)
+    #
+    # Default to MJPEG so Live Monitoring works immediately in all browsers.
+    # You can switch to HLS via env: STREAM_MODE=hls (requires ffmpeg + hls.js or Safari native HLS).
+    STREAM_MODE: str = "mjpeg"
+    FFMPEG_PATH: str = "ffmpeg"
+    HLS_SEGMENT_SECONDS: int = 2
+    HLS_LIST_SIZE: int = 6
+
     # GPU (Optional)
     CUDA_VISIBLE_DEVICES: Optional[str] = None
 

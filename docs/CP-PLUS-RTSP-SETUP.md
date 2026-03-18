@@ -63,6 +63,22 @@ rtsp://admin:avks%402605@192.168.0.3:554/cam/realmonitor?channel=3&subtype=0
 
 ---
 
+## Remote Access (Cameras at Office, You at Home)
+
+**RTSP uses local IPs (192.168.x.x)** — they are not reachable from the internet. To view cameras remotely:
+
+1. **Deploy Visioryx at the office** — Run the backend on a machine on the same network as the DVR (e.g. 192.168.0.x). Then:
+   - Access the dashboard from home via **VPN** to the office network, or
+   - Expose the dashboard (port 3000) and API (port 8000) through a reverse proxy with HTTPS and strong auth.
+
+2. **VPN from home** — Connect to the office VPN. Your home PC will appear on the office network. Run Visioryx locally; RTSP URLs will work because you're effectively on the same network.
+
+3. **Port forwarding** (not recommended) — Forward RTSP port 554 from the DVR to a public IP. Security risk; use only with caution.
+
+**Summary:** The Visioryx backend must be able to reach the DVR's IP. Deploy at the office or use VPN.
+
+---
+
 ## Network Checklist
 
 - [ ] Visioryx backend and DVR are on the same network (or reachable).

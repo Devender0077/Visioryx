@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AuthGuard } from '@/components/AuthGuard';
@@ -28,10 +28,15 @@ import {
   Notifications,
   Menu as MenuIcon,
   Logout,
+  ChevronLeft,
+  ChevronRight,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 280;
+const DRAWER_WIDTH_COLLAPSED = 80;
 const HEADER_HEIGHT = 64;
+const SIDEBAR_COLLAPSED_KEY = 'visioryx-sidebar-collapsed';
 
 const NAV_ITEMS = [
   { path: '/dashboard', label: 'Overview', icon: <DashboardIcon /> },
@@ -41,6 +46,7 @@ const NAV_ITEMS = [
   { path: '/detections', label: 'Detections', icon: <History /> },
   { path: '/analytics', label: 'Analytics', icon: <Analytics /> },
   { path: '/alerts', label: 'Alerts', icon: <Notifications /> },
+  { path: '/profile', label: 'Profile', icon: <PersonIcon /> },
 ];
 
 export default function DashboardLayout({
@@ -50,10 +56,50 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const navContent = (
-    <>
-      <Box sx={{ px: 2, py: 2, mb: 1 }}>
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && typeof window !== 'undefined') {
+      const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+      setCollapsed(stored === 'true');
+    }
+  }, [mounted]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      const next = !c;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
+      }
+      return next;
+    });
+  };
+
+  const drawerWidth = mounted && collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
+
+  const pageTitle = (() => {
+    if (pathname === '/dashboard') return 'Hi, Welcome back 👋';
+    const item = NAV_ITEMS.find((i) => pathname === i.path);
+    return item ? item.label : pathname === '/' ? 'Overview' : 'Visioryx';
+  })();
+
+  const navContent = (isCollapsed: boolean) => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Box
+        sx={{
+          px: isCollapsed ? 1.5 : 2,
+          py: 2,
+          mb: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
+        }}
+      >
         <Typography
           component={Link}
           href="/dashboard"
@@ -67,12 +113,14 @@ export default function DashboardLayout({
             display: 'flex',
             alignItems: 'center',
             gap: 1,
+            overflow: 'hidden',
           }}
         >
           <Box
             sx={{
               width: 32,
               height: 32,
+              flexShrink: 0,
               borderRadius: 1,
               bgcolor: 'primary.main',
               display: 'flex',
@@ -82,22 +130,24 @@ export default function DashboardLayout({
           >
             <Videocam sx={{ color: 'white', fontSize: 20 }} />
           </Box>
-          Visioryx
+          {!isCollapsed && <Box component="span" sx={{ whiteSpace: 'nowrap' }}>Visioryx</Box>}
         </Typography>
       </Box>
-      <Typography
-        variant="caption"
-        sx={{
-          px: 2,
-          py: 1,
-          color: 'text.disabled',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-        }}
-      >
-        Menu
-      </Typography>
+      {!isCollapsed && (
+        <Typography
+          variant="caption"
+          sx={{
+            px: 2,
+            py: 1,
+            color: 'text.disabled',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Menu
+        </Typography>
+      )}
       <List disablePadding sx={{ mt: 0.5 }}>
         {NAV_ITEMS.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
@@ -106,51 +156,87 @@ export default function DashboardLayout({
               href={item.path}
               selected={pathname === item.path}
               onClick={() => setMobileOpen(false)}
-              sx={{ py: 1.25, px: 2 }}
+              sx={{
+                py: 1.25,
+                px: isCollapsed ? 1.5 : 2,
+                justifyContent: isCollapsed ? 'center' : 'flex-start',
+              }}
+              title={isCollapsed ? item.label : undefined}
             >
-              <ListItemIcon sx={{ minWidth: 40, color: 'inherit' }}>
+              <ListItemIcon
+                sx={{
+                  minWidth: isCollapsed ? 0 : 40,
+                  color: 'inherit',
+                  justifyContent: 'center',
+                }}
+              >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText
-                primary={item.label}
-                primaryTypographyProps={{
-                  fontWeight: pathname === item.path ? 600 : 500,
-                  fontSize: '0.875rem',
-                }}
-              />
+              {!isCollapsed && (
+                <ListItemText
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontWeight: pathname === item.path ? 600 : 500,
+                    fontSize: '0.875rem',
+                  }}
+                />
+              )}
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </>
+      <Box sx={{ p: 1, mt: 'auto', display: { xs: 'none', md: 'flex' }, justifyContent: isCollapsed ? 'center' : 'flex-end' }}>
+        <IconButton
+          size="small"
+          onClick={toggleCollapsed}
+          sx={{ color: 'text.secondary' }}
+          aria-label={collapsed ? 'Expand menu' : 'Collapse menu'}
+        >
+          {collapsed ? <ChevronRight /> : <ChevronLeft />}
+        </IconButton>
+      </Box>
+    </Box>
   );
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Header - Minimal style */}
+      {/* Header - fixed, content has padding to avoid overlap */}
       <AppBar
         position="fixed"
         sx={{
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
-          ml: { md: `${DRAWER_WIDTH}px` },
+          width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
+          ml: { xs: 0, md: `${drawerWidth}px` },
           zIndex: (t) => t.zIndex.drawer + 1,
+          pt: { xs: 'env(safe-area-inset-top, 0px)', md: 0 },
+          transition: (theme) => theme.transitions.create(['width', 'margin'], { duration: theme.transitions.duration.enteringScreen }),
         }}
       >
         <Toolbar
           sx={{
-            minHeight: HEADER_HEIGHT,
-            px: { xs: 2, sm: 3 },
+            minHeight: { xs: 56, sm: HEADER_HEIGHT },
+            px: { xs: 1.5, sm: 2, md: 3 },
           }}
         >
           <IconButton
             color="inherit"
             edge="start"
-            sx={{ mr: 2, display: { md: 'none' } }}
+            sx={{ mr: 1, display: { md: 'none' } }}
             aria-label="menu"
             onClick={() => setMobileOpen(true)}
           >
             <MenuIcon />
           </IconButton>
+          <Typography
+            variant="h6"
+            component="span"
+            sx={{
+              fontWeight: 600,
+              color: 'text.primary',
+              fontSize: { xs: '1rem', sm: '1.125rem' },
+            }}
+          >
+            {pageTitle}
+          </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Button
             color="inherit"
@@ -167,12 +253,12 @@ export default function DashboardLayout({
               '&:hover': { color: 'primary.main', bgcolor: 'rgba(32, 101, 209, 0.08)' },
             }}
           >
-            Logout
+            <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Logout</Box>
           </Button>
         </Toolbar>
       </AppBar>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer - full width on small screens, safe area padding */}
       <Drawer
         variant="temporary"
         open={mobileOpen}
@@ -181,52 +267,63 @@ export default function DashboardLayout({
         sx={{
           display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
+            width: { xs: 'min(100%, 320px)', sm: DRAWER_WIDTH },
+            maxWidth: '85vw',
             boxSizing: 'border-box',
-            pt: 2,
-            pb: 2,
+            pt: 'calc(16px + env(safe-area-inset-top, 0px))',
+            pb: 'calc(16px + env(safe-area-inset-bottom, 0px))',
             px: 1.5,
           },
         }}
       >
-        {navContent}
+        {navContent(false)}
       </Drawer>
 
       {/* Desktop sidebar */}
       <Drawer
         variant="permanent"
         sx={{
-          width: DRAWER_WIDTH,
-          flexShrink: 0,
           display: { xs: 'none', md: 'block' },
+          width: drawerWidth,
+          flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: DRAWER_WIDTH,
+            width: drawerWidth,
             boxSizing: 'border-box',
             top: 0,
             left: 0,
             height: '100%',
             pt: 2,
             pb: 2,
-            px: 1.5,
+            px: collapsed ? 0.5 : 1.5,
+            overflowX: 'hidden',
+            transition: (theme) => theme.transitions.create('width', { duration: theme.transitions.duration.enteringScreen }),
           },
         }}
       >
-        {navContent}
+        {navContent(collapsed)}
       </Drawer>
 
-      {/* Main content */}
+      {/* Main content - extra top padding to prevent overlap with fixed header; safe-area for mobile */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { xs: '100%', md: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
-          pt: `${HEADER_HEIGHT}px`,
-          px: { xs: 2, sm: 3 },
-          py: 3,
+          pt: {
+            xs: 'calc(56px + env(safe-area-inset-top, 0px) + 12px)',
+            sm: `calc(${HEADER_HEIGHT}px + env(safe-area-inset-top, 0px) + 12px)`,
+          },
+          pb: { xs: 'calc(24px + env(safe-area-inset-bottom, 0px))', sm: 24 },
+          px: { xs: 1.5, sm: 2, md: 3 },
+          transition: (theme) => theme.transitions.create(['width', 'margin'], { duration: theme.transitions.duration.enteringScreen }),
         }}
       >
-        <AuthGuard>{children}</AuthGuard>
+        <AuthGuard>
+          <Box sx={{ minHeight: { xs: 'calc(100vh - 56px)', sm: 'calc(100vh - 64px)' }, overflow: 'auto' }}>
+            {children}
+          </Box>
+        </AuthGuard>
       </Box>
     </Box>
   );

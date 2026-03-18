@@ -1,5 +1,5 @@
 """Auth schemas."""
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class LoginRequest(BaseModel):
@@ -19,3 +19,13 @@ class UserMe(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UpdateProfileRequest(BaseModel):
+    email: EmailStr
+    current_password: str = Field(..., min_length=1, description="Current password for verification")
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")

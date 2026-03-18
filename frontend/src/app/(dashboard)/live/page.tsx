@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,10 +11,14 @@ import {
   Chip,
   IconButton,
   Dialog,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
-import { Videocam, Stop, Fullscreen, FullscreenExit, ZoomIn, ZoomOut } from '@mui/icons-material';
-import { api, getToken } from '@/lib/api';
+import { Videocam, Stop, Fullscreen, FullscreenExit, ZoomIn, ZoomOut, Add } from '@mui/icons-material';
+import Link from 'next/link';
+import { api, getToken, getStreamBase } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { EmptyState } from '@/components/EmptyState';
 
 interface Camera {
   id: number;
@@ -28,26 +32,44 @@ export default function LiveMonitoringPage() {
   const toast = useToast();
   const [cameras, setCameras] = useState<Camera[]>([]);
   const [streaming, setStreaming] = useState<Set<number>>(new Set());
+  const [streamErrors, setStreamErrors] = useState<Set<number>>(new Set());
+  const [streamRetryKey, setStreamRetryKey] = useState<Record<number, number>>({});
+  const [starting, setStarting] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [fullscreen, setFullscreen] = useState<number | null>(null);
   const [zoom, setZoom] = useState<Record<number, number>>({});
 
   useEffect(() => {
+    setLoading(true);
     api<Camera[]>('/api/v1/cameras')
       .then(setCameras)
-      .catch(() => setError('Load cameras failed'));
+      .catch(() => setError('Load cameras failed'))
+      .finally(() => setLoading(false));
   }, []);
 
   const startStream = async (cameraId: number) => {
     setError(null);
+    setStarting((s) => new Set(s).add(cameraId));
     try {
       await api(`/api/v1/stream/${cameraId}/start`, { method: 'POST' });
       setStreaming((s) => new Set(s).add(cameraId));
+      setStreamErrors((e) => {
+        const n = new Set(e);
+        n.delete(cameraId);
+        return n;
+      });
       toast.success('Stream started');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Start failed';
       setError(msg);
       toast.error(msg);
+    } finally {
+      setStarting((s) => {
+        const n = new Set(s);
+        n.delete(cameraId);
+        return n;
+      });
     }
   };
 
@@ -59,6 +81,7 @@ export default function LiveMonitoringPage() {
         next.delete(cameraId);
         return next;
       });
+      setStreamErrors((e) => { const n = new Set(e); n.delete(cameraId); return n; });
       toast.info('Stream stopped');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Stop failed';
@@ -70,8 +93,18 @@ export default function LiveMonitoringPage() {
   const streamUrl = (cameraId: number) => {
     const token = getToken();
     if (!token) return null;
-    const base = (process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
-    return `${base || 'http://localhost:8000'}/api/v1/stream/${cameraId}/mjpeg?token=${encodeURIComponent(token)}`;
+    const base = getStreamBase();
+    const retry = streamRetryKey[cameraId] ?? 0;
+    return `${base}/api/v1/stream/${cameraId}/mjpeg?token=${encodeURIComponent(token)}&_=${retry}`;
+  };
+
+  const retryStream = (cameraId: number) => {
+    setStreamErrors((e) => {
+      const n = new Set(e);
+      n.delete(cameraId);
+      return n;
+    });
+    setStreamRetryKey((k) => ({ ...k, [cameraId]: (k[cameraId] ?? 0) + 1 }));
   };
 
   const getZoom = (id: number) => (zoom[id] ?? 100) / 100;
@@ -80,8 +113,8 @@ export default function LiveMonitoringPage() {
   const StreamBox = ({ cam, isFullscreen }: { cam: Camera; isFullscreen?: boolean }) => (
     <Box
       sx={{
-        bgcolor: 'grey.900',
-        height: isFullscreen ? '90vh' : 280,
+        bgcolor: 'black',
+        height: isFullscreen ? '100vh' : { xs: 220, sm: 280, md: 320 },
         borderRadius: 2,
         overflow: 'hidden',
         display: 'flex',
@@ -90,38 +123,73 @@ export default function LiveMonitoringPage() {
         position: 'relative',
       }}
     >
-      {streaming.has(cam.id) && streamUrl(cam.id) ? (
-        <Box sx={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <img
-            key={`stream-${cam.id}`}
-            src={streamUrl(cam.id)!}
-            alt={cam.camera_name}
-            style={{
-              width: `${getZoom(cam.id) * 100}%`,
-              height: `${getZoom(cam.id) * 100}%`,
-              objectFit: 'contain',
+      {streaming.has(cam.id) && streamErrors.has(cam.id) ? (
+        <Box sx={{ textAlign: 'center', p: 2 }}>
+          <Typography color="grey.500" sx={{ mb: 1 }}>No signal — check network or RTSP URL</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
+            Cameras must be on the same network. Use VPN if remote.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button variant="outlined" size="small" onClick={() => retryStream(cam.id)}>Retry</Button>
+            <Button variant="outlined" size="small" color="error" onClick={() => stopStream(cam.id)}>Stop</Button>
+          </Box>
+        </Box>
+      ) : streaming.has(cam.id) && streamUrl(cam.id) ? (
+        <Box sx={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'black' }}>
+          <Box
+            sx={{
+              width: '100%',
+              height: '100%',
+              transform: `scale(${getZoom(cam.id)})`,
+              transformOrigin: 'center center',
             }}
-            onError={() => setStreaming((s) => { const n = new Set(s); n.delete(cam.id); return n; })}
-          />
+          >
+            {/* Always use MJPEG img stream for now (ensures overlays & compatibility). */}
+            <img
+              key={`stream-${cam.id}-${streamRetryKey[cam.id] ?? 0}`}
+              src={streamUrl(cam.id)!}
+              alt={cam.camera_name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: isFullscreen ? 'contain' : 'cover',
+                display: 'block',
+              }}
+              onError={() => setStreamErrors((e) => new Set(e).add(cam.id))}
+            />
+          </Box>
         </Box>
       ) : (
         <Box sx={{ textAlign: 'center' }}>
           <Typography color="grey.500" sx={{ mb: 2 }}>
-            {cam.is_enabled ? 'Click Start to view stream' : 'Camera disabled'}
+            {cam.is_enabled
+              ? starting.has(cam.id)
+                ? 'Starting stream...'
+                : 'Click Start to view live feed'
+              : 'Camera disabled'}
           </Typography>
           {cam.is_enabled && (
             <Button
               variant="contained"
-              startIcon={<Videocam />}
+              startIcon={starting.has(cam.id) ? <CircularProgress size={20} color="inherit" /> : <Videocam />}
               onClick={() => startStream(cam.id)}
+              disabled={starting.has(cam.id)}
             >
-              Start Stream
+              {starting.has(cam.id) ? 'Starting...' : 'Start Stream'}
             </Button>
           )}
         </Box>
       )}
       {streaming.has(cam.id) && (
-        <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
+        <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5, zIndex: 10 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => retryStream(cam.id)}
+            sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' } }}
+          >
+            Reconnect
+          </Button>
           <IconButton size="small" sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }} onClick={() => setZoomFor(cam.id, (zoom[cam.id] ?? 100) + 20)} title="Zoom in">
             <ZoomIn fontSize="small" />
           </IconButton>
@@ -142,22 +210,29 @@ export default function LiveMonitoringPage() {
   );
 
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Live Monitoring
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
           Live camera streams with face & object detection. Add cameras in Cameras page. Register users and upload face photos in Users page for recognition.
         </Typography>
       </Box>
-      {error && <Typography color="error" sx={{ mb: 2 }}>{error}</Typography>}
-      {cameras.length === 0 ? (
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress size={40} />
+        </Box>
+      ) : cameras.length === 0 ? (
         <Card>
           <CardContent>
-            <Typography color="text.secondary">
-              No cameras configured. Add a camera in the Cameras section to start monitoring.
-            </Typography>
+            <EmptyState
+              message="No cameras configured. Add a camera in the Cameras section to start live monitoring."
+              illustrationSize={120}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              <Button component={Link} href="/cameras" variant="contained" startIcon={<Add />}>
+                Add Camera
+              </Button>
+            </Box>
           </CardContent>
         </Card>
       ) : (
@@ -195,8 +270,8 @@ export default function LiveMonitoringPage() {
         </Grid>
       )}
 
-      <Dialog open={fullscreen !== null} onClose={() => setFullscreen(null)} maxWidth={false} fullWidth PaperProps={{ sx: { bgcolor: 'black', maxWidth: '100vw', maxHeight: '100vh' } }}>
-        <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: '90vh' }}>
+      <Dialog open={fullscreen !== null} onClose={() => setFullscreen(null)} maxWidth={false} fullWidth PaperProps={{ sx: { bgcolor: 'black', maxWidth: '100vw', maxHeight: '100vh', m: 0 } }}>
+        <Box sx={{ position: 'relative', width: '100vw', height: '100vh' }}>
           {fullscreen !== null && cameras.find((c) => c.id === fullscreen) && (
             <StreamBox cam={cameras.find((c) => c.id === fullscreen)!} isFullscreen />
           )}

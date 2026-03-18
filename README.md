@@ -8,7 +8,9 @@ Developed by: Devender Vutukuru
 
 ## Overview
 
-Visioryx is a production-grade real-time AI surveillance system with:
+Visioryx is a production-grade real-time AI surveillance system for **single-admin** use. One superadmin account (`admin@visioryx.dev`) has full access; no multi-tenant or operator roles.
+
+Features:
 
 - **Face Recognition** — Known person identification
 - **Unknown Face Detection** — Detection and clustering of unregistered individuals
@@ -21,7 +23,9 @@ Visioryx is a production-grade real-time AI surveillance system with:
 
 ---
 
-## Technology Stack
+## Architecture
+
+Visioryx is a **full-stack** app: **Python backend** (FastAPI) + **React frontend** (Next.js). The `.py` files are the backend API and AI services—they do not need to be converted. The frontend calls the backend via HTTP. This is standard and correct.
 
 | Layer | Technologies |
 |-------|-------------|
@@ -29,7 +33,7 @@ Visioryx is a production-grade real-time AI surveillance system with:
 | Face Recognition | InsightFace (or face_recognition) |
 | Object Detection | YOLOv8 (Ultralytics) |
 | Frontend | Next.js 14, React, TypeScript, TailwindCSS |
-| Dashboard UI | [material-kit-react](https://github.com/minimal-ui-kit/material-kit-react) (MIT, optional reference) |
+| Dashboard UI | MUI Material 5, minimals.cc style |
 | Database | PostgreSQL |
 | Real-time | WebSockets |
 | Deployment | Docker, Docker Compose |
@@ -74,6 +78,10 @@ ai-surveillance-system/
 ./scripts/start-dev.sh backend
 ./scripts/start-dev.sh frontend
 
+# If Python/OpenCV crashes on macOS, run backend supervised (auto-restarts):
+# (also uses safer default streaming mode: STREAM_MODE=hls)
+./scripts/start-backend-supervised.sh
+
 # Windows PowerShell
 .\scripts\start-dev.ps1 -Target all
 ```
@@ -88,6 +96,7 @@ ai-surveillance-system/
 - Node.js 20+
 - PostgreSQL 14+
 - Docker & Docker Compose (optional)
+- FFmpeg (recommended for stable live streaming / HLS)
 
 ### 1. Backend Setup
 
@@ -166,7 +175,8 @@ cp backend/.env.example backend/.env
 docker compose -f docker/docker-compose.yml up -d
 
 # Migrations and admin seed run automatically on backend startup.
-# Verify DB: curl http://localhost:8000/health/db
+# DB container uses host port 5433 (avoids conflict with local PostgreSQL on 5432).
+# Verify: ./scripts/verify.sh or curl http://localhost:8000/health/db
 ```
 
 ---
@@ -261,14 +271,29 @@ docker compose -f docker/docker-compose.yml up --build -d
 
 ---
 
+## Verification
+
+Run the verification script to check Docker, database, and services:
+
+```bash
+./scripts/verify.sh
+```
+
+---
+
 ## Troubleshooting
+
+### Docker: port 5432 already allocated
+
+The Docker db service uses host port **5433** to avoid conflict with local PostgreSQL. If you need the db on 5432, stop local PostgreSQL first, or edit `docker/docker-compose.yml` to use `5432:5432`.
 
 ### Docker build fails: "g++ failed: No such file or directory"
 The backend image includes `build-essential` for InsightFace. If you see this, ensure you're using the latest `Dockerfile.backend`.
 
 ### Start Stream shows black / no video
 - **RTSP unreachable:** In Docker, the backend container may not reach cameras on your LAN. Use `network_mode: host` for the backend, or set RTSP URL to `host.docker.internal` (Mac/Windows) for local cameras.
-- **Demo mode:** Use `test://` or `demo://` as the RTSP URL (e.g. `test://1`) to get a test pattern stream without a real camera.
+- **Remote access:** RTSP with local IPs (192.168.x.x) only works when Visioryx runs on the same network as the cameras. If cameras are at the office and you're at home: deploy Visioryx at the office, or connect via VPN. See `docs/CP-PLUS-RTSP-SETUP.md` for details.
+- **Stream stops after a few seconds:** The MJPEG stream uses the direct backend URL (`getStreamBase()`) to bypass the Next.js proxy timeout. Ensure `NEXT_PUBLIC_API_URL` points to your backend (e.g. `http://localhost:8000` in dev). In production, set it to your API host so streams connect directly.
 
 ### Stream returns 404 (POST /api/v1/stream/1/start)
 

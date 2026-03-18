@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Public_Sans } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
@@ -10,14 +10,20 @@ export const metadata: Metadata = {
   description: 'AI Powered Real-Time Face Recognition & Surveillance System',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={publicSans.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={publicSans.className} suppressHydrationWarning>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

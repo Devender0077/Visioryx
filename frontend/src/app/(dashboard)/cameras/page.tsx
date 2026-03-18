@@ -19,10 +19,14 @@ import {
   TextField,
   Typography,
   Chip,
+  TableContainer,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
-import { Add, Delete, Edit } from '@mui/icons-material';
+import { Add, Delete, Edit, Info } from '@mui/icons-material';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { EmptyState } from '@/components/EmptyState';
 
 interface Camera {
   id: number;
@@ -40,8 +44,15 @@ export default function CamerasPage() {
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const load = () => api<Camera[]>('/api/v1/cameras').then(setCameras).catch(() => setError('Load failed'));
+  const load = () => {
+    setLoading(true);
+    api<Camera[]>('/api/v1/cameras')
+      .then(setCameras)
+      .catch(() => setError('Load failed'))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     load();
@@ -99,22 +110,37 @@ export default function CamerasPage() {
   };
 
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
           Cameras
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
           Manage camera sources for live monitoring and detection
         </Typography>
       </Box>
+
+      <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
+        <Typography variant="subtitle2" fontWeight={600} gutterBottom>RTSP & Remote Access</Typography>
+        <Typography variant="body2" component="span">
+          RTSP URLs with local IPs (e.g. 192.168.x.x) only work when <strong>Visioryx runs on the same network</strong> as your cameras.
+          If you&apos;re at home and cameras are at the office: deploy Visioryx on a machine at the office, or connect via VPN to the office network.
+        </Typography>
+      </Alert>
+
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} sx={{ fontWeight: 600 }}>
+        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} sx={{ fontWeight: 600 }} size="medium">
           Add Camera
         </Button>
       </Box>
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
-      <Card>
+      <Card sx={{ bgcolor: 'background.paper' }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <CircularProgress size={32} />
+          </Box>
+        ) : (
+        <TableContainer sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -138,9 +164,11 @@ export default function CamerasPage() {
             ))}
           </TableBody>
         </Table>
-        {cameras.length === 0 && (
+        </TableContainer>
+        )}
+        {!loading && cameras.length === 0 && (
           <CardContent>
-            <Typography color="text.secondary">No cameras. Click Add Camera to add one.</Typography>
+            <EmptyState message="No cameras configured. Click Add Camera to add a camera with a real RTSP URL." />
           </CardContent>
         )}
       </Card>
@@ -148,8 +176,16 @@ export default function CamerasPage() {
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{editing ? 'Edit Camera' : 'Add Camera'}</DialogTitle>
         <DialogContent>
-          <TextField label="Camera Name" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={{ mt: 1 }} />
-          <TextField label="RTSP URL" fullWidth value={url} onChange={(e) => setUrl(e.target.value)} placeholder="rtsp://..." sx={{ mt: 2 }} />
+          <TextField label="Camera Name" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={{ mt: 1 }} placeholder="e.g. Office Cam 1" />
+          <TextField
+            label="RTSP URL"
+            fullWidth
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="rtsp://user:pass@ip:554/path"
+            sx={{ mt: 2 }}
+            helperText="Same network as Visioryx required. Example: rtsp://admin:pass@192.168.1.100:554/stream1"
+          />
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancel</Button>

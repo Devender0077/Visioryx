@@ -153,6 +153,7 @@ def annotate_frame(
                 camera_id, user_id, status, confidence,
                 snapshot_path=snapshot_path,
                 embedding=emb if status == "unknown" else None,
+                bbox=bbox,
             )
 
         objects = []

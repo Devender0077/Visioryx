@@ -18,10 +18,15 @@ import {
   TableRow,
   TextField,
   Typography,
+  TableContainer,
+  Avatar,
+  Stack,
+  Chip,
 } from '@mui/material';
-import { Add, CloudUpload } from '@mui/icons-material';
-import { api } from '@/lib/api';
+import { Add, CloudUpload, Visibility } from '@mui/icons-material';
+import { api, getStreamBase, getToken } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { EmptyState } from '@/components/EmptyState';
 
 interface User {
   id: number;
@@ -41,6 +46,8 @@ export default function UsersPage() {
   const [uploading, setUploading] = useState<number | null>(null);
   const [uploadUserId, setUploadUserId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewUser, setPreviewUser] = useState<User | null>(null);
+  const [photoLoadError, setPhotoLoadError] = useState(false);
 
   const load = () => api<User[]>('/api/v1/users').then(setUsers).catch(() => setError('Load failed'));
 
@@ -87,15 +94,25 @@ export default function UsersPage() {
     }
   };
 
+  const photoUrlFor = (userId: number) => {
+    const token = getToken();
+    if (!token) return null;
+    const base = getStreamBase();
+    // cache-bust to avoid stale 401/old image after upload
+    return `${base}/api/v1/users/${userId}/photo?token=${encodeURIComponent(token)}&_=${Date.now()}`;
+  };
+
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Users
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Register users for face recognition. After adding a user, click the upload icon to add a face photo. The system will detect and store the face for recognition in Live Monitoring.
-        </Typography>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+            Users
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
+            Register users for face recognition. After adding a user, click the upload icon to add a face photo.
+          </Typography>
+        </Box>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)} sx={{ fontWeight: 600 }}>
           Register User
         </Button>
@@ -113,11 +130,12 @@ export default function UsersPage() {
           e.target.value = '';
         }}
       />
-      <Card>
+      <Card sx={{ bgcolor: 'background.paper' }}>
         <CardContent>
           {users.length === 0 ? (
-            <Typography color="text.secondary">No users. Register a user, then click the upload icon to add a face photo.</Typography>
+            <EmptyState message="No users registered. Register a user, then upload a face photo for recognition." />
           ) : (
+            <TableContainer sx={{ overflowX: 'auto' }}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -132,8 +150,33 @@ export default function UsersPage() {
                   <TableRow key={u.id}>
                     <TableCell>{u.name}</TableCell>
                     <TableCell>{u.email}</TableCell>
-                    <TableCell>{u.image_path ? '✓ Ready' : 'Upload face'}</TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1.25} alignItems="center">
+                        <Avatar
+                          src={u.image_path ? photoUrlFor(u.id) ?? undefined : undefined}
+                          sx={{ width: 32, height: 32 }}
+                        >
+                          {u.name?.[0]?.toUpperCase?.() ?? 'U'}
+                        </Avatar>
+                        {u.image_path ? (
+                          <Chip label="Ready" size="small" color="success" variant="outlined" />
+                        ) : (
+                          <Chip label="Not uploaded" size="small" variant="outlined" />
+                        )}
+                      </Stack>
+                    </TableCell>
                     <TableCell align="right">
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setPhotoLoadError(false);
+                          setPreviewUser(u);
+                        }}
+                        disabled={!u.image_path}
+                        title={u.image_path ? 'View photo' : 'No photo uploaded'}
+                      >
+                        <Visibility />
+                      </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => {
@@ -150,6 +193,7 @@ export default function UsersPage() {
                 ))}
               </TableBody>
             </Table>
+            </TableContainer>
           )}
         </CardContent>
       </Card>
@@ -163,6 +207,43 @@ export default function UsersPage() {
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSave}>Register</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!previewUser} onClose={() => setPreviewUser(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Uploaded photo</DialogTitle>
+        <DialogContent>
+          {previewUser?.image_path ? (
+            <Box
+              sx={{
+                width: '100%',
+                borderRadius: 2,
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'divider',
+                bgcolor: 'background.default',
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoUrlFor(previewUser.id) ?? undefined}
+                alt={previewUser.name}
+                style={{ width: '100%', height: 360, display: 'block', objectFit: 'contain', background: '#fff' }}
+                onError={() => setPhotoLoadError(true)}
+              />
+            </Box>
+          ) : (
+            <Typography color="text.secondary">No photo uploaded.</Typography>
+          )}
+          {photoLoadError && (
+            <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+              Couldn&apos;t load the photo. This is usually due to an expired login token or missing file on disk.
+              Please logout/login once, then try again.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPreviewUser(null)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

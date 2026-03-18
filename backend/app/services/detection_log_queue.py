@@ -27,6 +27,7 @@ def enqueue_detection(
     confidence: float,
     snapshot_path: Optional[str] = None,
     embedding: Optional[list[float]] = None,
+    bbox: Optional[list[float]] = None,
 ):
     """Enqueue a face detection for async logging (call from sync thread)."""
     key = (camera_id, user_id)
@@ -69,11 +70,18 @@ async def _process_queue():
                 continue
             item = _detection_queue.get_nowait()
             if item[0] == "face":
-                _, camera_id, user_id, status, confidence, snapshot_path, embedding = item
+                parts = list(item)
+                camera_id, user_id, status, confidence = parts[1], parts[2], parts[3], parts[4]
+                snapshot_path = parts[5] if len(parts) > 5 else None
+                embedding = parts[6] if len(parts) > 6 else None
+                bbox = parts[7] if len(parts) > 7 else None
+                bbox_dict = None
+                if bbox and len(bbox) >= 4:
+                    bbox_dict = {"x1": bbox[0], "y1": bbox[1], "x2": bbox[2], "y2": bbox[3]}
                 await log_detection(
                     camera_id, user_id, status, confidence,
                     snapshot=snapshot_path,
-                    bbox=None,
+                    bbox=bbox_dict,
                 )
                 if status == "unknown" and snapshot_path and embedding:
                     await _log_unknown_face(camera_id, snapshot_path, embedding)

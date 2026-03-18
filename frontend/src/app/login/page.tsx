@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 import { Videocam } from '@mui/icons-material';
 import { useToast } from '@/contexts/ToastContext';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { getApiBase } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +17,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     setError('');
     try {
-      const r = await fetch(`${API_URL}/api/v1/auth/login`, {
+      const r = await fetch(`${getApiBase()}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -50,7 +49,8 @@ export default function LoginPage() {
     >
       <Paper
         sx={{
-          p: 4,
+          p: { xs: 2, sm: 4 },
+          mx: 2,
           maxWidth: 400,
           width: '100%',
           borderRadius: 3,

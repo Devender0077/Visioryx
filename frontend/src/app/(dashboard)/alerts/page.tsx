@@ -13,6 +13,8 @@ import {
 } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { api } from '@/lib/api';
+import { formatDateTime } from '@/lib/formatDate';
+import { EmptyState } from '@/components/EmptyState';
 
 interface Alert {
   id: number;
@@ -46,17 +48,17 @@ export default function AlertsPage() {
   };
 
   return (
-    <Box>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+    <Box sx={{ width: '100%', maxWidth: '100%' }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
           Alerts
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-        Unknown face alerts, security alerts, camera status
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
+          Unknown face alerts, security alerts, camera status
         </Typography>
       </Box>
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
-      <Card>
+      <Card sx={{ bgcolor: 'background.paper' }}>
         <List>
           {alerts.map((a) => (
             <ListItem
@@ -77,14 +79,14 @@ export default function AlertsPage() {
                     {a.message}
                   </Box>
                 }
-                secondary={new Date(a.timestamp).toLocaleString()}
+                secondary={formatDateTime(a.timestamp)}
               />
             </ListItem>
           ))}
         </List>
         {alerts.length === 0 && (
-          <Box sx={{ p: 3, textAlign: 'center' }}>
-            <Typography color="text.secondary">No alerts yet.</Typography>
+          <Box sx={{ p: 3 }}>
+            <EmptyState message="No alerts yet." />
           </Box>
         )}
       </Card>
