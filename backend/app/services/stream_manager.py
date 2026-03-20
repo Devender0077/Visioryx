@@ -20,6 +20,23 @@ logger = get_logger("stream_manager")
 # Use TCP for RTSP (more reliable than UDP through firewalls/NAT)
 os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
 
+
+def _redact_rtsp_for_log(url: str) -> str:
+    """Hide password in rtsp://user:pass@host for logs."""
+    if not url.startswith("rtsp://"):
+        return url
+    try:
+        rest = url[7:]  # after rtsp://
+        if "@" not in rest:
+            return url
+        creds, hostpath = rest.split("@", 1)
+        if ":" in creds:
+            user, _ = creds.split(":", 1)
+            return f"rtsp://{user}:****@{hostpath}"
+        return f"rtsp://****@{hostpath}"
+    except Exception:
+        return "rtsp://****"
+
 # Placeholder "No signal" frame (gray 640x480 with text)
 _NO_SIGNAL_FRAME: Optional[bytes] = None
 
@@ -86,7 +103,13 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
     while not stop_event.is_set():
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
         if not cap.isOpened():
-            logger.error(f"Camera {camera_id}: failed to open {rtsp_url}")
+            logger.error(
+                "Camera %s: failed to open RTSP %s — same checks: (1) backend host must reach the "
+                "camera IP (not only your browser), (2) same LAN/VPN as the DVR, (3) if backend runs in "
+                "Docker use host network or a reachable IP, (4) test: ffmpeg -rtsp_transport tcp -i URL -frames:v 1 -f null -",
+                camera_id,
+                _redact_rtsp_for_log(rtsp_url),
+            )
             with _frame_lock:
                 _frame_buffer[camera_id] = _get_no_signal_frame()
             if retry_count < max_retries:

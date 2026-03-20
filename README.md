@@ -311,6 +311,7 @@ The backend image includes `build-essential` for InsightFace. If you see this, e
 ### Start Stream shows black / no video
 - **RTSP unreachable:** In Docker, the backend container may not reach cameras on your LAN. Use `network_mode: host` for the backend, or set RTSP URL to `host.docker.internal` (Mac/Windows) for local cameras.
 - **Remote access:** RTSP with local IPs (192.168.x.x) only works when Visioryx runs on the same network as the cameras. If cameras are at the office and you're at home: deploy Visioryx at the office, or connect via VPN. See `docs/CP-PLUS-RTSP-SETUP.md` for details.
+- **Works on another PC but not this laptop:** Live video is pulled by the **backend** (OpenCV/FFmpeg), not the browser. That PC must be on the **same LAN (or VPN)** as the DVR/camera IP (e.g. `192.168.0.3`). Your browser only loads MJPEG from the API; if the API cannot open `rtsp://…`, you see “No signal”. Check: Wi‑Fi vs Ethernet, firewall/VPN, and that you’re not running the backend only inside Docker without LAN access. From the machine running the backend, test: `./scripts/test_rtsp.sh 'rtsp://…'` (requires `ffmpeg`) or VLC with the same URL.
 - **Stream stops after a few seconds:** The MJPEG stream uses the direct backend URL (`getStreamBase()`) to bypass the Next.js proxy timeout. Ensure `NEXT_PUBLIC_API_URL` points to your backend (e.g. `http://localhost:8000` in dev). In production, set it to your API host so streams connect directly.
 
 ### Stream returns 404 (POST /api/v1/stream/1/start)
