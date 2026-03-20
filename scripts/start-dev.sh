@@ -17,8 +17,22 @@ kill_port() {
 }
 
 setup_db() {
-    (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. alembic upgrade head 2>/dev/null) || true
-    (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. python3 scripts/seed_admin.py 2>/dev/null) || true
+    echo "Database: running Alembic migrations (requires PostgreSQL)..."
+    if (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. alembic upgrade head); then
+        echo "Database: migrations OK."
+    else
+        echo ""
+        echo "  *** Migration failed. Start Postgres, then retry:"
+        echo "      docker compose -f docker/docker-compose.dev.yml up -d"
+        echo "      Ensure backend/.env DATABASE_URL matches postgresql+asyncpg://postgres:postgres@localhost:5432/visioryx"
+        echo "  Health check: curl -s http://localhost:8000/health/db"
+        echo ""
+    fi
+    if (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. python3 scripts/seed_admin.py); then
+        :
+    else
+        echo "  (seed_admin skipped or failed — may be OK if DB not up yet)"
+    fi
 }
 
 start_backend() {

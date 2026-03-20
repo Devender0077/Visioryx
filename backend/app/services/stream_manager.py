@@ -2,8 +2,12 @@
 Visioryx - Camera Stream Manager
 Manages per-camera frame capture and MJPEG streaming.
 Supports test:// URLs for demo when no real cameras available.
+
+For real RTSP, prefer FFmpeg subprocess (RTSP_CAPTURE_BACKEND=ffmpeg) instead of
+OpenCV VideoCapture — the latter often triggers SIGSEGV on macOS and freezes the feed.
 """
 import os
+import subprocess
 import threading
 import time
 from typing import Optional
@@ -60,23 +64,148 @@ _frame_lock = threading.Lock()
 _active_cameras: dict[int, dict] = {}  # camera_id -> {rtsp_url, thread, stop_event}
 
 
-def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
-    """Background thread: capture frames and update buffer."""
-    # Test/demo mode - no real RTSP
-    if rtsp_url.startswith("test://") or rtsp_url.startswith("demo://"):
+def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Event):
+    """
+    Decode RTSP via FFmpeg rawvideo pipe → numpy BGR frames.
+    Avoids cv2.VideoCapture (common source of EXC_BAD_ACCESS on macOS).
+    """
+    settings = get_settings()
+    skip = settings.FRAME_SKIP_RATE
+    ff = settings.FFMPEG_PATH
+    w = max(320, min(settings.STREAM_DECODE_WIDTH, 1920))
+    h = max(180, min(settings.STREAM_DECODE_HEIGHT, 1080))
+    frame_size = w * h * 3
+    retry_delay = 2
+    max_retries = 8
+    retry_count = 0
+
+    # Low-latency flags strip buffers and break many HEVC RTSP streams ("Could not find ref with POC").
+    base_cmd = [
+        ff,
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-rtsp_transport",
+        "tcp",
+    ]
+    if settings.STREAM_FFMPEG_LOW_LATENCY:
+        base_cmd += ["-fflags", "nobuffer", "-flags", "low_delay"]
+    else:
+        base_cmd += ["-err_detect", "ignore_err"]
+    base_cmd += [
+        "-i",
+        rtsp_url,
+        "-an",
+        "-vf",
+        f"scale={w}:{h}",
+        "-f",
+        "rawvideo",
+        "-pix_fmt",
+        "bgr24",
+        "-",
+    ]
+
+    while not stop_event.is_set():
+        proc: Optional[subprocess.Popen] = None
+        try:
+            proc = subprocess.Popen(
+                base_cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                stdin=subprocess.DEVNULL,
+                close_fds=True,
+            )
+        except FileNotFoundError:
+            logger.error(f"Camera {camera_id}: FFmpeg not found at '{ff}'. Install ffmpeg or set FFMPEG_PATH.")
+            with _frame_lock:
+                _frame_buffer[camera_id] = _get_no_signal_frame()
+            return
+        except Exception as e:
+            logger.error(f"Camera {camera_id}: failed to start FFmpeg: {e}")
+            with _frame_lock:
+                _frame_buffer[camera_id] = _get_no_signal_frame()
+            if retry_count < max_retries:
+                retry_count += 1
+                stop_event.wait(retry_delay)
+                continue
+            return
+
+        retry_count = 0
+        count = 0
+        run_ai_every = max(3, (skip + 1) * 3)
+        assert proc.stdout is not None
+
+        # Drain stderr in a thread so a full PIPE cannot deadlock FFmpeg on long runs.
+        def _drain_ffmpeg_stderr():
+            try:
+                if proc.stderr:
+                    while True:
+                        line = proc.stderr.readline()
+                        if not line:
+                            break
+                        s = line.decode(errors="replace").strip()
+                        if s:
+                            logger.warning(f"Camera {camera_id} FFmpeg: {s[:500]}")
+            except Exception:
+                pass
+
+        threading.Thread(target=_drain_ffmpeg_stderr, daemon=True).start()
+
         try:
             while not stop_event.is_set():
-                frame_bytes = _generate_test_frame(camera_id)
+                raw = proc.stdout.read(frame_size)
+                if len(raw) != frame_size:
+                    try:
+                        proc.wait(timeout=0.2)
+                    except Exception:
+                        pass
+                    rc = proc.poll()
+                    logger.warning(
+                        f"Camera {camera_id}: FFmpeg ended or short frame read "
+                        f"(got {len(raw)}/{frame_size} bytes, returncode={rc})"
+                    )
+                    break
+                frame = np.frombuffer(raw, dtype=np.uint8).reshape((h, w, 3))
+                count += 1
+                # Annotate every frame; AI runs inside annotate_frame every run_ai_every frames (cached boxes between).
+                display = annotate_frame(
+                    frame,
+                    count,
+                    camera_id=camera_id,
+                    run_detection_every=run_ai_every,
+                )
+                _, jpeg = cv2.imencode(
+                    ".jpg", display, [int(cv2.IMWRITE_JPEG_QUALITY), 85]
+                )
                 with _frame_lock:
-                    _frame_buffer[camera_id] = frame_bytes
-                stop_event.wait(0.1)
+                    _frame_buffer[camera_id] = jpeg.tobytes()
         except Exception as e:
-            logger.error(f"Camera {camera_id} test mode error: {e}")
+            logger.error(f"Camera {camera_id} FFmpeg loop error: {e}")
         finally:
-            with _frame_lock:
-                _frame_buffer.pop(camera_id, None)
-        return
+            try:
+                proc.terminate()
+                proc.wait(timeout=3)
+            except Exception:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
 
+        if stop_event.is_set():
+            break
+        with _frame_lock:
+            _frame_buffer[camera_id] = _get_no_signal_frame()
+        logger.info(f"Camera {camera_id}: FFmpeg stream ended, reconnecting in {retry_delay}s...")
+        for _ in range(retry_delay * 10):
+            if stop_event.wait(0.1):
+                break
+
+    with _frame_lock:
+        _frame_buffer.pop(camera_id, None)
+
+
+def _capture_loop_opencv(camera_id: int, rtsp_url: str, stop_event: threading.Event):
+    """Legacy: OpenCV VideoCapture — may crash the interpreter on some macOS builds."""
     settings = get_settings()
     skip = settings.FRAME_SKIP_RATE
     retry_count = 0
@@ -96,19 +225,22 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
             return
         retry_count = 0
         count = 0
-        det_count = 0
+        run_ai_every = max(3, (skip + 1) * 3)
         try:
             while not stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret or frame is None:
                     break
                 count += 1
-                if count % (skip + 1) == 0:
-                    det_count += 1
-                    frame = annotate_frame(frame, det_count, camera_id=camera_id, run_detection_every=3)
-                    _, jpeg = cv2.imencode(".jpg", frame)
-                    with _frame_lock:
-                        _frame_buffer[camera_id] = jpeg.tobytes()
+                display = annotate_frame(
+                    frame,
+                    count,
+                    camera_id=camera_id,
+                    run_detection_every=run_ai_every,
+                )
+                _, jpeg = cv2.imencode(".jpg", display)
+                with _frame_lock:
+                    _frame_buffer[camera_id] = jpeg.tobytes()
         except Exception as e:
             logger.error(f"Camera {camera_id} capture error: {e}")
         finally:
@@ -123,6 +255,33 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
                 break
     with _frame_lock:
         _frame_buffer.pop(camera_id, None)
+
+
+def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
+    """Background thread: capture frames and update buffer."""
+    # Test/demo mode - no real RTSP
+    if rtsp_url.startswith("test://") or rtsp_url.startswith("demo://"):
+        try:
+            while not stop_event.is_set():
+                frame_bytes = _generate_test_frame(camera_id)
+                with _frame_lock:
+                    _frame_buffer[camera_id] = frame_bytes
+                stop_event.wait(0.1)
+        except Exception as e:
+            logger.error(f"Camera {camera_id} test mode error: {e}")
+        finally:
+            with _frame_lock:
+                _frame_buffer.pop(camera_id, None)
+        return
+
+    settings = get_settings()
+    backend = (settings.RTSP_CAPTURE_BACKEND or "ffmpeg").lower()
+    if backend == "opencv":
+        logger.warning(f"Camera {camera_id}: using OpenCV RTSP capture (less stable on macOS)")
+        _capture_loop_opencv(camera_id, rtsp_url, stop_event)
+    else:
+        logger.info(f"Camera {camera_id}: using FFmpeg RTSP decode (backend=ffmpeg)")
+        _capture_loop_ffmpeg(camera_id, rtsp_url, stop_event)
 
 
 def start_stream(camera_id: int, rtsp_url: str) -> bool:

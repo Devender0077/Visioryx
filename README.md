@@ -82,9 +82,30 @@ ai-surveillance-system/
 # (also uses safer default streaming mode: STREAM_MODE=hls)
 ./scripts/start-backend-supervised.sh
 
+# Live face AI: unset STREAM_ENABLE_AI_OVERLAY on macOS → false (video only, stable). On Linux → true.
+# Unset STREAM_ENABLE_YOLO_OVERLAY on macOS → false (YOLO/torch often SIGSEGV in the capture thread).
+# FACE_DETECTION_BACKEND=auto uses OpenCV for live faces on macOS when overlay is on.
+
 # Windows PowerShell
 .\scripts\start-dev.ps1 -Target all
 ```
+
+### PostgreSQL & migrations
+
+Detections, users, and alerts are stored in **PostgreSQL**. The dev script runs `alembic upgrade head` before starting the API.
+
+1. **Start Postgres** (recommended):
+   ```bash
+   docker compose -f docker/docker-compose.dev.yml up -d
+   ```
+2. **Copy** `backend/.env.example` → `backend/.env` and ensure `DATABASE_URL` / `DATABASE_URL_SYNC` point at `localhost:5432/visioryx`.
+3. **Verify** after the backend is up:
+   ```bash
+   curl -s http://localhost:8000/health/db
+   ```
+   Expect `"status":"healthy","database":"connected"`.
+
+If migrations fail, the dev script prints a short hint (DB not running or wrong URL).
 
 ---
 

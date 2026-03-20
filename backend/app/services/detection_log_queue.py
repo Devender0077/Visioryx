@@ -37,7 +37,16 @@ def enqueue_detection(
     _last_logged_face[key] = now
     try:
         _detection_queue.put_nowait(
-            ("face", camera_id, user_id, status, confidence, snapshot_path, embedding)
+            (
+                "face",
+                camera_id,
+                user_id,
+                status,
+                confidence,
+                snapshot_path,
+                embedding,
+                bbox,
+            )
         )
     except queue.Full:
         pass

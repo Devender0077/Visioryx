@@ -4,7 +4,7 @@ User/face registration endpoints.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +14,7 @@ from app.core.security import decode_access_token
 from app.database.connection import get_db
 from app.database.models import User
 from app.schemas.users import UserCreate, UserResponse, UserUpdate
+from app.services.detection_overlay import invalidate_embedding_cache
 
 router = APIRouter()
 
@@ -81,6 +82,7 @@ async def update_user(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: AdminUser = None,
 ):
@@ -90,12 +92,14 @@ async def delete_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     await db.delete(user)
+    background_tasks.add_task(invalidate_embedding_cache)
     return {"ok": True}
 
 
 @router.post("/{user_id}/upload-face")
 async def upload_face_image(
     user_id: int,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(..., description="Face image (jpg, png)"),
     db: AsyncSession = Depends(get_db),
     current_user: AdminUser = None,
@@ -104,7 +108,6 @@ async def upload_face_image(
     import os
     from app.core.config import get_settings
     from app.ai.face_embedding import extract_embeddings_from_image
-
     settings = get_settings()
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -120,6 +123,7 @@ async def upload_face_image(
     if embeddings:
         user.face_embedding = embeddings[0]
     await db.flush()
+    background_tasks.add_task(invalidate_embedding_cache)
     return {"image_path": path, "embedding_extracted": bool(embeddings)}
 
 
