@@ -16,6 +16,11 @@ logger = get_logger("face_detector")
 _face_app = None
 
 
+def insightface_embeddings_enabled() -> bool:
+    """False when OpenCV fallback is active (detection only, no face embeddings)."""
+    return _get_face_app() != "opencv"
+
+
 def _get_face_app():
     global _face_app
     if _face_app is None:

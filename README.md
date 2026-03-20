@@ -318,6 +318,10 @@ The backend image includes `build-essential` for InsightFace. If you see this, e
 
 Recognition only labels **known** when a face matches a **registered user** who has an **enrolled face embedding** (Users → upload a clear front-facing photo). Otherwise events stay **unknown** — that is expected. If you have enrolled users but still see only unknown, try lowering `FACE_SIMILARITY_THRESHOLD` slightly in `backend/.env` (e.g. `0.45`–`0.5`) and restart the backend.
 
+**“No embedding” after upload:** The API must run **InsightFace** (not OpenCV-only). Install backend deps, ensure `backend/models/insightface` weights downloaded, and restart. Re-upload a **single, large, front-facing** face; group shots enroll the **largest** face only.
+
+**Multiple people / occlusion / walking past:** The pipeline runs face detection on each processed frame and logs **each** face separately. Hard scenes (profile view, hats, low light) lower match quality — re-enroll with representative photos or tune `FACE_SIMILARITY_THRESHOLD`. **Person tracking** (same ID as someone moves) would require a separate tracker (e.g. ByteTrack) — not bundled yet.
+
 ### Stream returns 404 (POST /api/v1/stream/1/start)
 
 The stream routes are registered when the backend starts. If you see 404, **restart the backend** so it picks up the stream router:

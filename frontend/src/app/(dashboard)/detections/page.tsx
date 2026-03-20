@@ -22,7 +22,9 @@ import { EmptyState } from '@/components/EmptyState';
 interface Detection {
   id: number;
   camera_id: number;
-  user_id?: number;
+  camera_name?: string | null;
+  user_id?: number | null;
+  user_name?: string | null;
   status: string;
   confidence: number;
   timestamp: string;
@@ -31,11 +33,13 @@ interface Detection {
 interface UserRow {
   id: number;
   has_face_embedding?: boolean;
+  image_path?: string | null;
 }
 
 export default function DetectionsPage() {
   const [detections, setDetections] = useState<Detection[]>([]);
   const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
+  const [usersSummary, setUsersSummary] = useState<UserRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function DetectionsPage() {
       .catch(() => setError('Load failed'));
     api<UserRow[]>('/api/v1/users')
       .then((users) => {
-        const n = users.filter((u) => u.has_face_embedding).length;
-        setEnrolledCount(n);
+        setUsersSummary(users);
+        setEnrolledCount(users.filter((u) => u.has_face_embedding).length);
       })
       .catch(() => setEnrolledCount(null));
   }, []);
@@ -57,18 +61,27 @@ export default function DetectionsPage() {
           Detections
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Face events from live streams. <strong>Known</strong> = matched to a user with an enrolled face photo;
-          <strong> unknown</strong> = face seen but not matched (or no enrolled faces yet).
+          <strong>Known</strong> rows show the matched person’s name when recognition succeeds. Confidence for <strong>known</strong> is
+          similarity to the enrolled face; for <strong>unknown</strong> it is face-detector score only.
         </Typography>
       </Box>
-      {enrolledCount === 0 && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          No users have a face embedding yet — detections will show as <strong>unknown</strong> until you add users
-          on the{' '}
+      {enrolledCount === 0 && usersSummary.length > 0 && usersSummary.some((u) => u.image_path && !u.has_face_embedding) && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          A photo is saved but <strong>no face embedding</strong> was stored — usually the face was unclear, too small, or the server
+          is in OpenCV-only mode (no InsightFace). Re-upload a <strong>single, front-facing</strong> photo on the{' '}
           <Link href="/users" style={{ fontWeight: 600 }}>
             Users
           </Link>{' '}
-          page and upload a clear front-facing photo for each person.
+          page, or install InsightFace in the backend and restart the API.
+        </Alert>
+      )}
+      {enrolledCount === 0 && !(usersSummary.some((u) => u.image_path && !u.has_face_embedding)) && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No enrolled faces yet — add users on the{' '}
+          <Link href="/users" style={{ fontWeight: 600 }}>
+            Users
+          </Link>{' '}
+          page and upload a clear front-facing photo so names can appear here as <strong>known</strong>.
         </Alert>
       )}
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
@@ -83,6 +96,7 @@ export default function DetectionsPage() {
               <TableHead>
                 <TableRow>
                   <TableCell>ID</TableCell>
+                  <TableCell>Person</TableCell>
                   <TableCell>Camera</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Confidence</TableCell>
@@ -93,7 +107,10 @@ export default function DetectionsPage() {
                 {detections.map((d) => (
                   <TableRow key={d.id}>
                     <TableCell>{d.id}</TableCell>
-                    <TableCell>{d.camera_id}</TableCell>
+                    <TableCell sx={{ fontWeight: d.user_name ? 600 : 400 }}>
+                      {d.user_name ?? '—'}
+                    </TableCell>
+                    <TableCell>{d.camera_name ?? d.camera_id}</TableCell>
                     <TableCell><Chip label={d.status} size="small" color={d.status === 'known' ? 'success' : 'warning'} /></TableCell>
                     <TableCell>{(d.confidence * 100).toFixed(0)}%</TableCell>
                     <TableCell>{formatDateTime(d.timestamp)}</TableCell>

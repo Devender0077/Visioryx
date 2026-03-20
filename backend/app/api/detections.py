@@ -8,15 +8,32 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import CurrentUser
 from app.database.connection import get_db
-from app.database.models import Detection, Camera, User, UnknownFace
+from app.database.models import Detection, UnknownFace
+from app.schemas.detections import DetectionListItem
 
 router = APIRouter()
 
 
-@router.get("")
+def _detection_to_item(d: Detection) -> DetectionListItem:
+    cam = d.camera
+    usr = d.user
+    return DetectionListItem(
+        id=d.id,
+        camera_id=d.camera_id,
+        camera_name=cam.camera_name if cam else None,
+        user_id=d.user_id,
+        user_name=usr.name if usr else None,
+        status=d.status,
+        confidence=d.confidence,
+        timestamp=d.timestamp,
+    )
+
+
+@router.get("", response_model=list[DetectionListItem])
 async def list_detections(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = None,
@@ -37,9 +54,11 @@ async def list_detections(
         q = q.where(Detection.timestamp >= from_date)
     if to_date:
         q = q.where(Detection.timestamp <= to_date)
+    q = q.options(selectinload(Detection.user), selectinload(Detection.camera))
     q = q.limit(limit).offset(offset)
     result = await db.execute(q)
-    return result.scalars().all()
+    rows = result.scalars().unique().all()
+    return [_detection_to_item(d) for d in rows]
 
 
 @router.get("/unknown-faces")

@@ -104,6 +104,7 @@ async def upload_face_image(
     import os
     from app.core.config import get_settings
     from app.ai.face_embedding import extract_embeddings_from_image
+    from app.ai.face_detector import insightface_embeddings_enabled
 
     settings = get_settings()
     result = await db.execute(select(User).where(User.id == user_id))
@@ -117,10 +118,28 @@ async def upload_face_image(
         f.write(await file.read())
     user.image_path = path
     embeddings = extract_embeddings_from_image(path)
-    if embeddings:
-        user.face_embedding = embeddings[0]
+    if not embeddings:
+        if not insightface_embeddings_enabled():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Face embeddings require InsightFace on the server. "
+                    "This install is using OpenCV-only detection (no embeddings). "
+                    "Install `insightface` in the backend venv and ensure `backend/models/insightface` "
+                    "weights exist, then restart the API."
+                ),
+            )
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Could not extract a face embedding from this image. "
+                "Use one clear, front-facing face, good lighting, and try again. "
+                "Avoid tiny faces, heavy profile angles, or group photos where your face is small."
+            ),
+        )
+    user.face_embedding = embeddings[0]
     await db.flush()
-    return {"image_path": path, "embedding_extracted": bool(embeddings)}
+    return {"image_path": path, "embedding_extracted": True}
 
 
 @router.get("/{user_id}/photo")
