@@ -2,13 +2,25 @@
 Visioryx - Core Configuration
 Centralized configuration management using Pydantic Settings.
 """
+import sys
 from functools import lru_cache
 from typing import Optional
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Default dev placeholder — must match .env.example; startup warns if still used with DEBUG=false
 DEFAULT_DEV_SECRET_KEY = "change-this-in-production-use-openssl-rand-hex-32"
+
+
+def _default_stream_ai_overlay() -> bool:
+    """Live AI (faces/YOLO) in-process: off on macOS by default — PyTorch/ONNX often SIGSEGV with capture thread."""
+    return sys.platform != "darwin"
+
+
+def _default_yolo_overlay() -> bool:
+    """YOLO loads torch; keep off on macOS unless explicitly enabled."""
+    return sys.platform != "darwin"
 
 
 class Settings(BaseSettings):
@@ -43,6 +55,9 @@ class Settings(BaseSettings):
     # Face Recognition
     # Cosine similarity for matching live face to enrolled embedding (InsightFace; typical 0.45–0.6)
     FACE_SIMILARITY_THRESHOLD: float = 0.52
+    # auto = OpenCV Haar on macOS for *live* detect_faces only (avoids InsightFace SIGSEGV); InsightFace on Linux.
+    # insightface = always use InsightFace for live (green/unknown boxes; may crash some Macs). opencv = always Haar.
+    FACE_DETECTION_BACKEND: str = "auto"
     FACE_DETECTION_CONFIDENCE: float = 0.5
     EMBEDDING_DIMENSION: int = 512
 
@@ -80,8 +95,23 @@ class Settings(BaseSettings):
     # Run face/object overlay + detection logging every Nth captured frame (higher = smoother stream)
     STREAM_ANNOTATE_EVERY_N_FRAMES: int = 10
 
+    # RTSP decode: "ffmpeg" (subprocess, avoids OpenCV VideoCapture segfaults on macOS)
+    # or "opencv" (legacy cv2.VideoCapture — can crash the whole Python process)
+    RTSP_CAPTURE_BACKEND: str = "ffmpeg"
+    # Fixed decode size for FFmpeg rawvideo pipe (width x height, BGR24)
+    STREAM_DECODE_WIDTH: int = 960
+    STREAM_DECODE_HEIGHT: int = 540
+    # Face/object overlay on MJPEG. Default false on macOS (stable video); set true in .env to try (risky).
+    STREAM_ENABLE_AI_OVERLAY: bool = Field(default_factory=_default_stream_ai_overlay)
+    # YOLO / Ultralytics (torch) — default off on macOS; major source of SIGSEGV in dev.
+    STREAM_ENABLE_YOLO_OVERLAY: bool = Field(default_factory=_default_yolo_overlay)
+    # nobuffer+low_delay hurts HEVC (IP cams): ref-frame errors / frozen first frame. Enable only for low-latency H.264.
+    STREAM_FFMPEG_LOW_LATENCY: bool = False
+
     # GPU (Optional)
     CUDA_VISIBLE_DEVICES: Optional[str] = None
+    # InsightFace: -1 = CPU (safer on macOS), 0 = first GPU
+    INSIGHTFACE_CTX_ID: int = -1
 
 
 @lru_cache

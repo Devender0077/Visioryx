@@ -1,8 +1,8 @@
 """
 Visioryx - Face Detector
-Face detection using InsightFace.
+InsightFace for embeddings / registration; optional OpenCV Haar for live stream on macOS (stability).
 """
-from typing import Optional
+import sys
 
 import cv2
 import numpy as np
@@ -12,37 +12,66 @@ from app.core.logger import get_logger
 
 logger = get_logger("face_detector")
 
-# Lazy load to avoid import errors if not installed
-_face_app = None
+_insightface_app = None  # FaceAnalysis instance, or "missing"
+_live_opencv_notice_logged = False
+
+
+def _live_prefers_opencv() -> bool:
+    """True → live path uses Haar only (no InsightFace in capture thread — avoids macOS SIGSEGV)."""
+    s = get_settings()
+    b = (s.FACE_DETECTION_BACKEND or "auto").lower().strip()
+    if b == "opencv":
+        return True
+    if b == "insightface":
+        return False
+    return sys.platform == "darwin"
+
+
+def _get_insightface_app():
+    global _insightface_app
+    if _insightface_app is not None:
+        return _insightface_app
+    try:
+        from insightface.app import FaceAnalysis
+
+        settings = get_settings()
+        app = FaceAnalysis(name="buffalo_l", root="models/insightface")
+        ctx_id = settings.INSIGHTFACE_CTX_ID
+        app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+        logger.info("InsightFace FaceAnalysis loaded")
+        _insightface_app = app
+    except ImportError:
+        logger.warning("InsightFace not installed. Using OpenCV fallback.")
+        _insightface_app = "missing"
+    return _insightface_app
 
 
 def insightface_embeddings_enabled() -> bool:
-    """False when OpenCV fallback is active (detection only, no face embeddings)."""
-    return _get_face_app() != "opencv"
+    """False when InsightFace is not installed (OpenCV fallback only — no embeddings)."""
+    return _get_insightface_app() != "missing"
 
 
-def _get_face_app():
-    global _face_app
-    if _face_app is None:
-        try:
-            from insightface.app import FaceAnalysis
-            settings = get_settings()
-            _face_app = FaceAnalysis(name="buffalo_l", root="models/insightface")
-            _face_app.prepare(ctx_id=0, det_size=(640, 640))
-            logger.info("InsightFace FaceAnalysis loaded")
-        except ImportError:
-            logger.warning("InsightFace not installed. Using OpenCV fallback.")
-            _face_app = "opencv"
-    return _face_app
-
-
-def detect_faces(frame: np.ndarray) -> list[dict]:
+def detect_faces(frame: np.ndarray, *, for_embedding: bool = False) -> list[dict]:
     """
     Detect faces in BGR frame.
     Returns list of {bbox: [x1,y1,x2,y2], landmarks, embedding (if available)}
+
+    Use for_embedding=True for registration / recognition (always InsightFace when available).
+    Default live path uses OpenCV on macOS when FACE_DETECTION_BACKEND=auto.
     """
-    app = _get_face_app()
-    if app == "opencv":
+    use_opencv_only = (not for_embedding) and _live_prefers_opencv()
+    if use_opencv_only:
+        global _live_opencv_notice_logged
+        if not _live_opencv_notice_logged:
+            logger.info(
+                "Live faces: OpenCV Haar (darwin/auto safe mode). "
+                "Boxes work; no embeddings on live → unknown/red unless FACE_DETECTION_BACKEND=insightface."
+            )
+            _live_opencv_notice_logged = True
+        return _detect_faces_opencv(frame)
+
+    app = _get_insightface_app()
+    if app == "missing":
         return _detect_faces_opencv(frame)
     faces = app.get(frame)
     result = []

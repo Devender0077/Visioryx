@@ -15,7 +15,7 @@ def extract_embedding(frame: np.ndarray, bbox: Optional[list[int]] = None) -> Op
     Extract embedding for a single face.
     If bbox provided, crop and use; else use first detected face.
     """
-    faces = detect_faces(frame)
+    faces = detect_faces(frame, for_embedding=True)
     if not faces:
         return None
     if bbox:
@@ -36,7 +36,7 @@ def extract_embeddings_from_image(image_path: str) -> list[list[float]]:
     img = cv2.imread(image_path)
     if img is None:
         return []
-    faces = detect_faces(img)
+    faces = detect_faces(img, for_embedding=True)
     valid = [f for f in faces if f.get("embedding") is not None]
     if not valid:
         return []

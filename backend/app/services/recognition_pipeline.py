@@ -24,7 +24,7 @@ async def process_frame(
     Returns list of {user_id?, status, confidence, bbox, embedding}
     """
     settings = get_settings()
-    faces = detect_faces(frame)
+    faces = detect_faces(frame, for_embedding=True)
     results = []
     for f in faces:
         bbox = f["bbox"]
