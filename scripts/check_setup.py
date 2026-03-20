@@ -44,6 +44,10 @@ def load_dotenv(path: Path) -> None:
 
 def sync_database_url() -> str:
     load_dotenv(ENV_PATH)
+    cwd = Path.cwd().resolve()
+    backend_dir = (ROOT / "backend").resolve()
+    if cwd == backend_dir:
+        load_dotenv(cwd / ".env")
     url = os.environ.get("DATABASE_URL_SYNC") or os.environ.get("DATABASE_URL", "")
     if not url:
         url = "postgresql://postgres:postgres@localhost:5432/visioryx"

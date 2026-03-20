@@ -190,7 +190,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 # Migrations and admin seed run automatically on backend startup.
 # DB container uses host port 5433 (avoids conflict with local PostgreSQL on 5432).
-# Verify: ./scripts/verify.sh or curl http://localhost:8000/health/db
+# Verify: ./scripts/verify.sh or curl -sf http://localhost:8000/health/db (expects HTTP 200; 503 = DB down)
 ```
 
 ---

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.core.config import DEFAULT_DEV_SECRET_KEY, get_settings
 from app.core.logger import setup_logger
@@ -77,7 +78,7 @@ async def health():
 
 @app.get("/health/db")
 async def health_db():
-    """Database connectivity check."""
+    """Database connectivity check. Returns 503 when the database is unreachable."""
     try:
         from sqlalchemy import text
         from app.database.connection import AsyncSessionLocal
@@ -86,7 +87,14 @@ async def health_db():
             await db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
-        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "disconnected",
+                "error": str(e),
+            },
+        )
 
 
 # API routes

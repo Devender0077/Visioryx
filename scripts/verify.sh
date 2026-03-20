@@ -71,7 +71,9 @@ echo "4. Backend API (http://localhost:8000)"
 if curl -sf http://localhost:8000/health >/dev/null 2>&1; then
   echo "   ✓ Backend healthy"
   if curl -sf http://localhost:8000/health/db >/dev/null 2>&1; then
-    echo "   ✓ DB health OK"
+    echo "   ✓ DB health OK (HTTP 200)"
+  else
+    echo "   ✗ Database unreachable — Postgres down or wrong DATABASE_URL (GET /health/db returns 503)"
   fi
 else
   echo "   ✗ Backend not responding. Start with: ./scripts/start-dev.sh backend"

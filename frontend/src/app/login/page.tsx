@@ -7,6 +7,24 @@ import { Videocam } from '@mui/icons-material';
 import { useToast } from '@/contexts/ToastContext';
 import { getApiBase } from '@/lib/api';
 
+function formatApiError(data: unknown, fallback: string): string {
+  if (data == null || typeof data !== 'object') return fallback;
+  const d = data as { detail?: unknown };
+  const { detail } = d;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg: string }).msg);
+        }
+        return JSON.stringify(item);
+      })
+      .join(' ');
+  }
+  return fallback;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const toast = useToast();
@@ -22,10 +40,21 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.detail || 'Login failed');
+      let data: unknown = null;
+      try {
+        data = await r.json();
+      } catch {
+        data = null;
+      }
+      if (!r.ok) {
+        throw new Error(formatApiError(data, r.status === 503 ? 'Service unavailable' : 'Login failed'));
+      }
+      const payload = data as { access_token?: string };
+      if (!payload?.access_token) {
+        throw new Error('Invalid login response');
+      }
       if (typeof window !== 'undefined') {
-        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('token', payload.access_token);
       }
       toast.success('Signed in successfully');
       router.push('/dashboard');
@@ -79,35 +108,49 @@ export default function LoginPage() {
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Sign in to access the AI Surveillance Dashboard
         </Typography>
-        <TextField
-          fullWidth
-          label="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        <TextField
-          fullWidth
-          label="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          sx={{ mb: 2 }}
-        />
-        {error && (
-          <Typography color="error" sx={{ mb: 1 }} variant="body2">
-            {error}
-          </Typography>
-        )}
-        <Button
-          variant="contained"
-          fullWidth
-          size="large"
-          onClick={handleLogin}
-          sx={{ py: 1.5, borderRadius: 2, fontWeight: 600 }}
+        <Box
+          component="form"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleLogin();
+          }}
         >
-          Sign In
-        </Button>
+          <TextField
+            fullWidth
+            label="Email"
+            name="email"
+            type="email"
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          {error && (
+            <Typography color="error" sx={{ mb: 1 }} variant="body2">
+              {error}
+            </Typography>
+          )}
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            size="large"
+            sx={{ py: 1.5, borderRadius: 2, fontWeight: 600 }}
+          >
+            Sign In
+          </Button>
+        </Box>
         <Typography variant="caption" display="block" sx={{ mt: 2 }} color="text.secondary">
           Demo: admin@visioryx.dev / admin123
         </Typography>
