@@ -41,8 +41,32 @@ kill_port() {
 }
 
 setup_db() {
-    (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. alembic upgrade head 2>/dev/null) || true
-    (cd "$PROJECT_ROOT/backend" && PYTHONPATH=. python3 scripts/seed_admin.py 2>/dev/null) || true
+    (
+        cd "$PROJECT_ROOT/backend" || exit 1
+        export PYTHONPATH=.
+        if [ -f "venv/bin/activate" ]; then
+            # shellcheck source=/dev/null
+            . venv/bin/activate
+        else
+            echo "ERROR: backend/venv missing after pip install."
+            exit 1
+        fi
+        echo "Running database migrations..."
+        if ! alembic upgrade head; then
+            echo ""
+            echo "ERROR: Database migrations failed."
+            echo "  • Start PostgreSQL (example: docker compose -f docker/docker-compose.dev.yml up -d)"
+            echo "  • Copy backend/.env.example to backend/.env and set DATABASE_URL / DATABASE_URL_SYNC"
+            echo "  • Run ./scripts/preflight.sh to verify your machine"
+            exit 1
+        fi
+        echo "Seeding admin user (if needed)..."
+        python scripts/seed_admin.py || true
+        echo "Verifying database tables..."
+        if ! python "$PROJECT_ROOT/scripts/check_setup.py"; then
+            exit 1
+        fi
+    )
 }
 
 start_backend() {
@@ -61,35 +85,45 @@ start_backend() {
         echo "venv activate not found, using system python"
     fi
     pip install -q -r requirements.txt || pip3 install -q -r requirements.txt
-    setup_db
+    if ! setup_db; then
+        echo "Backend start aborted (fix database setup above)."
+        return 1
+    fi
     uvicorn app.main:app --host 0.0.0.0 --port 8000 &
     echo "Backend started: http://localhost:8000"
 }
 
 start_frontend() {
     echo "Starting frontend on port 3000..."
+    if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+        echo "ERROR: Node.js / npm not found. Install Node 20+ from https://nodejs.org"
+        return 1
+    fi
     kill_port 3000
     cd "$PROJECT_ROOT/frontend"
-    npm install --silent 2>/dev/null
+    if ! (npm install --silent 2>/dev/null || npm install); then
+        echo "ERROR: npm install failed."
+        return 1
+    fi
     npm run dev &
     echo "Frontend started: http://localhost:3000"
 }
 
 case "${1:-all}" in
     backend)
-        start_backend
+        start_backend || exit 1
         echo "Backend running. Press Ctrl+C to stop."
         wait
         ;;
     frontend)
-        start_frontend
+        start_frontend || exit 1
         echo "Frontend running. Press Ctrl+C to stop."
         wait
         ;;
     all)
-        start_backend
+        start_backend || exit 1
         sleep 2
-        start_frontend
+        start_frontend || exit 1
         echo ""
         echo "Visioryx running:"
         echo "  Dashboard: http://localhost:3000"

@@ -70,6 +70,18 @@ Visioryx/
 
 ---
 
+## New machine checklist
+
+1. **Install [Node.js 20+](https://nodejs.org)** (includes `npm`) and **Python 3.10+** (e.g. `brew install python@3.12` on macOS).
+2. **Install [PostgreSQL 14+](https://www.postgresql.org/download/)** locally, *or* run only the DB in Docker:  
+   `docker compose -f docker/docker-compose.dev.yml up -d`
+3. **Configure the backend:** `cp backend/.env.example backend/.env` and set `DATABASE_URL` / `DATABASE_URL_SYNC` to match your Postgres (defaults assume `postgres` / `postgres` on `localhost:5432`, database `visioryx`).
+4. **Verify your environment** (tools + DB + tables after venv exists):  
+   `./scripts/preflight.sh`
+5. **Start the app:** `./scripts/start-dev.sh` — migrations run automatically; if Postgres is down or `.env` is wrong, the backend **stops with an error** instead of starting without a database.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -226,7 +238,10 @@ alembic downgrade -1
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/start-dev.sh` | Start dev (kills 3000/8000 if busy) |
+| `scripts/start-dev.sh` | Start dev (runs migrations + schema check; kills 3000/8000 if busy) |
+| `scripts/preflight.sh` | Check Node/Python, optional DB/tables (after `backend/venv` exists) |
+| `scripts/check_setup.py` | PostgreSQL + expected tables + Alembic revision (used by start + preflight) |
+| `scripts/verify.sh` | Docker, DB, API, frontend smoke checks |
 | `scripts/register_user.py` | Register user with face image |
 | `scripts/train_faces.py` | Batch extract embeddings for users |
 | `backend/scripts/seed_admin.py` | Create admin@visioryx.dev / admin123 |

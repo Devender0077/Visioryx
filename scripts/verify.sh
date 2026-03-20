@@ -20,35 +20,34 @@ else
 fi
 echo ""
 
-# 2. Database connection
-echo "2. Database (PostgreSQL)"
-DB_URL="${DATABASE_URL_SYNC:-postgresql://postgres:postgres@localhost:5432/visioryx}"
-if cd backend && PYTHONPATH=. python3 -c "
-import os
-from sqlalchemy import create_engine, text
-url = os.environ.get('DATABASE_URL_SYNC', 'postgresql://postgres:postgres@localhost:5432/visioryx')
-try:
-    engine = create_engine(url)
-    with engine.connect() as conn:
-        conn.execute(text('SELECT 1'))
-    print('   ✓ Database connected')
-except Exception as e:
-    print(f'   ✗ Database error: {e}')
-    exit(1)
-" 2>/dev/null; then
+# 2–3. Database (use backend venv Python when present)
+PY="$PROJECT_ROOT/backend/venv/bin/python"
+[ -x "$PY" ] || PY=python3
+echo "2. Database (PostgreSQL) — using $PY"
+if "$PY" "$PROJECT_ROOT/scripts/check_setup.py" 2>/dev/null; then
   :
 else
-  echo "   ✗ Database connection failed. Ensure PostgreSQL is running on port 5432."
+  echo "   ✗ Database / schema check failed. Start Postgres and run: cd backend && PYTHONPATH=. alembic upgrade head"
 fi
-cd "$PROJECT_ROOT"
 echo ""
 
-# 3. Database data
-echo "3. Database tables & data"
-(cd "$PROJECT_ROOT/backend" && PYTHONPATH=. python3 -c "
+echo "3. Database row counts (optional)"
+(cd "$PROJECT_ROOT/backend" && PYTHONPATH=. "$PY" -c "
 from sqlalchemy import create_engine, text
 import os
+from pathlib import Path
+envp = Path('.' ) / '.env'
+if envp.exists():
+    for line in envp.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, _, v = line.partition('=')
+            if k.strip() and k.strip() not in os.environ:
+                x = v.strip().strip(chr(34)).strip(chr(39))
+                os.environ[k.strip()] = x
 url = os.environ.get('DATABASE_URL_SYNC', 'postgresql://postgres:postgres@localhost:5432/visioryx')
+if url.startswith('postgresql+asyncpg://'):
+    url = 'postgresql://' + url.split('postgresql+asyncpg://', 1)[1]
 engine = create_engine(url)
 with engine.connect() as conn:
     r = conn.execute(text(\"SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename\"))
@@ -64,7 +63,7 @@ with engine.connect() as conn:
         if t in tables:
             r3 = conn.execute(text('SELECT COUNT(*) FROM ' + t))
             print('   ' + t + ':', r3.scalar(), 'rows')
-") 2>/dev/null || echo "   (Query skipped - ensure backend deps installed)"
+" 2>/dev/null) || echo "   (Skipped — ensure backend venv exists: pip install -r backend/requirements.txt)"
 echo ""
 
 # 4. Backend API
