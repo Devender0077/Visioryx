@@ -34,6 +34,7 @@ interface User {
   email: string;
   image_path?: string;
   is_active: boolean;
+  has_face_embedding?: boolean;
 }
 
 export default function UsersPage() {
@@ -158,8 +159,10 @@ export default function UsersPage() {
                         >
                           {u.name?.[0]?.toUpperCase?.() ?? 'U'}
                         </Avatar>
-                        {u.image_path ? (
-                          <Chip label="Ready" size="small" color="success" variant="outlined" />
+                        {u.has_face_embedding ? (
+                          <Chip label="Enrolled" size="small" color="success" variant="outlined" />
+                        ) : u.image_path ? (
+                          <Chip label="No embedding" size="small" color="warning" variant="outlined" title="Upload a clearer face photo or run train_faces.py" />
                         ) : (
                           <Chip label="Not uploaded" size="small" variant="outlined" />
                         )}

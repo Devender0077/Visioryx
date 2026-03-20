@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 
     # Face Recognition
-    FACE_SIMILARITY_THRESHOLD: float = 0.6  # Cosine similarity threshold
+    # Cosine similarity for matching live face to enrolled embedding (InsightFace; typical 0.45–0.6)
+    FACE_SIMILARITY_THRESHOLD: float = 0.52
     FACE_DETECTION_CONFIDENCE: float = 0.5
     EMBEDDING_DIMENSION: int = 512
 

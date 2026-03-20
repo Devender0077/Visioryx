@@ -205,7 +205,7 @@ docker compose -f docker/docker-compose.yml up -d
 | `DATABASE_URL_SYNC` | Sync URL for Alembic | `postgresql://postgres:postgres@localhost:5432/visioryx` |
 | `SECRET_KEY` | JWT secret (use `openssl rand -hex 32`) | — |
 | `CORS_ORIGINS` | Comma-separated browser origins allowed for the API | `http://localhost:3000,http://127.0.0.1:3000` |
-| `FACE_SIMILARITY_THRESHOLD` | Cosine similarity for known | `0.6` |
+| `FACE_SIMILARITY_THRESHOLD` | Cosine similarity to enrolled face (lower = more matches) | `0.52` |
 | `DEBUG` | Enable debug mode | `false` |
 
 ### Frontend (`.env.local`)
@@ -313,6 +313,10 @@ The backend image includes `build-essential` for InsightFace. If you see this, e
 - **Remote access:** RTSP with local IPs (192.168.x.x) only works when Visioryx runs on the same network as the cameras. If cameras are at the office and you're at home: deploy Visioryx at the office, or connect via VPN. See `docs/CP-PLUS-RTSP-SETUP.md` for details.
 - **Works on another PC but not this laptop:** Live video is pulled by the **backend** (OpenCV/FFmpeg), not the browser. That PC must be on the **same LAN (or VPN)** as the DVR/camera IP (e.g. `192.168.0.3`). Your browser only loads MJPEG from the API; if the API cannot open `rtsp://…`, you see “No signal”. Check: Wi‑Fi vs Ethernet, firewall/VPN, and that you’re not running the backend only inside Docker without LAN access. From the machine running the backend, test: `./scripts/test_rtsp.sh 'rtsp://…'` (requires `ffmpeg`) or VLC with the same URL.
 - **Stream stops after a few seconds:** The MJPEG stream uses the direct backend URL (`getStreamBase()`) to bypass the Next.js proxy timeout. Ensure `NEXT_PUBLIC_API_URL` points to your backend (e.g. `http://localhost:8000` in dev). In production, set it to your API host so streams connect directly.
+
+### Detections always show “unknown”
+
+Recognition only labels **known** when a face matches a **registered user** who has an **enrolled face embedding** (Users → upload a clear front-facing photo). Otherwise events stay **unknown** — that is expected. If you have enrolled users but still see only unknown, try lowering `FACE_SIMILARITY_THRESHOLD` slightly in `backend/.env` (e.g. `0.45`–`0.5`) and restart the backend.
 
 ### Stream returns 404 (POST /api/v1/stream/1/start)
 

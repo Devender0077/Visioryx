@@ -13,7 +13,7 @@ from app.api.deps import AdminUser, CurrentUser
 from app.core.security import decode_access_token
 from app.database.connection import get_db
 from app.database.models import User
-from app.schemas.users import UserCreate, UserResponse, UserUpdate
+from app.schemas.users import UserCreate, UserResponse, UserUpdate, user_to_response
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ async def list_users(
 ):
     """List all registered users."""
     result = await db.execute(select(User).order_by(User.created_at.desc()))
-    return result.scalars().all()
+    return [user_to_response(u) for u in result.scalars().all()]
 
 
 @router.post("", response_model=UserResponse)
@@ -42,7 +42,7 @@ async def create_user(
     db.add(user)
     await db.flush()
     await db.refresh(user)
-    return user
+    return user_to_response(user)
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -75,7 +75,7 @@ async def update_user(
         setattr(user, k, v)
     await db.flush()
     await db.refresh(user)
-    return user
+    return user_to_response(user)
 
 
 @router.delete("/{user_id}")

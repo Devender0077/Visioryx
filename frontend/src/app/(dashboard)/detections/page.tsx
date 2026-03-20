@@ -1,7 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Box, Card, Table, TableBody, TableCell, TableHead, TableRow, Typography, Chip, TableContainer } from '@mui/material';
+import {
+  Box,
+  Card,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+  Chip,
+  TableContainer,
+  Alert,
+} from '@mui/material';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/formatDate';
 import { EmptyState } from '@/components/EmptyState';
@@ -15,14 +28,26 @@ interface Detection {
   timestamp: string;
 }
 
+interface UserRow {
+  id: number;
+  has_face_embedding?: boolean;
+}
+
 export default function DetectionsPage() {
   const [detections, setDetections] = useState<Detection[]>([]);
+  const [enrolledCount, setEnrolledCount] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     api<Detection[]>('/api/v1/detections?limit=50')
       .then(setDetections)
       .catch(() => setError('Load failed'));
+    api<UserRow[]>('/api/v1/users')
+      .then((users) => {
+        const n = users.filter((u) => u.has_face_embedding).length;
+        setEnrolledCount(n);
+      })
+      .catch(() => setEnrolledCount(null));
   }, []);
 
   return (
@@ -32,9 +57,20 @@ export default function DetectionsPage() {
           Detections
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Face detection history. Filter by camera or date in future.
+          Face events from live streams. <strong>Known</strong> = matched to a user with an enrolled face photo;
+          <strong> unknown</strong> = face seen but not matched (or no enrolled faces yet).
         </Typography>
       </Box>
+      {enrolledCount === 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No users have a face embedding yet — detections will show as <strong>unknown</strong> until you add users
+          on the{' '}
+          <Link href="/users" style={{ fontWeight: 600 }}>
+            Users
+          </Link>{' '}
+          page and upload a clear front-facing photo for each person.
+        </Alert>
+      )}
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
       <Card sx={{ bgcolor: 'background.paper' }}>
         {detections.length === 0 ? (
