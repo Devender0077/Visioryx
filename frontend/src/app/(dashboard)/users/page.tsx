@@ -22,6 +22,7 @@ import {
   Avatar,
   Stack,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import { Add, CloudUpload, Visibility } from '@mui/icons-material';
 import { api, getStreamBase, getToken } from '@/lib/api';
@@ -160,11 +161,25 @@ export default function UsersPage() {
                           {u.name?.[0]?.toUpperCase?.() ?? 'U'}
                         </Avatar>
                         {u.has_face_embedding ? (
-                          <Chip label="Enrolled" size="small" color="success" variant="outlined" />
+                          <Tooltip title="Face vector saved — live recognition can match this person.">
+                            <Chip label="Enrolled" size="small" color="success" variant="outlined" />
+                          </Tooltip>
                         ) : u.image_path ? (
-                          <Chip label="No embedding" size="small" color="warning" variant="outlined" title="Upload a clearer face photo or run train_faces.py" />
+                          <Tooltip
+                            title={
+                              'No embedding yet: the server could not build a face “fingerprint” from this photo. ' +
+                              'Re-upload a single, clear, front-facing face (good light). ' +
+                              'If upload fails, ensure InsightFace is installed on the backend (not OpenCV-only).'
+                            }
+                            arrow
+                            placement="top"
+                          >
+                            <Chip label="No embedding" size="small" color="warning" variant="outlined" />
+                          </Tooltip>
                         ) : (
-                          <Chip label="Not uploaded" size="small" variant="outlined" />
+                          <Tooltip title="Click the upload icon to add a face photo.">
+                            <Chip label="Not uploaded" size="small" variant="outlined" />
+                          </Tooltip>
                         )}
                       </Stack>
                     </TableCell>
