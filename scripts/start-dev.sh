@@ -5,6 +5,30 @@
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+# Prefer Python 3.10+ when available
+pick_python() {
+    for cmd in python3.12 python3.11 python3.10 python3; do
+        if command -v "$cmd" >/dev/null 2>&1 && "$cmd" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+            echo "$cmd"
+            return 0
+        fi
+    done
+    if command -v python3 >/dev/null 2>&1; then
+        echo "python3"
+        return 0
+    fi
+    echo ""
+}
+
+PYTHON_CMD="$(pick_python)"
+if [ -z "$PYTHON_CMD" ]; then
+    echo "Error: python3 not found"
+    exit 1
+fi
+if ! "$PYTHON_CMD" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' 2>/dev/null; then
+    echo "Warning: $PYTHON_CMD is below 3.10. Visioryx targets Python 3.10+; install via https://www.python.org or: brew install python@3.12"
+fi
+
 kill_port() {
     local port=$1
     local pids
@@ -26,8 +50,8 @@ start_backend() {
     kill_port 8000
     cd "$PROJECT_ROOT/backend"
     if [ ! -d "venv" ]; then
-        echo "Creating venv..."
-        python3 -m venv venv || { echo "venv creation failed"; return 1; }
+        echo "Creating venv with $PYTHON_CMD..."
+        "$PYTHON_CMD" -m venv venv || { echo "venv creation failed"; return 1; }
     fi
     if [ -f "venv/bin/activate" ]; then
         . venv/bin/activate

@@ -3,6 +3,8 @@ Visioryx - Face Matcher
 Cosine similarity matching against database embeddings.
 Uses FAISS for fast vector search when available; falls back to linear scan.
 """
+from __future__ import annotations
+
 from typing import Optional
 
 import numpy as np

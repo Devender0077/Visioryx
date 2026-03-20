@@ -2,6 +2,8 @@
 Visioryx - Logging Service
 Log detection events to database and broadcast via WebSocket.
 """
+from __future__ import annotations
+
 from typing import Any, Optional
 
 from app.core.websocket_manager import ws_manager

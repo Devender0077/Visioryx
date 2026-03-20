@@ -31,6 +31,7 @@ websockets>=14.0
 python-dotenv>=1.0.1
 pydantic>=2.9.0
 pydantic-settings>=2.6.0
+email-validator>=2.0.0
 
 # Async support
 aiofiles>=24.1.0
