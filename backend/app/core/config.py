@@ -7,6 +7,9 @@ from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Default dev placeholder — must match .env.example; startup warns if still used with DEBUG=false
+DEFAULT_DEV_SECRET_KEY = "change-this-in-production-use-openssl-rand-hex-32"
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
@@ -30,7 +33,10 @@ class Settings(BaseSettings):
     DATABASE_URL_SYNC: str = "postgresql://postgres:postgres@localhost:5432/visioryx"
 
     # JWT Security
-    SECRET_KEY: str = "change-this-in-production-use-openssl-rand-hex-32"
+    SECRET_KEY: str = DEFAULT_DEV_SECRET_KEY
+
+    # CORS — comma-separated origins (browser requests). Add your production dashboard URL.
+    CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
 

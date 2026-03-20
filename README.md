@@ -13,7 +13,7 @@ Visioryx is a production-grade real-time AI surveillance system for **single-adm
 Features:
 
 - **Face Recognition** — Known person identification
-- **Unknown Face Detection** — Detection and clustering of unregistered individuals
+- **Unknown Face Detection** — Detection of unregistered individuals (snapshots / review)
 - **Object Detection** — YOLOv8 for person, phone, laptop, bag, etc.
 - **Multi-Camera Monitoring** — Per-camera workers with async pipelines
 - **Real-Time Alerts** — WebSocket push to dashboard
@@ -30,9 +30,9 @@ Visioryx is a **full-stack** app: **Python backend** (FastAPI) + **React fronten
 | Layer | Technologies |
 |-------|-------------|
 | Backend | Python, FastAPI, SQLAlchemy, OpenCV, NumPy |
-| Face Recognition | InsightFace (or face_recognition) |
-| Object Detection | YOLOv8 (Ultralytics) |
-| Frontend | Next.js 14, React, TypeScript, TailwindCSS |
+| Face Recognition | InsightFace |
+| Object Detection | YOLOv8 (Ultralytics; weights download on first use) |
+| Frontend | Next.js 15, React, TypeScript, TailwindCSS |
 | Dashboard UI | MUI Material 5, minimals.cc style |
 | Database | PostgreSQL |
 | Real-time | WebSockets |
@@ -43,7 +43,7 @@ Visioryx is a **full-stack** app: **Python backend** (FastAPI) + **React fronten
 ## Project Structure
 
 ```
-ai-surveillance-system/
+Visioryx/
 ├── backend/
 │   ├── app/
 │   │   ├── api/          # auth, users, cameras, detections, analytics
@@ -109,6 +109,8 @@ source venv/bin/activate   # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Object detection: on first use, YOLOv8 nano weights (~6.5MB) download automatically if not present.
 
 # Copy environment
 cp .env.example .env
@@ -190,6 +192,7 @@ docker compose -f docker/docker-compose.yml up -d
 | `DATABASE_URL` | Async PostgreSQL URL | `postgresql+asyncpg://postgres:postgres@localhost:5432/visioryx` |
 | `DATABASE_URL_SYNC` | Sync URL for Alembic | `postgresql://postgres:postgres@localhost:5432/visioryx` |
 | `SECRET_KEY` | JWT secret (use `openssl rand -hex 32`) | — |
+| `CORS_ORIGINS` | Comma-separated browser origins allowed for the API | `http://localhost:3000,http://127.0.0.1:3000` |
 | `FACE_SIMILARITY_THRESHOLD` | Cosine similarity for known | `0.6` |
 | `DEBUG` | Enable debug mode | `false` |
 

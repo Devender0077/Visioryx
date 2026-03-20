@@ -51,13 +51,5 @@ services:
     depends_on:
       - backend
 
-  # AI Worker - Phase 2 (camera processing, face recognition, object detection)
-  # ai-worker:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/Dockerfile.backend
-  #   command: python -m app.workers.ai_worker
-  #   ...
-
 volumes:
   visioryx_pgdata:

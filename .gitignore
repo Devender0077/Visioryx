@@ -20,6 +20,9 @@ out/
 .env.local
 .env*.local
 
+# Cursor / local tooling
+.specstory/
+
 # IDE
 .idea/
 .vscode/
@@ -37,6 +40,9 @@ backend/storage/snapshots/*
 # AI Models (downloaded at runtime)
 backend/models/*
 !backend/models/.gitkeep
+
+# YOLO weights — downloaded on first object-detection use (Ultralytics)
+backend/yolov8n.pt
 
 # Database
 *.db

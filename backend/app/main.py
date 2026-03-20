@@ -8,17 +8,28 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.core.config import get_settings
+from app.core.config import DEFAULT_DEV_SECRET_KEY, get_settings
 from app.core.logger import setup_logger
 
 settings = get_settings()
 logger = setup_logger("visioryx")
 
 
+def _cors_allow_origins() -> list[str]:
+    raw = settings.CORS_ORIGINS.strip()
+    if not raw:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown."""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    if not settings.DEBUG and settings.SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
+        logger.warning(
+            "SECRET_KEY is still the default placeholder. Set a strong SECRET_KEY in production."
+        )
     from app.services.detection_log_queue import start_queue_processor
     _detection_task = start_queue_processor()
     yield
@@ -41,7 +52,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
