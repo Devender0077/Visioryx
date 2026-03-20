@@ -8,5 +8,6 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
   exit 1
 fi
 echo "Probing RTSP (TCP, 1 frame) — same network path the backend uses..."
-# -rw_timeout is in µs (FFmpeg 8+ no longer accepts -stimeout on the CLI the same way)
-ffmpeg -hide_banner -loglevel warning -rtsp_transport tcp -rw_timeout 5000000 -i "$URL" -frames:v 1 -f null - && echo "OK: RTSP reachable from this host."
+# Keep flags minimal: some FFmpeg builds omit -stimeout / -rw_timeout on the global CLI.
+# Run from your project folder, e.g. cd ~/Desktop/Projects/Visioryx (not the literal /path/to/Visioryx).
+ffmpeg -hide_banner -loglevel warning -rtsp_transport tcp -i "$URL" -frames:v 1 -f null - && echo "OK: RTSP reachable from this host."

@@ -76,8 +76,6 @@ def start_hls(camera_id: int, rtsp_url: str) -> bool:
         "warning",
         "-rtsp_transport",
         "tcp",
-        "-stimeout",
-        "5000000",  # 5s in microseconds (ffmpeg RTSP)
         "-i",
         rtsp_url,
         "-an",
