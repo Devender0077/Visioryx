@@ -74,6 +74,11 @@ class Settings(BaseSettings):
     FFMPEG_PATH: str = "ffmpeg"
     HLS_SEGMENT_SECONDS: int = 2
     HLS_LIST_SIZE: int = 6
+    # Live MJPEG preview (smooth playback — heavy AI runs only every N frames)
+    STREAM_MAX_WIDTH: int = 1280  # resize before JPEG; 0 = no resize
+    STREAM_JPEG_QUALITY: int = 82  # 1-100; lower = smaller/faster
+    # Run face/object overlay + detection logging every Nth captured frame (higher = smoother stream)
+    STREAM_ANNOTATE_EVERY_N_FRAMES: int = 10
 
     # GPU (Optional)
     CUDA_VISIBLE_DEVICES: Optional[str] = None

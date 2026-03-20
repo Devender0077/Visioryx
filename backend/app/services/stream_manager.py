@@ -55,6 +55,19 @@ def _get_no_signal_frame() -> bytes:
     return _NO_SIGNAL_FRAME
 
 
+def _resize_for_stream(frame: np.ndarray, max_width: int) -> np.ndarray:
+    """Downscale wide frames so JPEG encode and browser stay fast."""
+    if max_width <= 0 or frame is None or frame.size == 0:
+        return frame
+    h, w = frame.shape[:2]
+    if w <= max_width:
+        return frame
+    scale = max_width / float(w)
+    new_w = max_width
+    new_h = max(1, int(h * scale))
+    return cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+
+
 def _generate_test_frame(camera_id: int) -> Optional[bytes]:
     """Generate a test pattern for test:// URLs."""
     t = time.time()
@@ -86,7 +99,7 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
                 frame_bytes = _generate_test_frame(camera_id)
                 with _frame_lock:
                     _frame_buffer[camera_id] = frame_bytes
-                stop_event.wait(0.1)
+                stop_event.wait(0.033)  # ~30 fps test pattern
         except Exception as e:
             logger.error(f"Camera {camera_id} test mode error: {e}")
         finally:
@@ -95,10 +108,13 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
         return
 
     settings = get_settings()
-    skip = settings.FRAME_SKIP_RATE
+    max_w = getattr(settings, "STREAM_MAX_WIDTH", 1280) or 0
+    jpeg_q = max(40, min(95, int(getattr(settings, "STREAM_JPEG_QUALITY", 82))))
+    annotate_every = max(1, int(getattr(settings, "STREAM_ANNOTATE_EVERY_N_FRAMES", 10)))
     retry_count = 0
     max_retries = 5
     retry_delay = 2
+    frame_count = 0
 
     while not stop_event.is_set():
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
@@ -118,20 +134,26 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
                 continue
             return
         retry_count = 0
-        count = 0
-        det_count = 0
         try:
             while not stop_event.is_set():
                 ret, frame = cap.read()
                 if not ret or frame is None:
                     break
-                count += 1
-                if count % (skip + 1) == 0:
-                    det_count += 1
-                    frame = annotate_frame(frame, det_count, camera_id=camera_id, run_detection_every=3)
-                    _, jpeg = cv2.imencode(".jpg", frame)
-                    with _frame_lock:
-                        _frame_buffer[camera_id] = jpeg.tobytes()
+                frame_count += 1
+                frame = _resize_for_stream(frame, max_w)
+                # Most frames: fast JPEG only. Heavy InsightFace/YOLO only every Nth frame.
+                if frame_count % annotate_every == 0:
+                    det_tick = frame_count // annotate_every
+                    frame = annotate_frame(
+                        frame,
+                        det_tick,
+                        camera_id=camera_id,
+                        run_detection_every=1,
+                    )
+                encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_q]
+                _, jpeg = cv2.imencode(".jpg", frame, encode_params)
+                with _frame_lock:
+                    _frame_buffer[camera_id] = jpeg.tobytes()
         except Exception as e:
             logger.error(f"Camera {camera_id} capture error: {e}")
         finally:

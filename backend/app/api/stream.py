@@ -50,7 +50,8 @@ async def _generate_mjpeg(camera_id: int):
             b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n"
             + frame + b"\r\n"
         )
-        await asyncio.sleep(0.033)  # ~30 fps
+        # ~40 fps max; buffer usually updates slower — low sleep reduces visible lag between new frames
+        await asyncio.sleep(0.02)
 
 
 @router.get("/{camera_id}/mjpeg")

@@ -308,6 +308,9 @@ The Docker db service uses host port **5433** to avoid conflict with local Postg
 ### Docker build fails: "g++ failed: No such file or directory"
 The backend image includes `build-essential` for InsightFace. If you see this, ensure you're using the latest `Dockerfile.backend`.
 
+### Live preview is choppy / stuttering
+The MJPEG path encodes every camera frame; **InsightFace + YOLO** only run every **`STREAM_ANNOTATE_EVERY_N_FRAMES`** (default 10) to keep video smooth. Increase (e.g. `15`) for smoother video and fewer boxes; decrease for more frequent detection. Tune **`STREAM_MAX_WIDTH`** (e.g. `960`) and **`STREAM_JPEG_QUALITY`** (e.g. `75`) in `backend/.env` if CPU is saturated. For the smoothest experience on a weak CPU, use **`STREAM_MODE=hls`** with FFmpeg (see env docs).
+
 ### Start Stream shows black / no video
 - **RTSP unreachable:** In Docker, the backend container may not reach cameras on your LAN. Use `network_mode: host` for the backend, or set RTSP URL to `host.docker.internal` (Mac/Windows) for local cameras.
 - **Remote access:** RTSP with local IPs (192.168.x.x) only works when Visioryx runs on the same network as the cameras. If cameras are at the office and you're at home: deploy Visioryx at the office, or connect via VPN. See `docs/CP-PLUS-RTSP-SETUP.md` for details.
