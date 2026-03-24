@@ -100,7 +100,6 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
     Avoids cv2.VideoCapture (common source of EXC_BAD_ACCESS on macOS).
     """
     settings = get_settings()
-    skip = settings.FRAME_SKIP_RATE
     ff = settings.FFMPEG_PATH
     w = max(320, min(settings.STREAM_DECODE_WIDTH, 1920))
     h = max(180, min(settings.STREAM_DECODE_HEIGHT, 1080))
@@ -162,7 +161,8 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
 
         retry_count = 0
         count = 0
-        run_ai_every = max(3, (skip + 1) * 3)
+        # Match OpenCV path: one knob for how often full InsightFace + overlay runs (lower CPU = smoother MJPEG).
+        run_ai_every = max(2, int(getattr(settings, "STREAM_ANNOTATE_EVERY_N_FRAMES", 10)))
         jpeg_q = max(40, min(95, int(getattr(settings, "STREAM_JPEG_QUALITY", 82))))
         assert proc.stdout is not None
 

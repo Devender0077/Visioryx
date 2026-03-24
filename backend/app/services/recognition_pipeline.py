@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 from app.ai.face_detector import detect_faces
-from app.ai.face_matcher import find_best_match
+from app.ai.face_matcher import find_best_match_with_relaxed_fallback
 from app.core.config import get_settings
 from app.core.logger import get_logger
 
@@ -40,7 +40,7 @@ async def process_frame(
                 "user_id": None,
             })
             continue
-        match = find_best_match(embedding, db_embeddings)
+        match = find_best_match_with_relaxed_fallback(embedding, db_embeddings)
         if match:
             user_id, sim = match
             results.append({

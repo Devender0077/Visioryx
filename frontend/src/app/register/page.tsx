@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
 import { Videocam } from '@mui/icons-material';
 import { useToast } from '@/contexts/ToastContext';
-import { api, getApiBase } from '@/lib/api';
+import { getApiBase } from '@/lib/api';
 
 function formatApiError(data: unknown, fallback: string): string {
   if (data == null || typeof data !== 'object') return fallback;
@@ -26,20 +26,26 @@ function formatApiError(data: unknown, fallback: string): string {
   return fallback;
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const toast = useToast();
-  const [email, setEmail] = useState('admin@visioryx.dev');
-  const [password, setPassword] = useState('admin123');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     setError('');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
     try {
-      const r = await fetch(`${getApiBase()}/api/v1/auth/login`, {
+      const r = await fetch(`${getApiBase()}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ name: name.trim(), email, password }),
       });
       let data: unknown = null;
       try {
@@ -48,20 +54,19 @@ export default function LoginPage() {
         data = null;
       }
       if (!r.ok) {
-        throw new Error(formatApiError(data, r.status === 503 ? 'Service unavailable' : 'Login failed'));
+        throw new Error(formatApiError(data, r.status === 503 ? 'Service unavailable' : 'Registration failed'));
       }
       const payload = data as { access_token?: string };
       if (!payload?.access_token) {
-        throw new Error('Invalid login response');
+        throw new Error('Invalid registration response');
       }
       if (typeof window !== 'undefined') {
         localStorage.setItem('token', payload.access_token);
       }
-      const me = await api<{ role: string }>('/api/v1/auth/me');
-      toast.success('Signed in successfully');
-      router.push(me.role === 'enrollee' ? '/enroll' : '/dashboard');
+      toast.success('Account created');
+      router.push('/enroll');
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Login failed';
+      const msg = e instanceof Error ? e.message : 'Registration failed';
       setError(msg);
       toast.error(msg);
     }
@@ -104,26 +109,35 @@ export default function LoginPage() {
             <Videocam sx={{ color: 'white', fontSize: 28 }} />
           </Box>
           <Typography variant="h5" fontWeight={700}>
-            Visioryx
+            Create account
           </Typography>
         </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Sign in to access the AI Surveillance Dashboard
+          Sign up to enroll your face and use Visioryx. Surveillance features require an operator or admin role.
         </Typography>
         <Box
           component="form"
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            void handleLogin();
+            void handleRegister();
           }}
         >
+          <TextField
+            fullWidth
+            label="Name"
+            name="name"
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            sx={{ mb: 2 }}
+          />
           <TextField
             fullWidth
             label="Email"
             name="email"
             type="email"
-            autoComplete="username"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             sx={{ mb: 2 }}
@@ -133,9 +147,19 @@ export default function LoginPage() {
             label="Password"
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            fullWidth
+            label="Confirm password"
+            name="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             sx={{ mb: 2 }}
           />
           {error && (
@@ -150,17 +174,14 @@ export default function LoginPage() {
             size="large"
             sx={{ py: 1.5, borderRadius: 2, fontWeight: 600 }}
           >
-            Sign In
+            Sign up
           </Button>
         </Box>
         <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
-          No account?{' '}
-          <Link href="/register" style={{ fontWeight: 600, color: 'inherit' }}>
-            Create one
+          Already have an account?{' '}
+          <Link href="/login" style={{ fontWeight: 600, color: 'inherit' }}>
+            Sign in
           </Link>
-        </Typography>
-        <Typography variant="caption" display="block" sx={{ mt: 1 }} color="text.secondary">
-          Demo: admin@visioryx.dev / admin123
         </Typography>
       </Paper>
     </Box>

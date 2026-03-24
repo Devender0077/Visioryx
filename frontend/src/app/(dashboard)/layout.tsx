@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/AuthGuard';
+import { api } from '@/lib/api';
 import {
   Box,
   Button,
@@ -31,6 +32,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Person as PersonIcon,
+  Face as FaceIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 280;
@@ -38,7 +40,7 @@ const DRAWER_WIDTH_COLLAPSED = 80;
 const HEADER_HEIGHT = 64;
 const SIDEBAR_COLLAPSED_KEY = 'visioryx-sidebar-collapsed';
 
-const NAV_ITEMS = [
+const FULL_NAV_ITEMS = [
   { path: '/dashboard', label: 'Overview', icon: <DashboardIcon /> },
   { path: '/live', label: 'Live Monitoring', icon: <LiveTv /> },
   { path: '/cameras', label: 'Cameras', icon: <Videocam /> },
@@ -49,19 +51,47 @@ const NAV_ITEMS = [
   { path: '/profile', label: 'Profile', icon: <PersonIcon /> },
 ];
 
+const ENROLLEE_NAV_ITEMS = [
+  { path: '/dashboard', label: 'Home', icon: <DashboardIcon /> },
+  { path: '/enroll', label: 'Face enrollment', icon: <FaceIcon /> },
+  { path: '/profile', label: 'Profile', icon: <PersonIcon /> },
+];
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    api<{ role: string }>('/api/v1/auth/me')
+      .then((r) => setUserRole(r.role))
+      .catch(() => setUserRole(''));
+  }, [mounted]);
+
+  useEffect(() => {
+    if (userRole !== 'enrollee') return;
+    const blocked = ['/live', '/cameras', '/users', '/detections', '/analytics', '/alerts'];
+    if (blocked.includes(pathname)) {
+      router.replace('/dashboard');
+    }
+  }, [userRole, pathname, router]);
+
+  const navItems = useMemo(
+    () => (userRole === 'enrollee' ? ENROLLEE_NAV_ITEMS : FULL_NAV_ITEMS),
+    [userRole],
+  );
 
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {
@@ -83,8 +113,10 @@ export default function DashboardLayout({
   const drawerWidth = mounted && collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
   const pageTitle = (() => {
-    if (pathname === '/dashboard') return 'Hi, Welcome back 👋';
-    const item = NAV_ITEMS.find((i) => pathname === i.path);
+    if (pathname === '/dashboard') {
+      return userRole === 'enrollee' ? 'Home' : 'Hi, Welcome back 👋';
+    }
+    const item = navItems.find((i) => pathname === i.path);
     return item ? item.label : pathname === '/' ? 'Overview' : 'Visioryx';
   })();
 
@@ -149,7 +181,7 @@ export default function DashboardLayout({
         </Typography>
       )}
       <List disablePadding sx={{ mt: 0.5 }}>
-        {NAV_ITEMS.map((item) => (
+        {navItems.map((item) => (
           <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
             <ListItemButton
               component={Link}

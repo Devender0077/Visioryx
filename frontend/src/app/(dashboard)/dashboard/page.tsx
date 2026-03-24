@@ -23,6 +23,7 @@ import {
   Notifications,
   Security,
   ArrowForward,
+  Face,
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -215,22 +216,28 @@ export default function DashboardPage() {
 
   const load = (showSpinner = true) => {
     if (showSpinner) setLoading(true);
-    Promise.all([
-      api<OverviewData>('/api/v1/analytics/overview'),
-      api<{ date: string; count: number }[]>('/api/v1/analytics/detection-trends?days=7'),
-      api<RecentDetection[]>('/api/v1/analytics/recent-detections?limit=5'),
-      api<RecentAlert[]>('/api/v1/analytics/recent-alerts?limit=5'),
-      api<UserMe>('/api/v1/auth/me').catch(() => null),
-    ])
-      .then(([overview, trendData, detections, alerts, me]) => {
+    setError(null);
+    api<UserMe>('/api/v1/auth/me')
+      .then(async (me) => {
+        setUser(me);
+        if (me.role === 'enrollee') {
+          return;
+        }
+        const [overview, trendData, detections, alerts] = await Promise.all([
+          api<OverviewData>('/api/v1/analytics/overview'),
+          api<{ date: string; count: number }[]>('/api/v1/analytics/detection-trends?days=7'),
+          api<RecentDetection[]>('/api/v1/analytics/recent-detections?limit=5'),
+          api<RecentAlert[]>('/api/v1/analytics/recent-alerts?limit=5'),
+        ]);
         setData(overview);
         setTrends(trendData);
         setRecentDetections(detections);
         setRecentAlerts(alerts);
-        setUser(me ?? null);
       })
       .catch(() => setError('Login required'))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const { connected } = useWebSocket((event) => {
@@ -313,6 +320,64 @@ export default function DashboardPage() {
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
           <CircularProgress size={40} />
+        </Box>
+      ) : user?.role === 'enrollee' ? (
+        <Box sx={{ maxWidth: 640 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+            Welcome
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Your account is set up for face enrollment. Live monitoring and analytics require an operator or admin role.
+          </Typography>
+          <Card
+            sx={{
+              border: '1px solid rgba(145, 158, 171, 0.24)',
+              boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.16), 0px 16px 32px -8px rgba(145, 158, 171, 0.22)',
+            }}
+          >
+            <CardContent sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Box
+                  sx={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 2,
+                    bgcolor: 'primary.main',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Face sx={{ fontSize: 28 }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight={700}>
+                    Enroll your face
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Upload photos so the system can recognize you on camera.
+                  </Typography>
+                </Box>
+              </Box>
+              <Typography
+                component={Link}
+                href="/enroll"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  textDecoration: 'none',
+                  '&:hover': { textDecoration: 'underline' },
+                }}
+              >
+                Open enrollment
+                <ArrowForward sx={{ fontSize: 18 }} />
+              </Typography>
+            </CardContent>
+          </Card>
         </Box>
       ) : (
         <>

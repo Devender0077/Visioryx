@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Public_Sans } from 'next/font/google';
+import { ChunkLoadRecovery } from '@/components/ChunkLoadRecovery';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={publicSans.className} suppressHydrationWarning>
+        <ChunkLoadRecovery />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

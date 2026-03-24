@@ -19,6 +19,8 @@ class Role(str, Enum):
 
     ADMIN = "admin"
     OPERATOR = "operator"
+    # Self-service signup: profile + face enrollment only (no cameras/live/analytics by default)
+    ENROLLEE = "enrollee"
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -61,4 +63,31 @@ def decode_access_token(token: str) -> Optional[dict]:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
     except JWTError:
+        return None
+
+
+ENROLLMENT_JWT_TYPE = "face_enroll"
+
+
+def create_enrollment_token(user_id: int, expires_hours: Optional[int] = None) -> str:
+    """Short-lived JWT for public /enroll page (QR link). Not a login token."""
+    settings = get_settings()
+    hours = expires_hours if expires_hours is not None else settings.ENROLLMENT_TOKEN_EXPIRE_HOURS
+    expire = datetime.utcnow() + timedelta(hours=hours)
+    to_encode = {
+        "exp": expire,
+        "sub": str(user_id),
+        "typ": ENROLLMENT_JWT_TYPE,
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_enrollment_token(token: str) -> Optional[int]:
+    """Return recognition User.id if token is a valid face-enrollment JWT."""
+    payload = decode_access_token(token)
+    if not payload or payload.get("typ") != ENROLLMENT_JWT_TYPE:
+        return None
+    try:
+        return int(payload.get("sub"))
+    except (TypeError, ValueError):
         return None

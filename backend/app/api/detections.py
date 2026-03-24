@@ -10,7 +10,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.deps import CurrentUser
+from app.api.deps import SurveillanceUser
 from app.database.connection import get_db
 from app.database.models import Detection, UnknownFace
 from app.schemas.detections import DetectionListItem
@@ -36,7 +36,7 @@ def _detection_to_item(d: Detection) -> DetectionListItem:
 @router.get("", response_model=list[DetectionListItem])
 async def list_detections(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     camera_id: Optional[int] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
     from_date: Optional[datetime] = None,
@@ -64,7 +64,7 @@ async def list_detections(
 @router.get("/unknown-faces")
 async def list_unknown_faces(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     cluster_id: Optional[int] = None,
     limit: int = Query(50, le=200),
     offset: int = 0,
@@ -81,7 +81,7 @@ async def list_unknown_faces(
 @router.get("/stats")
 async def detection_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Today's detection counts."""
     today = datetime.utcnow().date()

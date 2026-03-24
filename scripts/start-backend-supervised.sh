@@ -25,6 +25,13 @@ echo ""
 
 RESTART_DELAY_SEC="${RESTART_DELAY_SEC:-2}"
 
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+  export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+  export VECLIB_MAXIMUM_THREADS="${VECLIB_MAXIMUM_THREADS:-1}"
+  export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+fi
+
 while true; do
   set +e
   PYTHONPATH=. uvicorn app.main:app --host 0.0.0.0 --port 8000

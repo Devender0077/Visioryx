@@ -1,9 +1,20 @@
 /** @type {import('next').NextConfig} */
+const isProd = process.env.NODE_ENV === 'production';
+
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
+  // Standalone output is for Docker/production; in dev it can interact oddly with chunk serving.
+  ...(isProd ? { output: 'standalone' } : {}),
   experimental: {
     proxyTimeout: 300000, // 5 min for streaming (MJPEG, SSE) - streams use getStreamBase() to bypass
+  },
+  webpack: (config, { dev, isServer }) => {
+    // Only set chunkLoadTimeout — never replace `config.output` with `{}` (that strips
+    // path/filename/chunkFilename and causes MODULE_NOT_FOUND for numbered chunks + 404 on /_next/static).
+    if (dev && !isServer && config.output) {
+      config.output.chunkLoadTimeout = 300000;
+    }
+    return config;
   },
   images: {
     remotePatterns: [

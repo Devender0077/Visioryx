@@ -49,7 +49,7 @@ Visioryx/
 │   │   ├── api/          # auth, users, cameras, detections, analytics
 │   │   ├── core/         # config, security, websocket, logger
 │   │   ├── ai/           # face_detector, face_embedding, face_matcher, object_detector
-│   │   ├── services/     # camera_worker, recognition_pipeline, logging, alert
+│   │   ├── services/     # stream_manager, recognition_pipeline, face_enrollment, logging, alert
 │   │   ├── database/     # connection, models, migrations
 │   │   └── main.py
 │   ├── models/           # InsightFace, YOLOv8 weights
@@ -80,6 +80,15 @@ Visioryx/
    `./scripts/preflight.sh`
 5. **Start the app:** `./scripts/start-dev.sh` — migrations run automatically; if Postgres is down or `.env` is wrong, the backend **stops with an error** instead of starting without a database.
 
+6. **Object detection (YOLO) on live streams:** Admins can toggle this under **Profile → Detection & AI** (stored in `app_settings`). It overrides `STREAM_ENABLE_YOLO_OVERLAY` from `.env` until you choose “Use environment default”. Requires migration `002` (included in `alembic upgrade head`).
+
+7. **Face matching:** Enroll with a **frontal** face when possible (or use **Users → QR** for multi-angle self-capture on a phone). Live CCTV often sees **profiles** or distant subjects; the backend uses **three** cosine tiers (`FACE_SIMILARITY_THRESHOLD`, `FACE_SIMILARITY_THRESHOLD_RELAXED`, `FACE_SIMILARITY_THRESHOLD_WIDE` in `.env`). The DB stores **one** merged embedding per user (latest enrollment wins). Tune thresholds if you see false accepts or missed IDs.
+
+**`pip: command not found` (macOS / minimal PATH):** use the venv interpreter, not bare `pip`:
+
+`cd backend && ./venv/bin/python -m pip install -r requirements.txt`  
+(create the venv first if needed: `python3 -m venv venv`)
+
 ---
 
 ## Quick Start
@@ -94,13 +103,42 @@ Visioryx/
 # (also uses safer default streaming mode: STREAM_MODE=hls)
 ./scripts/start-backend-supervised.sh
 
-# Live face AI: unset STREAM_ENABLE_AI_OVERLAY on macOS → false (video only, stable). On Linux → true.
-# Unset STREAM_ENABLE_YOLO_OVERLAY on macOS → false (YOLO/torch often SIGSEGV in the capture thread).
-# FACE_DETECTION_BACKEND=auto uses OpenCV for live faces on macOS when overlay is on.
+# Live face boxes: STREAM_ENABLE_AI_OVERLAY defaults to true (OpenCV Haar on macOS when FACE_DETECTION_BACKEND=auto).
+# Set STREAM_ENABLE_AI_OVERLAY=false only if you need video-only preview. YOLO defaults off on macOS (STREAM_ENABLE_YOLO_OVERLAY).
+
+# Live name matching: once any user has an enrolled embedding, the overlay uses InsightFace on the stream so faces can be matched (Haar has no embeddings).
+# If the backend crashes on live, set STREAM_FORCE_HAAR_LIVE=true (names will always be Unknown). Or run the API on Linux.
+# Ceiling / wide-angle cameras: Haar often misses faces. On Linux you can use STREAM_ENABLE_HOG_PERSONS=true (OpenCV HOG). On macOS HOG defaults OFF — it can trigger SIGFPE crashes (OpenBLAS/numpy); use YOLO on Linux or a Linux server for person boxes instead.
 
 # Windows PowerShell
 .\scripts\start-dev.ps1 -Target all
 ```
+
+### Live monitoring: leaving the page
+
+When you click **Start** on Live Monitoring, the **backend** opens the RTSP feed and keeps decoding it until you click **Stop** (or the API process restarts). **Navigating away from the dashboard does not stop the stream** — the server work continues in the background, which uses CPU and network until you stop it. If you want streams to stop when you leave the page, that would require a product change (e.g. auto-stop on unmount); today you must use **Stop** per camera.
+
+### Face enrollment (QR, phone, multi-angle)
+
+1. **Admin** creates a recognition user (Users page) with name + email.
+2. **Option A — QR / link:** Click the **QR** icon → scan or copy the URL. Opens `/enroll?token=…` on a phone (same network as the app if using `localhost`; for phones use your machine’s LAN IP in `NEXT_PUBLIC_API_URL` or open the dashboard via the server hostname). The person adds **front (required)** + optional **left/right** photos; the server **averages** embeddings into **one** 512-D vector (same storage as before).
+3. **Option B — Logged-in user:** If **Users** profile email **matches** the dashboard login email, open **Profile → “face enrollment”** or go to `/enroll` while signed in — no QR token needed (`POST /api/v1/enroll/upload-session`).
+4. **Option C — Admin upload:** Classic single-file upload from the Users table (still supported).
+
+Enrollment links expire after **`ENROLLMENT_TOKEN_EXPIRE_HOURS`** (default 48). They are signed JWTs — keep `SECRET_KEY` private.
+
+**Dashboard vs enrollment (who needs what):**
+
+| Person | Needs dashboard login? | How they enroll |
+|--------|------------------------|-----------------|
+| **Operator / admin** | Yes (`/login`) — uses Cameras, Live, Users, etc. | Can upload faces in **Users** or open **QR** for someone else. |
+| **Employee / visitor (QR only)** | **No** — open `/enroll?token=…` from phone after admin creates their **Users** row and shares the link. | Finishes on **Confirm → Photos → Review → Done**; never sees the main app. |
+| **Same person with both** | Optional — if their **Users** email matches their **Auth** email, they can use `/enroll` while logged in from **Profile**. | Same wizard. |
+| **Public signup (enrollee)** | Yes — **`/register`** creates login + a matching **Users** row (`enrollee` role). | After signup you are sent to **`/enroll`** to upload face photos. Surveillance (Live, Cameras, analytics, etc.) stays **operator/admin** only. |
+
+**Public registration** is controlled by **`ALLOW_PUBLIC_REGISTRATION`** in `backend/.env` (default **true** in code; set **`false`** in production if you only want admins to create accounts). The API is **`POST /api/v1/auth/register`** (name, email, password). If an admin already created a **Users** row for that email but no login yet, signup **attaches** dashboard credentials to the existing profile instead of duplicating it.
+
+**macOS SIGFPE (OpenBLAS / numpy):** If Python crashes with `EXC_ARITHMETIC` in `libopenblas` / `inv`, always start the API via `./scripts/start-dev.sh` (sets thread limits) and ensure `app/runtime_env` loads first. The backend **forces** single-thread BLAS on **darwin** at import time.
 
 ### PostgreSQL & migrations
 
@@ -192,6 +230,8 @@ npm run dev
 
 Dashboard: http://localhost:3000  
 API docs: http://localhost:8000/api/docs
+
+**If the UI shows blank pages, `Cannot find module './NNN.js'`, or `404` on `/_next/static/chunks/...`:** stop the dev server, run `npm run clean` (or `rm -rf .next`) in `frontend/`, then `npm run dev` again. That clears a stale Next.js build cache; also avoid running two `next dev` processes on port 3000.
 
 ### 4. Seed Admin User (First Time)
 
@@ -329,8 +369,12 @@ The Docker db service uses host port **5433** to avoid conflict with local Postg
 ### Docker build fails: "g++ failed: No such file or directory"
 The backend image includes `build-essential` for InsightFace. If you see this, ensure you're using the latest `Dockerfile.backend`.
 
+### Dashboard: `ChunkLoadError` / “Loading chunk app/layout failed (timeout)”
+
+This usually means the browser asked for an **old** JavaScript chunk after the dev server **restarted** or **recompiled**. **Fix:** hard-refresh the page (`Cmd+Shift+R` / `Ctrl+Shift+R`) or stop the dev server, run `rm -rf frontend/.next` from the repo root, then `./scripts/start-dev.sh frontend` again. The app includes a one-time automatic reload when this error occurs; if it persists, clear site data for `localhost:3000` or try an incognito window.
+
 ### Live preview is choppy / stuttering
-The MJPEG path encodes every camera frame; **InsightFace + YOLO** only run every **`STREAM_ANNOTATE_EVERY_N_FRAMES`** (default 10) to keep video smooth. Increase (e.g. `15`) for smoother video and fewer boxes; decrease for more frequent detection. Tune **`STREAM_MAX_WIDTH`** (e.g. `960`) and **`STREAM_JPEG_QUALITY`** (e.g. `75`) in `backend/.env` if CPU is saturated. For the smoothest experience on a weak CPU, use **`STREAM_MODE=hls`** with FFmpeg (see env docs).
+The MJPEG capture loop **never blocks** on InsightFace: heavy detection runs in a **background thread** while each frame is JPEG-encoded with the latest cached boxes. **`STREAM_ANNOTATE_EVERY_N_FRAMES`** (default 10) controls how often a new detection pass is *scheduled* (labels may update slightly after the scene changes). Increase (e.g. `15`) if the CPU still struggles; tune **`STREAM_MAX_WIDTH`** and **`STREAM_JPEG_QUALITY`** in `backend/.env` if needed. For the smoothest experience on a weak CPU, use **`STREAM_MODE=hls`** with FFmpeg (see env docs).
 
 ### Start Stream shows black / no video
 - **RTSP unreachable:** In Docker, the backend container may not reach cameras on your LAN. Use `network_mode: host` for the backend, or set RTSP URL to `host.docker.internal` (Mac/Windows) for local cameras.
@@ -341,6 +385,8 @@ The MJPEG path encodes every camera frame; **InsightFace + YOLO** only run every
 ### Detections always show “unknown”
 
 Recognition only labels **known** when a face matches a **registered user** who has an **enrolled face embedding** (Users → upload a clear front-facing photo). Otherwise events stay **unknown** — that is expected. If you have enrolled users but still see only unknown, try lowering `FACE_SIMILARITY_THRESHOLD` slightly in `backend/.env` (e.g. `0.45`–`0.5`) and restart the backend.
+
+**Angles and distance (practical limits):** InsightFace compares a **live crop** to the **enrolled** embedding. **Side profiles** vs a **frontal-only** enrollment often score low; use the built-in relaxed/wide tiers or add a **profile enrollment** image. **Rule of thumb** for reliable IDs: the face bounding box should be at least **~48–80 px tall** in the decoded stream (roughly **~2–5 m** for a typical ceiling camera at **720p** decode, depending on lens and FOV). **Far background** rows with **tiny faces** (~&lt;32 px) may remain Unknown or need a **closer camera**, **higher decode resolution** (`STREAM_DECODE_WIDTH` / `HEIGHT`), or **lower** similarity thresholds (accepting more false positives). **Stream quality:** defaults favor clearer MJPEG (`STREAM_JPEG_QUALITY`, 720p decode); on a weak CPU, reduce decode size (e.g. 960×540) and quality to keep FPS smooth.
 
 **“No embedding” after upload:** The API must run **InsightFace** (not OpenCV-only). Install backend deps, ensure `backend/models/insightface` weights downloaded, and restart. Re-upload a **single, large, front-facing** face; group shots enroll the **largest** face only.
 

@@ -35,6 +35,15 @@ export default function LiveMonitoringPage() {
   const [zoom, setZoom] = useState<Record<number, number>>({});
   const streamErrorTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
+  const syncStreamStatusFromServer = useCallback(async () => {
+    try {
+      const data = await api<{ active_camera_ids: number[] }>('/api/v1/stream/status');
+      setStreaming(new Set(data.active_camera_ids ?? []));
+    } catch {
+      /* keep local state if status unavailable */
+    }
+  }, []);
+
   useEffect(() => {
     setLoading(true);
     api<LiveCamera[]>('/api/v1/cameras')
@@ -42,6 +51,21 @@ export default function LiveMonitoringPage() {
       .catch(() => setError('Load cameras failed'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (loading || cameras.length === 0) return;
+    void syncStreamStatusFromServer();
+  }, [loading, cameras, syncStreamStatusFromServer]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && cameras.length > 0) {
+        void syncStreamStatusFromServer();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [cameras.length, syncStreamStatusFromServer]);
 
   useEffect(() => {
     return () => {
@@ -161,7 +185,8 @@ export default function LiveMonitoringPage() {
       <Box sx={{ mb: { xs: 2, sm: 3 } }}>
         <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
           Live camera streams with face & object detection. Add cameras in Cameras page. Register users and upload face
-          photos in Users page for recognition.
+          photos in Users page for recognition. Streams keep decoding on the server until you click Stop — leaving this
+          page does not stop them.
         </Typography>
       </Box>
       {error && (

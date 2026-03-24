@@ -72,6 +72,13 @@ setup_db() {
 start_backend() {
     echo "Starting backend on port 8000..."
     kill_port 8000
+    # macOS: single-thread BLAS reduces SIGFPE crashes in OpenCV/numpy (see app/runtime_env.py)
+    if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+        export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
+        export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
+        export VECLIB_MAXIMUM_THREADS="${VECLIB_MAXIMUM_THREADS:-1}"
+        export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
+    fi
     cd "$PROJECT_ROOT/backend"
     if [ ! -d "venv" ]; then
         echo "Creating venv with $PYTHON_CMD..."

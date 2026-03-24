@@ -118,6 +118,15 @@ class Alert(Base):
 
 
 # Auth model - separate from User for login credentials
+class AppSetting(Base):
+    """Key-value settings persisted in DB (override env defaults)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(128), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
 class AuthUser(Base):
     """Authentication credentials for dashboard access."""
 

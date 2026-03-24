@@ -2,6 +2,10 @@
 Visioryx - AI Powered Real-Time Face Recognition & Surveillance System
 Main FastAPI application entry point.
 """
+import sys
+
+import app.runtime_env  # noqa: F401 — BLAS thread limits before numpy/opencv
+
 import asyncio
 from contextlib import asynccontextmanager
 
@@ -27,11 +31,22 @@ def _cors_allow_origins() -> list[str]:
 async def lifespan(app: FastAPI):
     """Application lifespan - startup and shutdown."""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    if sys.platform == "darwin" and getattr(settings, "STREAM_ENABLE_HOG_PERSONS", False):
+        logger.warning(
+            "STREAM_ENABLE_HOG_PERSONS=true on macOS can crash Python (SIGFPE in OpenBLAS/numpy). "
+            "Remove it from backend/.env or set STREAM_ENABLE_HOG_PERSONS=false."
+        )
     if not settings.DEBUG and settings.SECRET_KEY == DEFAULT_DEV_SECRET_KEY:
         logger.warning(
             "SECRET_KEY is still the default placeholder. Set a strong SECRET_KEY in production."
         )
     from app.services.detection_log_queue import start_queue_processor
+    from app.services.runtime_app_settings import load_from_database
+
+    try:
+        load_from_database()
+    except Exception as e:
+        logger.warning("Could not load app_settings from DB (run migrations?): %s", e)
     _detection_task = start_queue_processor()
     yield
     _detection_task.cancel()
@@ -98,15 +113,18 @@ async def health_db():
 
 
 # API routes
-from app.api import auth, users, cameras, detections, analytics, alerts
+from app.api import auth, enroll, users, cameras, detections, analytics, alerts, settings as app_settings, email_smtp
 from app.core.websocket_manager import ws_manager
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
+app.include_router(enroll.router, prefix=f"{settings.API_V1_PREFIX}/enroll", tags=["enroll"])
 app.include_router(users.router, prefix=f"{settings.API_V1_PREFIX}/users", tags=["users"])
 app.include_router(cameras.router, prefix=f"{settings.API_V1_PREFIX}/cameras", tags=["cameras"])
 app.include_router(detections.router, prefix=f"{settings.API_V1_PREFIX}/detections", tags=["detections"])
 app.include_router(analytics.router, prefix=f"{settings.API_V1_PREFIX}/analytics", tags=["analytics"])
 app.include_router(alerts.router, prefix=f"{settings.API_V1_PREFIX}/alerts", tags=["alerts"])
+app.include_router(app_settings.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
+app.include_router(email_smtp.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
 from app.api import stream
 
 app.include_router(stream.router, prefix=f"{settings.API_V1_PREFIX}/stream", tags=["stream"])

@@ -10,9 +10,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import SurveillanceUser
 from app.core.config import get_settings
-from app.core.security import decode_access_token
+from app.core.security import Role, decode_access_token
 from app.database.connection import get_db
 from app.database.models import Camera
 from app.services.stream_manager import get_frame, is_streaming, start_stream, stop_stream
@@ -28,11 +28,32 @@ from app.services.hls_manager import (
 router = APIRouter()
 
 
-def _verify_stream_token(token: Optional[str]) -> bool:
-    """Verify token for img src (browser can't send Bearer header)."""
+def _camera_stream_active(camera_id: int) -> bool:
+    """MJPEG thread and/or HLS ffmpeg — whichever mode is running for this camera."""
+    return is_hls_running(camera_id) or is_streaming(camera_id)
+
+
+@router.get("/status")
+async def get_streams_status(
+    db: AsyncSession = Depends(get_db),
+    current_user: SurveillanceUser = None,
+):
+    """Which cameras are actively decoding on the server (survives leaving the Live page)."""
+    result = await db.execute(select(Camera.id))
+    ids = list(result.scalars().all())
+    active = [cid for cid in ids if _camera_stream_active(cid)]
+    return {"active_camera_ids": active}
+
+
+def _verify_surveillance_stream_token(token: Optional[str]) -> bool:
+    """Verify JWT for img/video src; enrollee tokens cannot access live streams."""
     if not token:
         return False
-    return decode_access_token(token) is not None
+    payload = decode_access_token(token)
+    if not payload:
+        return False
+    role = payload.get("role")
+    return role in (Role.ADMIN.value, Role.OPERATOR.value)
 
 
 async def _generate_mjpeg(camera_id: int):
@@ -61,7 +82,7 @@ async def stream_mjpeg(
     db: AsyncSession = Depends(get_db),
 ):
     """MJPEG stream for camera. Use <img src='/api/v1/stream/1/mjpeg?token=JWT'>."""
-    if not _verify_stream_token(token):
+    if not _verify_surveillance_stream_token(token):
         raise HTTPException(status_code=401, detail="Invalid or missing token")
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
@@ -91,7 +112,7 @@ async def stream_hls_playlist(
     db: AsyncSession = Depends(get_db),
 ):
     """HLS playlist for camera. Use <video src='/api/v1/stream/1/hls/index.m3u8?token=JWT'>."""
-    if not _verify_stream_token(token):
+    if not _verify_surveillance_stream_token(token):
         raise HTTPException(status_code=401, detail="Invalid or missing token")
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
     camera = result.scalar_one_or_none()
@@ -125,7 +146,7 @@ async def stream_hls_segment(
     filename: str,
     token: Optional[str] = Query(None, description="JWT for auth (required for video src)"),
 ):
-    if not _verify_stream_token(token):
+    if not _verify_surveillance_stream_token(token):
         raise HTTPException(status_code=401, detail="Invalid or missing token")
     seg = get_segment_path(camera_id, filename)
     if not seg:
@@ -141,7 +162,7 @@ async def stream_hls_segment(
 async def start_camera_stream(
     camera_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Start camera stream (capture begins)."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
@@ -172,7 +193,7 @@ async def start_camera_stream(
 async def stop_camera_stream(
     camera_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Stop camera stream."""
     settings = get_settings()

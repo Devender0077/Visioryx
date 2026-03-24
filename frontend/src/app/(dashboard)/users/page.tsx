@@ -6,6 +6,7 @@ import {
   Button,
   Card,
   CardContent,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,10 +25,11 @@ import {
   Chip,
   Tooltip,
 } from '@mui/material';
-import { Add, CloudUpload, Visibility } from '@mui/icons-material';
+import { Add, CloudUpload, DeleteOutline, QrCode2, Visibility } from '@mui/icons-material';
 import { api, getStreamBase, getToken } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
+import QRCode from 'react-qr-code';
 
 interface User {
   id: number;
@@ -50,6 +52,13 @@ export default function UsersPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUser, setPreviewUser] = useState<User | null>(null);
   const [photoLoadError, setPhotoLoadError] = useState(false);
+  const [enrollUser, setEnrollUser] = useState<User | null>(null);
+  const [enrollUrl, setEnrollUrl] = useState<string | null>(null);
+  const [enrollHours, setEnrollHours] = useState(48);
+  const [enrollLoading, setEnrollLoading] = useState(false);
+  const [enrollError, setEnrollError] = useState<string | null>(null);
+  const [deleteUser, setDeleteUser] = useState<User | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const load = () => api<User[]>('/api/v1/users').then(setUsers).catch(() => setError('Load failed'));
 
@@ -96,6 +105,50 @@ export default function UsersPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteUser) return;
+    const id = deleteUser.id;
+    setDeletingId(id);
+    setError(null);
+    try {
+      await api(`/api/v1/users/${id}`, { method: 'DELETE' });
+      setDeleteUser(null);
+      if (previewUser?.id === id) setPreviewUser(null);
+      if (enrollUser?.id === id) {
+        setEnrollUser(null);
+        setEnrollUrl(null);
+      }
+      await load();
+      toast.success('User removed');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Delete failed';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const openEnrollmentQr = async (u: User) => {
+    setEnrollUser(u);
+    setEnrollUrl(null);
+    setEnrollError(null);
+    setEnrollLoading(true);
+    try {
+      const data = await api<{ token: string; enroll_path: string; expires_in_hours: number }>(
+        `/api/v1/users/${u.id}/enrollment-link`,
+        { method: 'POST' },
+      );
+      const full = `${typeof window !== 'undefined' ? window.location.origin : ''}${data.enroll_path}`;
+      setEnrollUrl(full);
+      setEnrollHours(data.expires_in_hours);
+    } catch (e) {
+      setEnrollError(e instanceof Error ? e.message : 'Failed to create link');
+    } finally {
+      setEnrollLoading(false);
+    }
+  };
+
   const photoUrlFor = (userId: number) => {
     const token = getToken();
     if (!token) return null;
@@ -112,7 +165,8 @@ export default function UsersPage() {
             Users
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-            Register users for face recognition. After adding a user, click the upload icon to add a face photo.
+            Register users for face recognition. Use the QR icon to send a phone link for self-capture
+            (multi-angle), or the upload icon for a single image from this browser. Supported: JPEG, PNG, WebP, HEIC.
           </Typography>
         </Box>
         <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)} sx={{ fontWeight: 600 }}>
@@ -197,14 +251,30 @@ export default function UsersPage() {
                       </IconButton>
                       <IconButton
                         size="small"
+                        onClick={() => openEnrollmentQr(u)}
+                        title="Enrollment link & QR (open on phone for multi-angle capture)"
+                      >
+                        <QrCode2 />
+                      </IconButton>
+                      <IconButton
+                        size="small"
                         onClick={() => {
                           setUploadUserId(u.id);
                           fileInputRef.current?.click();
                         }}
                         disabled={uploading === u.id}
-                        title="Upload face image"
+                        title="Upload face image (JPEG, PNG, HEIC, …)"
                       >
                         <CloudUpload />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => setDeleteUser(u)}
+                        disabled={deletingId === u.id}
+                        title="Delete user (admin)"
+                      >
+                        <DeleteOutline />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -216,6 +286,24 @@ export default function UsersPage() {
         </CardContent>
       </Card>
 
+      <Dialog open={!!deleteUser} onClose={() => !deletingId && setDeleteUser(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Delete user</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            Remove <strong>{deleteUser?.name}</strong> ({deleteUser?.email}) from face recognition? This cannot be undone.
+            Past detection rows stay in the database but will no longer link to this person.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteUser(null)} disabled={!!deletingId}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={() => void handleDelete()} disabled={!!deletingId}>
+            {deletingId ? <CircularProgress size={22} color="inherit" /> : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={open} onClose={() => setOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Register User</DialogTitle>
         <DialogContent>
@@ -225,6 +313,67 @@ export default function UsersPage() {
         <DialogActions>
           <Button onClick={() => setOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSave}>Register</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={!!enrollUser}
+        onClose={() => {
+          setEnrollUser(null);
+          setEnrollUrl(null);
+          setEnrollError(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Enrollment link & QR</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            {enrollUser?.name} — open this link on a phone (same Wi‑Fi/LAN as your server) or scan the QR. The
+            person completes face capture on their device; link expires in {enrollHours}h.
+          </Typography>
+          {enrollLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+              <CircularProgress />
+            </Box>
+          )}
+          {enrollError && (
+            <Typography color="error" variant="body2" sx={{ mb: 1 }}>
+              {enrollError}
+            </Typography>
+          )}
+          {enrollUrl && !enrollLoading && (
+            <Stack spacing={2} alignItems="center">
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 2, bgcolor: 'background.paper' }}>
+                <QRCode value={enrollUrl} size={220} />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  wordBreak: 'break-all',
+                  fontFamily: 'monospace',
+                  bgcolor: 'action.hover',
+                  p: 1,
+                  borderRadius: 1,
+                  width: '100%',
+                }}
+              >
+                {enrollUrl}
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  navigator.clipboard.writeText(enrollUrl).then(() => toast.success('Copied'));
+                }}
+              >
+                Copy link
+              </Button>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEnrollUser(null)}>Close</Button>
         </DialogActions>
       </Dialog>
 

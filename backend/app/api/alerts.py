@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import SurveillanceUser
 from app.database.connection import get_db
 from app.database.models import Alert
 
@@ -18,7 +18,7 @@ router = APIRouter()
 @router.get("")
 async def list_alerts(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     unread_only: bool = False,
     limit: int = Query(50, le=200),
     offset: int = 0,
@@ -36,7 +36,7 @@ async def list_alerts(
 async def mark_read(
     alert_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Mark alert as read."""
     result = await db.execute(select(Alert).where(Alert.id == alert_id))

@@ -2,19 +2,29 @@
 Visioryx - Users API
 User/face registration endpoints.
 """
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import AdminUser, CurrentUser
-from app.core.security import decode_access_token
+from app.api.deps import AdminUser
+from app.services.smtp_config_store import load_smtp_settings
+from app.core.config import get_settings
+from app.core.security import create_enrollment_token, decode_access_token
 from app.database.connection import get_db
-from app.database.models import User
+from app.database.models import Detection, User
 from app.schemas.users import UserCreate, UserResponse, UserUpdate, user_to_response
+from app.ai.face_detector import insightface_embeddings_enabled
 from app.services.detection_overlay import invalidate_embedding_cache
+from app.services.face_enrollment import (
+    apply_embedding_to_user,
+    build_embedding_from_image_bytes_list,
+    save_primary_face_image,
+)
+from app.services.smtp_mailer import public_dashboard_base_for_links, send_smtp_mail_sync
 
 router = APIRouter()
 
@@ -86,14 +96,78 @@ async def delete_user(
     db: AsyncSession = Depends(get_db),
     current_user: AdminUser = None,
 ):
-    """Delete user."""
+    """Delete recognition user. Past detections keep their rows; user_id is cleared."""
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    await db.execute(update(Detection).where(Detection.user_id == user_id).values(user_id=None))
     await db.delete(user)
     background_tasks.add_task(invalidate_embedding_cache)
     return {"ok": True}
+
+
+@router.post("/{user_id}/enrollment-link")
+async def create_enrollment_link(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = None,
+):
+    """Issue a time-limited link + JWT for self-service enrollment (share / QR)."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    settings = get_settings()
+    token = create_enrollment_token(user_id)
+    return {
+        "token": token,
+        "expires_in_hours": settings.ENROLLMENT_TOKEN_EXPIRE_HOURS,
+        "enroll_path": f"/enroll?token={token}",
+    }
+
+
+@router.post("/{user_id}/send-enrollment-email")
+async def send_enrollment_email(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: AdminUser = None,
+):
+    """Email the user a time-limited face-enrollment link (requires SMTP configured and enabled)."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    cfg = await load_smtp_settings(db)
+    if not cfg.get("enabled"):
+        raise HTTPException(
+            status_code=400,
+            detail="SMTP is disabled. Configure and enable email under Settings → Email & SMTP.",
+        )
+    settings = get_settings()
+    token = create_enrollment_token(user_id)
+    base = public_dashboard_base_for_links(cfg)
+    link = f"{base}/enroll?token={token}"
+    subject = f"{settings.APP_NAME} — complete your face enrollment"
+    text = (
+        f"Hello {user.name},\n\n"
+        f"Open the link below on your phone or computer to upload face photos for recognition "
+        f"(link expires in about {settings.ENROLLMENT_TOKEN_EXPIRE_HOURS} hours).\n\n"
+        f"{link}\n\n"
+        "If you did not expect this message, you can ignore it.\n"
+    )
+    html = (
+        f"<p>Hello <strong>{user.name}</strong>,</p>"
+        "<p>Open the link below to complete face enrollment "
+        f"(expires in about {settings.ENROLLMENT_TOKEN_EXPIRE_HOURS} hours).</p>"
+        f'<p><a href="{link}">{link}</a></p>'
+        "<p>If you did not expect this message, you can ignore it.</p>"
+    )
+    try:
+        await asyncio.to_thread(send_smtp_mail_sync, cfg, user.email, subject, text, html)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Email send failed: {e!s}") from e
+    return {"ok": True, "sent_to": user.email, "enroll_url": link}
 
 
 @router.post("/{user_id}/upload-face")
@@ -105,24 +179,17 @@ async def upload_face_image(
     current_user: AdminUser = None,
 ):
     """Upload face image for user. Face embedding is extracted automatically."""
-    import os
-    from app.core.config import get_settings
-    from app.ai.face_embedding import extract_embeddings_from_image
-    from app.ai.face_detector import insightface_embeddings_enabled
-
-    settings = get_settings()
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    os.makedirs(settings.REGISTERED_FACES_PATH, exist_ok=True)
-    ext = file.filename.split(".")[-1] if file.filename else "jpg"
-    path = os.path.join(settings.REGISTERED_FACES_PATH, f"user_{user_id}.{ext}")
-    with open(path, "wb") as f:
-        f.write(await file.read())
-    user.image_path = path
-    embeddings = extract_embeddings_from_image(path)
-    if not embeddings:
+
+    raw = await file.read()
+    fname = file.filename or "face.jpg"
+
+    try:
+        merged = build_embedding_from_image_bytes_list([(fname, raw)])
+    except ValueError as e:
         if not insightface_embeddings_enabled():
             raise HTTPException(
                 status_code=400,
@@ -132,16 +199,31 @@ async def upload_face_image(
                     "Install `insightface` in the backend venv and ensure `backend/models/insightface` "
                     "weights exist, then restart the API."
                 ),
-            )
+            ) from e
         raise HTTPException(
             status_code=400,
             detail=(
-                "Could not extract a face embedding from this image. "
-                "Use one clear, front-facing face, good lighting, and try again. "
-                "Avoid tiny faces, heavy profile angles, or group photos where your face is small."
+                str(e)
+                if str(e)
+                else (
+                    "Could not extract a face embedding from this image. "
+                    "Use JPEG, PNG, WebP, or HEIC with a clear face. "
+                    "HEIC may require pillow-heif on the server."
+                )
             ),
-        )
-    user.face_embedding = embeddings[0]
+        ) from e
+    except RuntimeError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Face embeddings require InsightFace on the server. "
+                "Install `insightface` in the backend venv and ensure `backend/models/insightface` "
+                "weights exist, then restart the API."
+            ),
+        ) from None
+
+    path = save_primary_face_image(user_id, fname, raw)
+    apply_embedding_to_user(user, merged, path)
     await db.flush()
     background_tasks.add_task(invalidate_embedding_cache)
     return {"image_path": path, "embedding_extracted": True}

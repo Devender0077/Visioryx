@@ -21,6 +21,24 @@ export function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+/** JSON fetch without Authorization — for public routes (e.g. enrollment verify). Does not redirect on 401. */
+export async function publicApi<T>(path: string, opts?: RequestInit): Promise<T> {
+  const isFormData = opts?.body instanceof FormData;
+  const base = getApiBase();
+  const res = await fetch(`${base}${path}`, {
+    ...opts,
+    headers: {
+      ...(!isFormData && { 'Content-Type': 'application/json' }),
+      ...opts?.headers,
+    },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || res.statusText));
+  }
+  return res.json();
+}
+
 export async function api<T>(path: string, opts?: RequestInit): Promise<T> {
   const token = getToken();
   const isFormData = opts?.body instanceof FormData;

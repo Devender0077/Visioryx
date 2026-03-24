@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import CurrentUser
+from app.api.deps import SurveillanceUser
 from app.database.connection import get_db
 from app.database.models import Alert, Detection, Camera, User, ObjectDetection
 
@@ -19,7 +19,7 @@ router = APIRouter()
 @router.get("/overview")
 async def overview(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Dashboard overview: total users, active cameras, today's detections."""
     users_count = await db.execute(select(func.count(User.id)))
@@ -69,7 +69,7 @@ async def overview(
 @router.get("/detection-trends")
 async def detection_trends(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     days: int = Query(7, le=30),
 ):
     """Detection counts per day for chart."""
@@ -89,7 +89,7 @@ async def detection_trends(
 @router.get("/recent-detections")
 async def recent_detections(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     limit: int = Query(10, le=50),
 ):
     """Recent detection events for dashboard."""
@@ -108,7 +108,7 @@ async def recent_detections(
 @router.get("/recent-alerts")
 async def recent_alerts(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     limit: int = Query(10, le=50),
 ):
     """Recent alerts for dashboard."""
@@ -127,7 +127,7 @@ async def recent_alerts(
 @router.get("/object-stats")
 async def object_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = None,
+    current_user: SurveillanceUser = None,
     days: int = Query(7, le=30),
 ):
     """Object detection counts by type."""
