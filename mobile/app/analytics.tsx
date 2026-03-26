@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api } from '@/lib/api';
-import Colors, { Brand } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Brand } from '@/constants/Colors';
+import { Stitch } from '@/constants/stitchTheme';
+import { useStitchTheme } from '@/hooks/useStitchTheme';
+import { useRealtimeTick } from '@/contexts/RealtimeContext';
+import { stitchStyles } from '@/styles/stitchStyles';
 
 type Trend = { date: string; count: number };
 
 export default function AnalyticsScreen() {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const realtimeTick = useRealtimeTick();
+  const T = useStitchTheme();
   const [trends, setTrends] = useState<Trend[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +28,7 @@ export default function AnalyticsScreen() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, realtimeTick]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -34,35 +37,43 @@ export default function AnalyticsScreen() {
   };
 
   const max = Math.max(1, ...trends.map((x) => x.count));
+  const barTrack = T.isDark ? Stitch.surfaceContainerHighest : '#E5E7EB';
+  const barFill = T.isDark ? Stitch.primary : Brand.primary;
 
   return (
     <ScrollView
-      style={[styles.root, { backgroundColor: palette.background }]}
+      style={[styles.root, { backgroundColor: T.bg }]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      contentContainerStyle={styles.pad}
+      contentContainerStyle={[styles.pad, { paddingBottom: 24 }]}
     >
-      <Text style={[styles.h1, { color: palette.text }]}>Detection trend</Text>
-      <Text style={[styles.sub, { color: palette.textSecondary }]}>Last 14 days</Text>
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+      <Text style={[stitchStyles.screenTitle, { color: T.accent }]}>Detection trend</Text>
+      <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 4, marginBottom: 16 }]}>Last 14 days</Text>
+      {error ? <Text style={[styles.err, { color: Stitch.error }]}>{error}</Text> : null}
 
-      <View style={[styles.chart, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      <View
+        style={[
+          styles.chart,
+          {
+            backgroundColor: T.card,
+            borderColor: T.borderHair,
+            borderWidth: T.isDark ? 0 : StyleSheet.hairlineWidth,
+          },
+        ]}
+      >
         {trends.length === 0 ? (
-          <Text style={{ color: palette.textSecondary }}>No data.</Text>
+          <Text style={{ color: T.textMuted }}>No data.</Text>
         ) : (
           trends.map((row) => (
             <View key={row.date} style={styles.barRow}>
-              <Text style={[styles.barDate, { color: palette.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.barDate, { color: T.textMuted }]} numberOfLines={1}>
                 {row.date}
               </Text>
-              <View style={[styles.barTrack, { backgroundColor: palette.border }]}>
-                <View
-                  style={[
-                    styles.barFill,
-                    { width: `${(row.count / max) * 100}%`, backgroundColor: Brand.primary },
-                  ]}
-                />
+              <View style={[styles.barTrack, { backgroundColor: barTrack }]}>
+                <View style={[styles.barFill, { width: `${(row.count / max) * 100}%`, backgroundColor: barFill }]} />
               </View>
-              <Text style={[styles.barCount, { color: palette.text }]}>{row.count}</Text>
+              <Text style={[styles.barCount, { color: T.text, fontFamily: T.FontFamily.labelSemibold }]}>
+                {row.count}
+              </Text>
             </View>
           ))
         )}
@@ -74,13 +85,11 @@ export default function AnalyticsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   pad: { padding: 16, paddingBottom: 32 },
-  h1: { fontSize: 20, fontWeight: '700' },
-  sub: { marginTop: 4, marginBottom: 16, fontSize: 14 },
-  err: { color: Brand.danger, marginBottom: 8 },
-  chart: { borderRadius: 12, borderWidth: 1, padding: 12, gap: 10 },
+  err: { marginBottom: 8 },
+  chart: { borderRadius: 14, padding: 12, gap: 10 },
   barRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   barDate: { width: 88, fontSize: 11 },
   barTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 5 },
-  barCount: { width: 36, textAlign: 'right', fontSize: 13, fontWeight: '600' },
+  barCount: { width: 36, textAlign: 'right', fontSize: 13 },
 });

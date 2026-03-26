@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View, useWindowDimensions } from 'react-
 import { useLocalSearchParams } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { getStoredToken, streamMjpegUrl } from '@/lib/api';
+import { Stitch } from '@/constants/stitchTheme';
 
 export default function CameraViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,7 +26,7 @@ export default function CameraViewerScreen() {
   return (
     <View style={[styles.root, { minHeight: height * 0.75 }]}>
       {!uri ? (
-        <ActivityIndicator size="large" color="#2065D1" />
+        <ActivityIndicator size="large" color={Stitch.primary} />
       ) : (
         <WebView
           source={{ uri }}

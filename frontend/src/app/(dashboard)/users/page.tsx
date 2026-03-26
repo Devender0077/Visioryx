@@ -37,6 +37,7 @@ import {
 } from '@/lib/appOrigin';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 import QRCode from 'react-qr-code';
 
 interface User {
@@ -231,35 +232,21 @@ export default function UsersPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', sm: 'row' },
-            alignItems: { xs: 'stretch', sm: 'flex-start' },
-            justifyContent: 'space-between',
-            gap: 2,
-            mb: 1,
-          }}
-        >
-          <Typography variant="h5" fontWeight={700} sx={{ flex: '1 1 auto', minWidth: 0 }}>
-            Users
-          </Typography>
+      <StitchPageHeader
+        eyebrow="Directory"
+        title="User Management"
+        subtitle="Oversee ecosystem access, enrollment, and biometric integrity. QR opens a shareable link; email uses SMTP (configure under Communication Node). Upload JPEG, PNG, WebP, or HEIC from this browser."
+        actions={
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => setOpen(true)}
-            sx={{ fontWeight: 600, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+            sx={{ fontWeight: 600, width: { xs: '100%', sm: 'auto' } }}
           >
             Register User
           </Button>
-        </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, maxWidth: 960 }}>
-          Register users for face recognition. QR opens a shareable link; email sends the same link via SMTP
-          (configure under Email &amp; SMTP). Upload is a single image from this browser. Supported: JPEG, PNG, WebP,
-          HEIC.
-        </Typography>
-      </Box>
+        }
+      />
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
       {phoneQrWarning && (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -534,7 +521,7 @@ export default function UsersPage() {
               <img
                 src={photoUrlFor(previewUser.id) ?? undefined}
                 alt={previewUser.name}
-                style={{ width: '100%', height: 360, display: 'block', objectFit: 'contain', background: '#fff' }}
+                style={{ width: '100%', height: 360, display: 'block', objectFit: 'contain', background: '#171f33' }}
                 onError={() => setPhotoLoadError(true)}
               />
             </Box>

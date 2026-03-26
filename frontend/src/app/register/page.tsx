@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
-import { Videocam } from '@mui/icons-material';
+import { Security } from '@mui/icons-material';
 import { useToast } from '@/contexts/ToastContext';
 import { getApiBase } from '@/lib/api';
+import { stitchAuthBackdrop, stitchGlassPaper } from '@/theme/stitchSx';
 
 function formatApiError(data: unknown, fallback: string): string {
   if (data == null || typeof data !== 'object') return fallback;
@@ -79,8 +80,7 @@ export default function RegisterPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
-        backgroundImage: 'linear-gradient(135deg, rgba(32, 101, 209, 0.04) 0%, rgba(51, 102, 255, 0.04) 100%)',
+        ...stitchAuthBackdrop,
       }}
     >
       <Paper
@@ -90,8 +90,8 @@ export default function RegisterPage() {
           maxWidth: 400,
           width: '100%',
           borderRadius: 3,
-          boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.2), 0px 12px 24px -4px rgba(145, 158, 171, 0.12)',
-          border: '1px solid rgba(145, 158, 171, 0.12)',
+          ...stitchGlassPaper,
+          backdropFilter: 'blur(20px)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -100,18 +100,25 @@ export default function RegisterPage() {
               width: 48,
               height: 48,
               borderRadius: 2,
-              bgcolor: 'primary.main',
+              background: 'linear-gradient(135deg, #afc6ff 0%, #2065d1 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Videocam sx={{ color: 'white', fontSize: 28 }} />
+            <Security sx={{ color: '#002d6c', fontSize: 28 }} />
           </Box>
-          <Typography variant="h5" fontWeight={700}>
-            Create account
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            sx={{ fontFamily: '"Manrope", "Public Sans", sans-serif', letterSpacing: '-0.03em', color: 'primary.light' }}
+          >
+            Visioryx
           </Typography>
         </Box>
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
+          Create account
+        </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           Sign up to enroll your face and use Visioryx. Surveillance features require an operator or admin role.
         </Typography>
@@ -179,7 +186,7 @@ export default function RegisterPage() {
         </Box>
         <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
           Already have an account?{' '}
-          <Link href="/login" style={{ fontWeight: 600, color: 'inherit' }}>
+          <Link href="/login" style={{ fontWeight: 600, color: '#afc6ff' }}>
             Sign in
           </Link>
         </Typography>

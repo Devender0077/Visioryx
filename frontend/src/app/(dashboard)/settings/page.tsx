@@ -15,9 +15,10 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { MailOutline, Save } from '@mui/icons-material';
+import { Save } from '@mui/icons-material';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface EmailSettingsDto {
   enabled: boolean;
@@ -135,16 +136,11 @@ export default function EmailSettingsPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: 720 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <MailOutline color="primary" />
-          Email &amp; SMTP
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Configure outbound mail to send face-enrollment links to users. Password is stored server-side only; leave
-          blank when saving to keep the current password.
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="System Administration"
+        title="Communication Node"
+        subtitle="Configure SMTP for system alerts, enrollment links, and automated reports. Password is stored server-side only; leave blank when saving to keep the current password."
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

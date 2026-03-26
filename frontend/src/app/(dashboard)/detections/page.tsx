@@ -28,6 +28,7 @@ import { downloadAuthenticatedFile } from '@/lib/downloadCsv';
 import { useToast } from '@/contexts/ToastContext';
 import { formatDateTime } from '@/lib/formatDate';
 import { EmptyState } from '@/components/EmptyState';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface Detection {
   id: number;
@@ -140,15 +141,11 @@ export default function DetectionsPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          Detections
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          <strong>Known</strong> rows show the matched person’s name when recognition succeeds. Confidence for <strong>known</strong> is
-          similarity to the enrolled face; for <strong>unknown</strong> it is face-detector score only.
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Forensics"
+        title="Detection Intelligence"
+        subtitle="Deep-layer face detections across your camera grid. Known rows show enrolled names; confidence for known is similarity to the enrolled face, for unknown it is detector score only. Export CSV for audits."
+      />
       {enrolledCount === 0 && usersSummary.length > 0 && usersSummary.some((u) => u.image_path && !u.has_face_embedding) && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           A photo is saved but <strong>no face embedding</strong> was stored — usually the face was unclear, too small, or the server

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Visioryx | Camera Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-variant": "#2d3449",
+                        "surface": "#0b1326",
+                        "on-tertiary-container": "#ffe6ca",
+                        "on-primary-container": "#e4eaff",
+                        "outline": "#8c909f",
+                        "outline-variant": "#424753",
+                        "on-surface": "#dae2fd",
+                        "surface-dim": "#0b1326",
+                        "on-primary-fixed-variant": "#004398",
+                        "primary-fixed-dim": "#afc6ff",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#57e082",
+                        "on-tertiary-fixed-variant": "#624000",
+                        "on-secondary-fixed-variant": "#005226",
+                        "on-secondary-fixed": "#00210b",
+                        "on-primary-fixed": "#001a43",
+                        "on-background": "#dae2fd",
+                        "on-tertiary": "#452b00",
+                        "tertiary-fixed-dim": "#ffb950",
+                        "surface-container-low": "#131b2e",
+                        "on-error": "#690005",
+                        "inverse-surface": "#dae2fd",
+                        "on-error-container": "#ffdad6",
+                        "error": "#ffb4ab",
+                        "secondary": "#57e082",
+                        "surface-container": "#171f33",
+                        "on-secondary-container": "#003415",
+                        "secondary-fixed": "#75fd9c",
+                        "inverse-primary": "#0459c5",
+                        "on-secondary": "#003918",
+                        "tertiary-fixed": "#ffddb3",
+                        "tertiary": "#ffb950",
+                        "surface-tint": "#afc6ff",
+                        "background": "#0b1326",
+                        "primary-fixed": "#d9e2ff",
+                        "primary-container": "#2065d1",
+                        "on-surface-variant": "#c2c6d5",
+                        "secondary-container": "#00aa54",
+                        "surface-container-high": "#222a3d",
+                        "surface-container-highest": "#2d3449",
+                        "tertiary-container": "#915f00",
+                        "surface-bright": "#31394d",
+                        "inverse-on-surface": "#283044",
+                        "primary": "#afc6ff",
+                        "surface-container-lowest": "#060e20",
+                        "on-primary": "#002d6c",
+                        "on-tertiary-fixed": "#291800"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        .glass-panel {
+            backdrop-filter: blur(20px);
+            background: rgba(34, 42, 61, 0.8);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #afc6ff 0%, #2065d1 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30 selection:text-primary">
+<!-- TopAppBar -->
+<header class="bg-[#0b1326] dark:bg-[#0b1326] flex justify-between items-center w-full px-6 py-4 fixed top-0 z-50">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#afc6ff]" data-icon="security">security</span>
+<h1 class="text-2xl font-bold tracking-tighter text-[#afc6ff] font-['Manrope']">Visioryx</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center w-10 h-10 rounded-full bg-surface-container-high text-primary hover:bg-[#222a3d] transition-colors active:scale-95 duration-200">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary-container">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="professional male headshot for a security administrator profile with neutral lighting and blurred corporate background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7aC9Aw7wljSktAHLG18VdsuA7KbF9wYXjhcInVZkQja7FlVpbAEYWnqZBjiSg1aJ25q5Z1Xbp-7nm9Q6K1gvGMBnDyza23wpIVTg5kYp6Xqhy5bt6aumI9YvDB97XbtDrobXFEaZMM0-i9NSaV-IKscMqyIl_G42QI8JvwvPCyZUuH5ykJHgyEL3XeyQbSP-0Kp2GeopEKNe7mrntIcsDKNyVoUlkbOuI7yodyfkpwpzLrHGqpPG1fSoqKJBpb8ao4dhfyaWBFNY"/>
+</div>
+</div>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-7xl mx-auto">
+<!-- Page Header Section -->
+<section class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="space-y-2">
+<span class="text-xs uppercase tracking-[0.2em] font-bold text-primary opacity-80">Network Management</span>
+<h2 class="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Active Cameras</h2>
+<p class="text-on-surface-variant max-w-md">Manage your distributed security nodes and monitor real-time stream connectivity across the infrastructure.</p>
+</div>
+<button class="primary-gradient text-on-primary px-8 py-4 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-primary/10 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="add_circle">add_circle</span>
+                Add Camera
+            </button>
+</section>
+<!-- Bento-style Grid for Cameras -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
+<!-- Camera Card 1: Front Gate -->
+<div class="lg:col-span-8 bg-surface-container rounded-xl overflow-hidden group">
+<div class="relative h-64 w-full">
+<img class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" data-alt="high contrast security camera view of a modern building entrance gate at twilight with sharp architectural lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsijg-kLeAS46PWMwfwmwi0Efd2VAbafI7Cks-APxkkBjVS1kMG3tEuQfUP59NwQOKmf7xEu9JJ3cenhmF8ut2fcZCkS1JHWPuOcYJqww3s1hVQNEk0wMduQAcf1oegkayA1AiFMhWNZesq_hShJKTJhY87bq0KOGDnARnWlT-rRCop3QKQWRPHwWc5GpT9Z_kiq4SPqfVuCjGbbdoNEBnDev9DmQMcXHrjZii8c5uD4X4XzRMpO6_kqsHX2sNUBHamF1TG175Nmw"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 uppercase tracking-wider">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                            Live
+                        </span>
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container via-transparent to-transparent"></div>
+</div>
+<div class="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+<div>
+<h3 class="text-2xl font-headline font-bold mb-1">Front Gate</h3>
+<p class="text-sm font-label text-outline tabular-nums mb-4">UUID: 8829-0012-AX90</p>
+<div class="flex items-center gap-3 bg-surface-container-lowest px-4 py-2 rounded-lg group/rtsp cursor-pointer hover:bg-surface-container-high transition-colors">
+<span class="material-symbols-outlined text-sm text-primary" data-icon="link">link</span>
+<code class="text-xs text-on-surface-variant font-mono">rtsp://192.168.1.104/•••••••••••••</code>
+<span class="material-symbols-outlined text-xs text-outline group-hover/rtsp:text-primary" data-icon="visibility">visibility</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center text-on-surface hover:bg-primary-container hover:text-white transition-all">
+<span class="material-symbols-outlined" data-icon="edit">edit</span>
+</button>
+<button class="w-12 h-12 rounded-xl bg-surface-container-highest flex items-center justify-center text-error hover:bg-error-container hover:text-white transition-all">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Stats/Summary Sidebar (Asymmetry) -->
+<div class="lg:col-span-4 bg-surface-container-low rounded-xl p-8 flex flex-col justify-between border-l border-primary/5">
+<div>
+<h4 class="text-sm font-label uppercase tracking-widest text-primary mb-6">Status Overview</h4>
+<div class="space-y-6">
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant">Total Nodes</span>
+<span class="text-2xl font-headline font-bold tabular-nums">04</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant">Online</span>
+<span class="text-2xl font-headline font-bold text-secondary tabular-nums">03</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant">Issues</span>
+<span class="text-2xl font-headline font-bold text-error tabular-nums">01</span>
+</div>
+</div>
+</div>
+<div class="mt-12 bg-surface-container rounded-xl p-4">
+<p class="text-xs text-outline mb-2">Storage Usage</p>
+<div class="w-full h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-2/3"></div>
+</div>
+<p class="text-[10px] text-right mt-2 text-on-surface-variant font-mono">1.2TB / 2.0TB</p>
+</div>
+</div>
+<!-- Camera Card 2: Parking East -->
+<div class="lg:col-span-4 bg-surface-container rounded-xl overflow-hidden group">
+<div class="relative h-48">
+<img class="w-full h-full object-cover opacity-50" data-alt="dimly lit concrete parking garage with deep shadows and industrial aesthetic seen through security lens" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD00o4q56j8hIJJBIQYSy5xOBel-AK90ye3fRgYF8BZzs1yLQJU8ju5pt6hszKb63WaYuo_XOdgCeATbicpcaw8fPFuM3pGhGbli0FLl2SLQkXVBe892ltvdQvhpkFUeb2LgJ1pwnlJxdCFcwlzYboBLRy09g294awWTLWD7esuOHv_-YXE7Rep_vIMhqBtSLabwbZbo74uWCa7g7EhL-l_cuIiB6EKQXllGFbHyJhm8jjktfUTkeYN73O13zYL5Rd0aNJuGvOhgXg"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-bold uppercase">Live</span>
+</div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-4">Parking East</h3>
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-outline" data-icon="vpn_lock">vpn_lock</span>
+<code class="text-xs text-outline font-mono truncate">rtsp://10.0.4.15/•••••••</code>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-3 rounded-lg bg-surface-container-highest text-sm font-semibold hover:bg-surface-variant transition-colors">Edit</button>
+<button class="w-12 h-11 rounded-lg bg-surface-container-highest flex items-center justify-center text-error/60 hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Camera Card 3: Lobby -->
+<div class="lg:col-span-4 bg-surface-container rounded-xl overflow-hidden group">
+<div class="relative h-48">
+<img class="w-full h-full object-cover opacity-50" data-alt="minimalist modern corporate lobby with marble floors and recessed lighting viewed from high angle camera" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbPXeVuPbZY4sl8EfBPo06AQSgkB9eRb7gyfFFgRqzXsKs83GTOqvHn7ztBRRi66o0OAz23nkFXEcXerSpBcibuSrEJezt5WMC2IAkpuUo1-Lk3OjouEcB4d8_xBEgNBsweYXtQwsaeekkk8UK8Xc3qIaVMZpholYPY1HHekDbbOPFO2wpbW1KgqS8r1A1eBNBTjnEY-9OvdydWxDu5MnosEKEWKCpmcFdw2h0ZgN5CDEcMe1E1DtkCgSJlTuZfohuMVIk7DQEFX8"/>
+<div class="absolute top-4 left-4">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[10px] font-bold uppercase">Live</span>
+</div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-4">Lobby Main</h3>
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-outline" data-icon="vpn_lock">vpn_lock</span>
+<code class="text-xs text-outline font-mono truncate">rtsp://10.0.4.22/•••••••</code>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-3 rounded-lg bg-surface-container-highest text-sm font-semibold hover:bg-surface-variant transition-colors">Edit</button>
+<button class="w-12 h-11 rounded-lg bg-surface-container-highest flex items-center justify-center text-error/60 hover:text-error transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Camera Card 4: Server Room (Offline State) -->
+<div class="lg:col-span-4 bg-surface-container-low rounded-xl overflow-hidden border border-error/10">
+<div class="relative h-48 bg-surface-container-lowest flex flex-col items-center justify-center gap-3">
+<span class="material-symbols-outlined text-4xl text-error/30" data-icon="videocam_off">videocam_off</span>
+<span class="text-xs font-bold text-error uppercase tracking-widest">Signal Lost</span>
+<div class="absolute top-4 left-4">
+<span class="bg-error-container text-on-error-container px-3 py-1 rounded-full text-[10px] font-bold uppercase">Offline</span>
+</div>
+</div>
+<div class="p-6">
+<h3 class="text-xl font-headline font-bold mb-4">Server Room</h3>
+<div class="flex items-center gap-3 mb-6 opacity-40">
+<span class="material-symbols-outlined text-outline" data-icon="vpn_lock">vpn_lock</span>
+<code class="text-xs text-outline font-mono truncate">rtsp://10.0.8.201/•••••••</code>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-3 rounded-lg bg-primary/10 text-primary text-sm font-bold hover:bg-primary/20 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="refresh">refresh</span>
+                            Reconnect
+                        </button>
+<button class="w-12 h-11 rounded-lg bg-surface-container-highest flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="settings">settings</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB (Suppressed on Details, but Relevant here as secondary action) -->
+<button class="fixed bottom-24 right-8 w-14 h-14 primary-gradient rounded-full shadow-2xl flex items-center justify-center text-on-primary md:hidden z-40 active:scale-90 duration-300">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 pb-8 bg-[#222a3d]/80 backdrop-blur-xl">
+<!-- Overview -->
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all group" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-medium">Overview</span>
+</a>
+<!-- Live -->
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all group" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="videocam">videocam</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-medium">Live</span>
+</a>
+<!-- Cameras (ACTIVE) -->
+<a class="flex flex-col items-center justify-center text-[#afc6ff] after:content-[''] after:w-1 after:h-1 after:bg-[#afc6ff] after:rounded-full after:mt-1 transition-all" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="photo_camera" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-medium">Cameras</span>
+</a>
+<!-- Alerts -->
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all group" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="notifications">notifications</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-medium">Alerts</span>
+</a>
+<!-- More -->
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all group" href="#">
+<span class="material-symbols-outlined mb-1" data-icon="more_horiz">more_horiz</span>
+<span class="font-['Inter'] text-[10px] uppercase tracking-[0.05em] font-medium">More</span>
+</a>
+</nav>
+<!-- Subtle Tonal Separation Overlay for Bottom Nav -->
+<div class="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-surface to-transparent pointer-events-none z-40"></div>
+</body></html>

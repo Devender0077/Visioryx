@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Box, Button, TextField, Typography, Paper } from '@mui/material';
-import { Videocam } from '@mui/icons-material';
+import { Security } from '@mui/icons-material';
 import { useToast } from '@/contexts/ToastContext';
 import { api, getApiBase } from '@/lib/api';
+import { stitchAuthBackdrop, stitchGlassPaper } from '@/theme/stitchSx';
 
 function formatApiError(data: unknown, fallback: string): string {
   if (data == null || typeof data !== 'object') return fallback;
@@ -74,8 +75,7 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
-        backgroundImage: 'linear-gradient(135deg, rgba(32, 101, 209, 0.04) 0%, rgba(51, 102, 255, 0.04) 100%)',
+        ...stitchAuthBackdrop,
       }}
     >
       <Paper
@@ -85,8 +85,8 @@ export default function LoginPage() {
           maxWidth: 400,
           width: '100%',
           borderRadius: 3,
-          boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.2), 0px 12px 24px -4px rgba(145, 158, 171, 0.12)',
-          border: '1px solid rgba(145, 158, 171, 0.12)',
+          ...stitchGlassPaper,
+          backdropFilter: 'blur(20px)',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
@@ -95,20 +95,27 @@ export default function LoginPage() {
               width: 48,
               height: 48,
               borderRadius: 2,
-              bgcolor: 'primary.main',
+              background: 'linear-gradient(135deg, #afc6ff 0%, #2065d1 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Videocam sx={{ color: 'white', fontSize: 28 }} />
+            <Security sx={{ color: '#002d6c', fontSize: 28 }} />
           </Box>
-          <Typography variant="h5" fontWeight={700}>
+          <Typography
+            variant="h5"
+            fontWeight={800}
+            sx={{ fontFamily: '"Manrope", "Public Sans", sans-serif', letterSpacing: '-0.03em', color: 'primary.light' }}
+          >
             Visioryx
           </Typography>
         </Box>
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 0.5, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
+          Secure Access
+        </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Sign in to access the AI Surveillance Dashboard
+          Enter your credentials to monitor your assets.
         </Typography>
         <Box
           component="form"
@@ -120,7 +127,7 @@ export default function LoginPage() {
         >
           <TextField
             fullWidth
-            label="Email"
+            label="Work Email"
             name="email"
             type="email"
             autoComplete="username"
@@ -130,7 +137,7 @@ export default function LoginPage() {
           />
           <TextField
             fullWidth
-            label="Password"
+            label="Access Code"
             name="password"
             type="password"
             autoComplete="current-password"
@@ -148,14 +155,29 @@ export default function LoginPage() {
             variant="contained"
             fullWidth
             size="large"
-            sx={{ py: 1.5, borderRadius: 2, fontWeight: 600 }}
+            disableElevation
+            sx={{
+              py: 1.5,
+              borderRadius: 2,
+              fontWeight: 800,
+              fontFamily: '"Manrope", "Public Sans", sans-serif',
+              backgroundImage: 'linear-gradient(135deg, #afc6ff 0%, #2065d1 100%)',
+              backgroundColor: 'transparent',
+              color: '#002d6c',
+              boxShadow: '0 8px 24px rgba(32, 101, 209, 0.35)',
+              '&:hover': {
+                backgroundImage: 'linear-gradient(135deg, #c4d4ff 0%, #1a5ac4 100%)',
+                backgroundColor: 'transparent',
+                boxShadow: '0 10px 28px rgba(32, 101, 209, 0.45)',
+              },
+            }}
           >
-            Sign In
+            Initialize Protocol
           </Button>
         </Box>
         <Typography variant="body2" sx={{ mt: 2 }} color="text.secondary">
           No account?{' '}
-          <Link href="/register" style={{ fontWeight: 600, color: 'inherit' }}>
+          <Link href="/register" style={{ fontWeight: 600, color: '#afc6ff' }}>
             Create one
           </Link>
         </Typography>

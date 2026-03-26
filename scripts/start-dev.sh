@@ -112,7 +112,14 @@ start_frontend() {
         echo "ERROR: npm install failed."
         return 1
     fi
-    npm run dev &
+    # After kill -9, .next can be half-written; webpack then throws Cannot find module './N.js' and 404 on /_next/static.
+    # Default: clean build. Set VISIORYX_SKIP_NEXT_CLEAN=1 to keep .next for faster restarts (may re-hit stale chunks).
+    if [ -n "${VISIORYX_SKIP_NEXT_CLEAN:-}" ]; then
+        npm run dev &
+    else
+        echo "Clearing frontend/.next (avoids stale Webpack chunks)..."
+        npm run dev:clean &
+    fi
     echo "Frontend started: http://localhost:3000"
 }
 

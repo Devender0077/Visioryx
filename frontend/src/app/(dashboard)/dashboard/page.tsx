@@ -31,6 +31,7 @@ import { formatDateTime } from '@/lib/formatDate';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { EmptyStateIllustration } from '@/components/illustrations';
 import { WelcomeCard, FeaturedCard } from '@/components/dashboard';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 const DetectionTrendsChartLazy = dynamic(
   () => import('@/components/dashboard/DetectionTrendsChart'),
@@ -96,9 +97,9 @@ const StatCard = ({
         overflow: 'hidden',
         position: 'relative',
         isolation: 'isolate',
-        bgcolor: '#ffffff',
-        border: '1px solid rgba(145, 158, 171, 0.24)',
-        boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.16), 0px 16px 32px -8px rgba(145, 158, 171, 0.22)',
+        bgcolor: '#222a3d',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        boxShadow: '0 1px 0 0 rgba(255,255,255,0.05), 0 16px 48px -12px rgba(0,0,0,0.5)',
         transition: 'transform 0.3s ease, box-shadow 0.3s ease',
         minHeight: 160,
         height: '100%',
@@ -109,7 +110,7 @@ const StatCard = ({
         },
         '&:hover': {
           transform: 'translateY(-4px)',
-          boxShadow: `0 20px 40px -12px ${alpha(color, 0.28)}`,
+          boxShadow: `0 20px 48px -12px ${alpha(color, 0.35)}`,
           '& .stat-icon': { transform: 'scale(1.05)' },
         },
       }}
@@ -170,25 +171,31 @@ const StatCard = ({
             </Box>
           )}
         </Box>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, mb: 0.5 }}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontWeight: 700, mb: 1, textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '0.7rem' }}
+        >
           {title}
         </Typography>
         <Typography
           variant="h4"
           sx={{
+            fontFamily: '"Manrope", "Public Sans", sans-serif',
             fontWeight: 800,
             fontSize: { xs: '1.75rem', sm: '2rem' },
             letterSpacing: '-0.02em',
             color: 'text.primary',
+            fontVariantNumeric: 'tabular-nums',
           }}
         >
           {value}
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1.5 }}>
-          <Typography variant="caption" color="primary.main" fontWeight={700}>
+          <Typography variant="caption" color="primary.light" fontWeight={700}>
             View details
           </Typography>
-          <ArrowForward sx={{ fontSize: 16, color: 'primary.main' }} />
+          <ArrowForward sx={{ fontSize: 16, color: 'primary.light' }} />
         </Box>
       </CardContent>
     </Card>
@@ -242,7 +249,11 @@ export default function DashboardPage() {
   };
 
   const { connected } = useWebSocket((event) => {
-    if (['face_recognized', 'unknown_person_detected', 'object_detected', 'camera_status'].includes(event.type)) {
+    if (
+      ['face_recognized', 'unknown_person_detected', 'object_detected', 'camera_status', 'alert'].includes(
+        event.type,
+      )
+    ) {
       load(false);
     }
   });
@@ -263,14 +274,14 @@ export default function DashboardPage() {
       title: 'Total Cameras',
       value: data?.total_cameras ?? '-',
       icon: <Videocam sx={{ fontSize: 28 }} />,
-      color: '#00AB55',
+      color: '#57e082',
       href: '/cameras',
     },
     {
       title: "Today's Detections",
       value: data?.detections_today ?? '-',
       icon: <History sx={{ fontSize: 28 }} />,
-      color: '#FFAB00',
+      color: '#ffb950',
       href: '/detections',
       trend: data?.detection_trend_7d,
     },
@@ -278,39 +289,26 @@ export default function DashboardPage() {
       title: 'Unknown Today',
       value: data?.unknown_detections_today ?? '-',
       icon: <Warning sx={{ fontSize: 28 }} />,
-      color: '#FF5630',
+      color: '#ffb4ab',
       href: '/detections',
     },
   ];
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      {/* Header with Live chip */}
-      <Box
-        sx={{
-          mb: 3,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 1,
-        }}
-      >
-        <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-            Overview
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            AI Surveillance metrics and real-time activity
-          </Typography>
-        </Box>
-        <Chip
-          label={connected ? 'Live' : 'Offline'}
-          size="medium"
-          color={connected ? 'success' : 'default'}
-          sx={{ fontWeight: 600 }}
-        />
-      </Box>
+      <StitchPageHeader
+        eyebrow="System Status"
+        title="System Overview"
+        subtitle="Operational metrics, detection trends, and real-time activity — WebSocket status on the right."
+        actions={
+          <Chip
+            label={connected ? 'Live' : 'Offline'}
+            size="medium"
+            color={connected ? 'success' : 'default'}
+            sx={{ fontWeight: 600 }}
+          />
+        }
+      />
 
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
@@ -332,8 +330,8 @@ export default function DashboardPage() {
           </Typography>
           <Card
             sx={{
-              border: '1px solid rgba(145, 158, 171, 0.24)',
-              boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.16), 0px 16px 32px -8px rgba(145, 158, 171, 0.22)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              bgcolor: 'background.paper',
             }}
           >
             <CardContent sx={{ p: 3 }}>

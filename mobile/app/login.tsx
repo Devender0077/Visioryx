@@ -16,13 +16,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { Stitch, FontFamily } from '@/constants/stitchTheme';
+import { getApiBase } from '@/lib/config';
+import { LAN_TROUBLESHOOTING, testApiReachable } from '@/lib/api';
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [testingApi, setTestingApi] = useState(false);
+
+  const runConnectionTest = async () => {
+    setTestingApi(true);
+    try {
+      const r = await testApiReachable();
+      Alert.alert(
+        r.ok ? 'Connection OK' : 'Cannot reach API',
+        `${r.detail}\n\n${LAN_TROUBLESHOOTING}`,
+      );
+    } finally {
+      setTestingApi(false);
+    }
+  };
 
   const onSubmit = async () => {
     if (!email.trim() || !password) {
@@ -34,7 +51,8 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       router.replace('/(tabs)');
     } catch (e) {
-      Alert.alert('Sign in failed', e instanceof Error ? e.message : 'Unknown error');
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Sign in failed', `${msg}\n\n${LAN_TROUBLESHOOTING}`);
     } finally {
       setBusy(false);
     }
@@ -61,29 +79,62 @@ export default function LoginScreen() {
           </LinearGradient>
           <Text style={styles.title}>Visioryx</Text>
           <Text style={styles.subtitle}>Secure access to your surveillance workspace</Text>
+          <Text style={styles.apiUrl} selectable>
+            API: {getApiBase()}
+          </Text>
+          <Pressable
+            style={styles.testLink}
+            onPress={() => void runConnectionTest()}
+            disabled={testingApi || busy}
+          >
+            {testingApi ? (
+              <ActivityIndicator size="small" color={Stitch.primary} />
+            ) : (
+              <Text style={styles.testLinkText}>Test API connection</Text>
+            )}
+          </Pressable>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.label}>Email</Text>
+          <View style={styles.cardIntro}>
+            <Text style={styles.cardTitle}>Secure Access</Text>
+            <Text style={styles.cardSub}>Enter your credentials to monitor your assets.</Text>
+          </View>
+          <Text style={styles.label}>Work Email</Text>
           <TextInput
             style={styles.input}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
-            placeholder="you@company.com"
-            placeholderTextColor={Stitch.onSurfaceVariant}
+            placeholder="name@company.com"
+            placeholderTextColor={Stitch.outline}
             value={email}
             onChangeText={setEmail}
           />
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            secureTextEntry
-            placeholder="••••••••"
-            placeholderTextColor={Stitch.onSurfaceVariant}
-            value={password}
-            onChangeText={setPassword}
-          />
+          <Text style={styles.label}>Access Code</Text>
+          <View style={styles.passwordRow}>
+            <TextInput
+              style={styles.inputPassword}
+              secureTextEntry={!showPassword}
+              placeholder="••••••••"
+              placeholderTextColor={Stitch.onSurfaceVariant}
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <Pressable
+              style={styles.eyeBtn}
+              onPress={() => setShowPassword((v) => !v)}
+              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+            >
+              <MaterialCommunityIcons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={24}
+                color={Stitch.onSurfaceVariant}
+              />
+            </Pressable>
+          </View>
           <Pressable
             style={[styles.buttonWrap, busy && styles.buttonDisabled]}
             onPress={() => void onSubmit()}
@@ -98,14 +149,15 @@ export default function LoginScreen() {
               {busy ? (
                 <ActivityIndicator color={Stitch.onPrimaryContainer} />
               ) : (
-                <Text style={styles.buttonText}>Sign in</Text>
+                <Text style={styles.buttonText}>Initialize Protocol</Text>
               )}
             </LinearGradient>
           </Pressable>
         </View>
 
         <Text style={styles.hint}>
-          Set EXPO_PUBLIC_API_URL to your backend (e.g. http://192.168.1.10:8000) on a physical device.
+          Phone on Wi‑Fi: in mobile/.env set EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8000 (not localhost), then npm run
+          start:clear. Android emulator: http://10.0.2.2:8000.
         </Text>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -148,12 +200,51 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingHorizontal: 12,
   },
+  apiUrl: {
+    fontFamily: FontFamily.body,
+    marginTop: 10,
+    fontSize: 11,
+    color: Stitch.onSurfaceVariant,
+    opacity: 0.85,
+    textAlign: 'center',
+    paddingHorizontal: 8,
+  },
+  testLink: {
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+  },
+  testLinkText: {
+    fontFamily: FontFamily.labelMedium,
+    fontSize: 14,
+    color: Stitch.primary,
+    textDecorationLine: 'underline',
+  },
   card: {
-    backgroundColor: 'rgba(34, 42, 61, 0.55)',
+    backgroundColor: 'rgba(34, 42, 61, 0.4)',
     borderRadius: 16,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(66, 71, 83, 0.35)',
+    padding: 24,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(66, 71, 83, 0.2)',
+    shadowColor: '#afc6ff',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 40,
+    elevation: 8,
+  },
+  cardIntro: { marginBottom: 20 },
+  cardTitle: {
+    fontFamily: FontFamily.headline,
+    fontSize: 26,
+    color: Stitch.onSurface,
+  },
+  cardSub: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: Stitch.onSurfaceVariant,
+    marginTop: 6,
+    lineHeight: 20,
   },
   label: {
     fontFamily: FontFamily.labelSemibold,
@@ -165,15 +256,38 @@ const styles = StyleSheet.create({
   },
   input: {
     fontFamily: FontFamily.body,
-    backgroundColor: Stitch.surfaceContainerLow,
-    borderWidth: 1,
-    borderColor: 'rgba(66, 71, 83, 0.4)',
+    backgroundColor: Stitch.surfaceContainerLowest,
+    borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
     marginBottom: 16,
     color: Stitch.onSurface,
+  },
+  passwordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: Stitch.surfaceContainerLowest,
+    borderWidth: 0,
+    borderRadius: 12,
+    paddingRight: 4,
+  },
+  inputPassword: {
+    flex: 1,
+    fontFamily: FontFamily.body,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Stitch.onSurface,
+  },
+  eyeBtn: {
+    padding: 10,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonWrap: {
     borderRadius: 12,

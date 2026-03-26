@@ -35,6 +35,7 @@ import {
   Face as FaceIcon,
   MailOutline,
   FactCheck,
+  Security,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 280;
@@ -134,7 +135,7 @@ export default function DashboardLayout({
 
   const pageTitle = (() => {
     if (pathname === '/dashboard') {
-      return userRole === 'enrollee' ? 'Home' : 'Hi, Welcome back 👋';
+      return userRole === 'enrollee' ? 'Home' : 'Overview';
     }
     const item = navItems.find((i) => pathname === i.path);
     return item ? item.label : pathname === '/' ? 'Overview' : 'Visioryx';
@@ -164,7 +165,7 @@ export default function DashboardLayout({
             letterSpacing: '-0.02em',
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
+            gap: 1.5,
             overflow: 'hidden',
           }}
         >
@@ -174,15 +175,46 @@ export default function DashboardLayout({
               height: 32,
               flexShrink: 0,
               borderRadius: 1,
-              bgcolor: 'primary.main',
+              background: 'linear-gradient(135deg, #afc6ff 0%, #2065d1 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Videocam sx={{ color: 'white', fontSize: 20 }} />
+            <Security sx={{ color: '#002d6c', fontSize: 20 }} />
           </Box>
-          {!isCollapsed && <Box component="span" sx={{ whiteSpace: 'nowrap' }}>Visioryx</Box>}
+          {!isCollapsed && (
+            <Box sx={{ minWidth: 0 }}>
+              <Box
+                component="span"
+                sx={{
+                  display: 'block',
+                  fontFamily: 'Manrope, Public Sans, sans-serif',
+                  fontWeight: 800,
+                  fontSize: '1.125rem',
+                  letterSpacing: '-0.03em',
+                  color: 'primary.light',
+                  lineHeight: 1.2,
+                }}
+              >
+                Visioryx
+              </Box>
+              <Box
+                component="span"
+                sx={{
+                  display: 'block',
+                  fontSize: '0.625rem',
+                  letterSpacing: '0.2em',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: 'text.disabled',
+                  mt: 0.25,
+                }}
+              >
+                Digital Sentinel
+              </Box>
+            </Box>
+          )}
         </Typography>
       </Box>
       {!isCollapsed && (
@@ -191,10 +223,11 @@ export default function DashboardLayout({
           sx={{
             px: 2,
             py: 1,
-            color: 'text.disabled',
+            color: 'text.secondary',
             fontWeight: 600,
             textTransform: 'uppercase',
-            letterSpacing: '0.1em',
+            letterSpacing: '0.12em',
+            fontSize: '0.65rem',
           }}
         >
           Menu
@@ -282,7 +315,8 @@ export default function DashboardLayout({
             variant="h6"
             component="span"
             sx={{
-              fontWeight: 600,
+              fontFamily: 'Manrope, Public Sans, sans-serif',
+              fontWeight: 700,
               color: 'text.primary',
               fontSize: { xs: '1rem', sm: '1.125rem' },
             }}
@@ -302,7 +336,7 @@ export default function DashboardLayout({
             }}
             sx={{
               color: 'text.secondary',
-              '&:hover': { color: 'primary.main', bgcolor: 'rgba(32, 101, 209, 0.08)' },
+              '&:hover': { color: 'primary.light', bgcolor: 'rgba(175, 198, 255, 0.08)' },
             }}
           >
             <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Logout</Box>

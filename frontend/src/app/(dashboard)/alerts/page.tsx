@@ -24,6 +24,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { downloadAuthenticatedFile } from '@/lib/downloadCsv';
 import { formatDateTime } from '@/lib/formatDate';
 import { EmptyState } from '@/components/EmptyState';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface Alert {
   id: number;
@@ -126,14 +127,11 @@ export default function AlertsPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          Alerts
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Unknown face alerts, security alerts, camera status
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="System Monitoring"
+        title="Security Alerts"
+        subtitle="Unknown face events, security notices, and camera status — search, filter unread, and export CSV."
+      />
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={2}

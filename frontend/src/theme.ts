@@ -1,70 +1,113 @@
 import { createTheme } from '@mui/material/styles';
 
 /**
- * Minimal UI Theme - free.minimals.cc style
- * Clean, professional surveillance dashboard aesthetic
+ * Digital Sentinel (Stitch) — dark indigo surfaces, soft borders, Manrope-style headlines via CSS stack.
+ * Tokens aligned with `stitch/stitch/desktop_dashboard_overview/code.html` and mobile `stitchTheme`.
  */
+const surface = '#0b1326';
+const surfaceLow = '#131b2e';
+const surfaceContainer = '#171f33';
+const surfaceContainerHigh = '#222a3d';
+const onSurface = '#dae2fd';
+const onSurfaceVariant = '#c2c6d5';
+const outlineVariant = '#424753';
+const primaryTint = '#afc6ff';
+const primaryContainer = '#2065d1';
+const secondary = '#57e082';
+
 export const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
-      main: '#2065D1',
-      light: '#5A9AFA',
-      dark: '#0C4A9E',
-      contrastText: '#ffffff',
+      main: primaryContainer,
+      light: primaryTint,
+      dark: '#0c4a9e',
+      contrastText: '#e4eaff',
     },
     secondary: {
-      main: '#3366FF',
-      light: '#6B8CFF',
-      dark: '#0047CC',
-      contrastText: '#ffffff',
+      main: secondary,
+      light: '#75fd9c',
+      dark: '#003918',
+      contrastText: '#003415',
     },
     success: {
-      main: '#00AB55',
-      light: '#5BE584',
-      dark: '#007B55',
+      main: '#00aa54',
+      light: '#5be584',
+      dark: '#007b55',
     },
     warning: {
-      main: '#FFAB00',
-      light: '#FFD666',
-      dark: '#B76E00',
+      main: '#ffb950',
+      light: '#ffd666',
+      dark: '#915f00',
     },
     error: {
-      main: '#FF5630',
-      light: '#FF8F73',
-      dark: '#DE350B',
+      main: '#ffb4ab',
+      light: '#ffdad6',
+      dark: '#93000a',
     },
     grey: {
-      50: '#FAFAFA',
-      100: '#F5F5F5',
-      200: '#EEEEEE',
-      300: '#E0E0E0',
-      400: '#BDBDBD',
-      500: '#9E9E9E',
-      600: '#757575',
-      700: '#616161',
-      800: '#424242',
-      900: '#212121',
+      50: '#f9fafb',
+      100: '#f3f4f6',
+      200: '#e5e7eb',
+      300: '#d1d5db',
+      400: '#9ca3af',
+      500: '#6b7280',
+      600: '#4b5563',
+      700: '#374151',
+      800: '#1f2937',
+      900: '#111827',
     },
     text: {
-      primary: '#212B36',
-      secondary: '#637381',
-      disabled: '#919EAB',
+      primary: onSurface,
+      secondary: onSurfaceVariant,
+      disabled: '#8c909f',
     },
     background: {
-      default: '#F9FAFB',
-      paper: '#ffffff',
+      default: surface,
+      paper: surfaceContainer,
     },
-    divider: 'rgba(145, 158, 171, 0.24)',
+    divider: 'rgba(255, 255, 255, 0.06)',
+    action: {
+      hover: 'rgba(175, 198, 255, 0.08)',
+      selected: 'rgba(32, 101, 209, 0.16)',
+    },
   },
   typography: {
     fontFamily: '"Public Sans", "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif',
-    h1: { fontWeight: 700, letterSpacing: '-0.02em' },
-    h2: { fontWeight: 700, letterSpacing: '-0.02em' },
-    h3: { fontWeight: 600, letterSpacing: '-0.01em' },
-    h4: { fontWeight: 600 },
-    h5: { fontWeight: 600 },
-    h6: { fontWeight: 600 },
+    h1: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 800,
+      letterSpacing: '-0.02em',
+      color: onSurface,
+    },
+    h2: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 800,
+      letterSpacing: '-0.02em',
+      color: onSurface,
+    },
+    h3: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
+      color: onSurface,
+    },
+    h4: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+      color: onSurface,
+    },
+    h5: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 700,
+      color: onSurface,
+    },
+    h6: {
+      fontFamily: '"Manrope", "Public Sans", sans-serif',
+      fontWeight: 700,
+      color: onSurface,
+    },
     subtitle1: { fontWeight: 500 },
     subtitle2: { fontWeight: 500 },
     body1: { lineHeight: 1.6 },
@@ -76,43 +119,43 @@ export const theme = createTheme({
   },
   shadows: [
     'none',
-    '0px 2px 4px rgba(145, 158, 171, 0.08)',
-    '0px 4px 8px rgba(145, 158, 171, 0.08)',
-    '0px 8px 16px rgba(145, 158, 171, 0.08)',
-    '0px 12px 24px rgba(145, 158, 171, 0.08)',
-    '0px 16px 32px rgba(145, 158, 171, 0.08)',
-    '0px 20px 40px rgba(145, 158, 171, 0.08)',
-    '0px 24px 48px rgba(145, 158, 171, 0.08)',
-    '0px 28px 56px rgba(145, 158, 171, 0.08)',
-    '0px 32px 64px rgba(145, 158, 171, 0.08)',
-    '0px 36px 72px rgba(145, 158, 171, 0.08)',
-    '0px 40px 80px rgba(145, 158, 171, 0.08)',
-    '0px 44px 88px rgba(145, 158, 171, 0.08)',
-    '0px 48px 96px rgba(145, 158, 171, 0.08)',
-    '0px 52px 104px rgba(145, 158, 171, 0.08)',
-    '0px 56px 112px rgba(145, 158, 171, 0.08)',
-    '0px 60px 120px rgba(145, 158, 171, 0.08)',
-    '0px 64px 128px rgba(145, 158, 171, 0.08)',
-    '0px 68px 136px rgba(145, 158, 171, 0.08)',
-    '0px 72px 144px rgba(145, 158, 171, 0.08)',
-    '0px 76px 152px rgba(145, 158, 171, 0.08)',
-    '0px 80px 160px rgba(145, 158, 171, 0.08)',
-    '0px 84px 168px rgba(145, 158, 171, 0.08)',
-    '0px 88px 176px rgba(145, 158, 171, 0.08)',
-    '0px 92px 184px rgba(145, 158, 171, 0.08)',
+    '0 2px 8px rgba(0, 0, 0, 0.35)',
+    '0 4px 16px rgba(0, 0, 0, 0.35)',
+    '0 8px 24px rgba(0, 0, 0, 0.4)',
+    '0 12px 32px rgba(0, 0, 0, 0.45)',
+    '0 16px 40px rgba(0, 0, 0, 0.45)',
+    '0 20px 48px rgba(0, 0, 0, 0.5)',
+    '0 24px 56px rgba(0, 0, 0, 0.5)',
+    '0 28px 64px rgba(0, 0, 0, 0.5)',
+    '0 32px 72px rgba(0, 0, 0, 0.55)',
+    '0 36px 80px rgba(0, 0, 0, 0.55)',
+    '0 40px 88px rgba(0, 0, 0, 0.55)',
+    '0 44px 96px rgba(0, 0, 0, 0.55)',
+    '0 48px 104px rgba(0, 0, 0, 0.55)',
+    '0 52px 112px rgba(0, 0, 0, 0.55)',
+    '0 56px 120px rgba(0, 0, 0, 0.55)',
+    '0 60px 128px rgba(0, 0, 0, 0.55)',
+    '0 64px 136px rgba(0, 0, 0, 0.55)',
+    '0 68px 144px rgba(0, 0, 0, 0.55)',
+    '0 72px 152px rgba(0, 0, 0, 0.55)',
+    '0 76px 160px rgba(0, 0, 0, 0.55)',
+    '0 80px 168px rgba(0, 0, 0, 0.55)',
+    '0 84px 176px rgba(0, 0, 0, 0.55)',
+    '0 88px 184px rgba(0, 0, 0, 0.55)',
+    '0 92px 192px rgba(0, 0, 0, 0.55)',
   ],
   components: {
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          scrollbarColor: '#919EAB transparent',
+          scrollbarColor: `${outlineVariant} transparent`,
           '&::-webkit-scrollbar, & *::-webkit-scrollbar': {
             width: 8,
             height: 8,
           },
           '&::-webkit-scrollbar-thumb, & *::-webkit-scrollbar-thumb': {
             borderRadius: 8,
-            backgroundColor: '#919EAB',
+            backgroundColor: outlineVariant,
           },
         },
       },
@@ -120,9 +163,11 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.08), 0px 12px 24px -4px rgba(145, 158, 171, 0.08)',
-          borderRadius: 16,
-          border: '1px solid rgba(145, 158, 171, 0.08)',
+          boxShadow: '0 1px 0 0 rgba(255,255,255,0.05), 0 12px 40px -8px rgba(0,0,0,0.45)',
+          borderRadius: 12,
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          backgroundImage: 'none',
+          backgroundColor: surfaceContainerHigh,
         },
       },
     },
@@ -146,7 +191,26 @@ export const theme = createTheme({
         },
         contained: {
           '&:hover': {
-            boxShadow: '0px 8px 16px rgba(32, 101, 209, 0.24)',
+            boxShadow: '0 8px 24px rgba(32, 101, 209, 0.35)',
+          },
+        },
+      },
+    },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          color: onSurfaceVariant,
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          textTransform: 'none',
+          fontWeight: 600,
+          '&.Mui-selected': {
+            backgroundColor: 'rgba(32, 101, 209, 0.25)',
+            color: primaryTint,
+            borderColor: 'rgba(175, 198, 255, 0.35)',
+            '&:hover': {
+              backgroundColor: 'rgba(32, 101, 209, 0.32)',
+              color: primaryTint,
+            },
           },
         },
       },
@@ -154,18 +218,21 @@ export const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.2), 0px 12px 24px -4px rgba(145, 158, 171, 0.12)',
-          background: '#ffffff',
-          color: '#212B36',
-          borderBottom: '1px solid rgba(145, 158, 171, 0.12)',
+          boxShadow: '0 1px 0 0 rgba(255,255,255,0.05)',
+          background: 'rgba(11, 19, 38, 0.82)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          color: onSurface,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRight: '1px solid rgba(145, 158, 171, 0.12)',
-          background: '#ffffff',
+          borderRight: '1px solid rgba(255, 255, 255, 0.05)',
+          background: surfaceLow,
+          backgroundImage: 'none',
         },
       },
     },
@@ -174,15 +241,32 @@ export const theme = createTheme({
         root: {
           borderRadius: 8,
           margin: '0 8px',
+          borderLeft: '2px solid transparent',
+          color: onSurfaceVariant,
+          '& .MuiListItemIcon-root': {
+            color: onSurfaceVariant,
+          },
           '&.Mui-selected': {
-            backgroundColor: 'rgba(32, 101, 209, 0.08)',
-            color: '#2065D1',
+            backgroundColor: surfaceContainerHigh,
+            color: primaryTint,
+            borderLeftColor: primaryContainer,
             '& .MuiListItemIcon-root': {
-              color: '#2065D1',
+              color: primaryTint,
             },
           },
           '&:hover': {
-            backgroundColor: 'rgba(145, 158, 171, 0.08)',
+            backgroundColor: surfaceContainer,
+            color: onSurface,
+            '& .MuiListItemIcon-root': {
+              color: onSurface,
+            },
+          },
+          '&.Mui-selected:hover': {
+            backgroundColor: surfaceContainerHigh,
+            color: primaryTint,
+            '& .MuiListItemIcon-root': {
+              color: primaryTint,
+            },
           },
         },
       },
@@ -205,7 +289,7 @@ export const theme = createTheme({
           '& .MuiOutlinedInput-root': {
             borderRadius: 8,
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: 'rgba(145, 158, 171, 0.32)',
+              borderColor: 'rgba(175, 198, 255, 0.35)',
             },
           },
         },
@@ -215,9 +299,10 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: 'none',
-          boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.2), 0px 12px 24px -4px rgba(145, 158, 171, 0.12)',
-          borderRadius: 16,
-          border: '1px solid rgba(145, 158, 171, 0.12)',
+          boxShadow: '0 1px 0 0 rgba(255,255,255,0.05), 0 12px 40px -8px rgba(0,0,0,0.45)',
+          borderRadius: 12,
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          backgroundColor: surfaceContainer,
         },
       },
     },
@@ -225,8 +310,10 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 8,
+          color: onSurfaceVariant,
           '&:hover': {
-            backgroundColor: 'rgba(145, 158, 171, 0.08)',
+            backgroundColor: 'rgba(175, 198, 255, 0.08)',
+            color: onSurface,
           },
         },
       },
@@ -239,8 +326,8 @@ export const theme = createTheme({
             fontSize: '0.75rem',
             textTransform: 'uppercase',
             letterSpacing: '0.1em',
-            color: 'text.secondary',
-            backgroundColor: 'rgba(145, 158, 171, 0.04)',
+            color: onSurfaceVariant,
+            backgroundColor: 'rgba(0,0,0,0.2)',
           },
         },
       },
@@ -249,7 +336,7 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           '&:hover': {
-            backgroundColor: 'rgba(145, 158, 171, 0.04)',
+            backgroundColor: 'rgba(255, 255, 255, 0.04)',
           },
         },
       },

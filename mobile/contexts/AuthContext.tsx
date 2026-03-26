@@ -1,5 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, clearStoredToken, getStoredToken, publicApi, setStoredToken } from '@/lib/api';
+import {
+  api,
+  apiWithToken,
+  clearStoredToken,
+  getStoredToken,
+  publicApi,
+  setStoredToken,
+} from '@/lib/api';
 
 export type UserMe = { id: number; email: string; role: string };
 
@@ -47,14 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
-    const r = await publicApi<{ access_token: string }>('/api/v1/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    await setStoredToken(r.access_token);
+    const r = await publicApi<{ access_token: string }>(
+      '/api/v1/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      },
+      30_000,
+    );
+    // Run SecureStore + /me in parallel — sequential was slow on some devices.
+    const [me] = await Promise.all([
+      apiWithToken<UserMe>(r.access_token, '/api/v1/auth/me'),
+      setStoredToken(r.access_token),
+    ]);
     setTokenReady(true);
-    await refreshUser();
-  }, [refreshUser]);
+    setUser(me);
+  }, []);
 
   const logout = useCallback(async () => {
     await clearStoredToken();

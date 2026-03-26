@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { api, getToken, getStreamBase } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 import { LiveCamera, LiveStreamStage, LiveStreamToolbar } from './stream-components';
 
 const STREAM_ERROR_DEBOUNCE_MS = 2800;
@@ -182,13 +183,11 @@ export default function LiveMonitoringPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Live camera streams with face & object detection. Add cameras in Cameras page. Register users and upload face
-          photos in Users page for recognition. Streams keep decoding on the server until you click Stop — leaving this
-          page does not stop them.
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Live Monitoring"
+        title="Active Surveillance"
+        subtitle="Live camera streams with face and object detection. Add cameras under Cameras; enroll faces under Users. Streams decode on the server until you click Stop — leaving this page does not stop them."
+      />
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}

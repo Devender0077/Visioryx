@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { api } from '@/lib/api';
-import Colors, { Brand } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { useStitchTheme } from '@/hooks/useStitchTheme';
+import { Stitch } from '@/constants/stitchTheme';
+import { useRealtimeTick } from '@/contexts/RealtimeContext';
+import { stitchStyles } from '@/styles/stitchStyles';
 
 type Row = {
   id: number;
@@ -17,8 +19,8 @@ type Row = {
 type ListRes = { items: Row[]; total: number };
 
 export default function AuditScreen() {
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const realtimeTick = useRealtimeTick();
+  const T = useStitchTheme();
   const [items, setItems] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -41,47 +43,72 @@ export default function AuditScreen() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, realtimeTick]);
+
+  const listHeader = (
+    <View style={styles.hero}>
+      <Text style={[stitchStyles.screenEyebrow, { color: T.accent }]}>Compliance</Text>
+      <Text style={[stitchStyles.liveScreenTitle, { fontSize: 22, color: T.text }]}>Activity log</Text>
+      <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 6 }]}>
+        Chronological record of administrative actions. {total > 0 ? `${total} entries.` : ''}
+      </Text>
+      {error ? <Text style={[styles.err, { color: Stitch.error, marginTop: 8 }]}>{error}</Text> : null}
+    </View>
+  );
 
   return (
-    <View style={[styles.root, { backgroundColor: palette.background }]}>
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+    <View style={[styles.root, { backgroundColor: T.bg }]}>
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={listHeader}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} />}
-        contentContainerStyle={styles.listPad}
+        contentContainerStyle={[styles.listPad, { paddingBottom: 24 }]}
         ListEmptyComponent={
-          <Text style={[styles.empty, { color: palette.textSecondary }]}>
+          <Text style={[styles.empty, { color: T.textMuted }]}>
             {loading ? 'Loading…' : error ? '' : 'No audit entries.'}
           </Text>
         }
         renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-            <Text style={[styles.action, { color: palette.text }]}>{item.action}</Text>
-            <Text style={[styles.actor, { color: palette.textSecondary }]}>{item.actor_email}</Text>
-            <Text style={[styles.res, { color: palette.textSecondary }]}>
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: T.card,
+                borderColor: T.borderHair,
+                borderWidth: T.isDark ? 0 : StyleSheet.hairlineWidth,
+              },
+            ]}
+          >
+            <Text style={[styles.action, { color: T.text, fontFamily: T.FontFamily.labelSemibold }]}>{item.action}</Text>
+            <Text style={[styles.actor, { color: T.textMuted }]}>{item.actor_email}</Text>
+            <Text style={[styles.res, { color: T.textMuted }]}>
               {item.resource_type}
               {item.resource_id != null ? ` #${item.resource_id}` : ''}
             </Text>
-            <Text style={styles.time}>{new Date(item.created_at).toLocaleString()}</Text>
+            <Text style={[styles.time, { color: T.textMuted }]}>{new Date(item.created_at).toLocaleString()}</Text>
           </View>
         )}
+        ListFooterComponent={
+          total > 0 ? (
+            <Text style={[styles.footer, { color: T.textMuted }]}>{total} total</Text>
+          ) : null
+        }
       />
-      <Text style={[styles.footer, { color: palette.textSecondary }]}>{total} total</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  err: { color: Brand.danger, padding: 16 },
-  listPad: { padding: 16, paddingBottom: 40, gap: 10 },
-  card: { borderRadius: 12, borderWidth: 1, padding: 12 },
-  action: { fontWeight: '700', fontSize: 15 },
+  hero: { marginBottom: 12 },
+  err: { fontSize: 13 },
+  listPad: { padding: 16, gap: 10 },
+  card: { borderRadius: 14, padding: 12 },
+  action: { fontSize: 15 },
   actor: { marginTop: 4, fontSize: 13 },
   res: { marginTop: 2, fontSize: 13 },
-  time: { marginTop: 8, fontSize: 12, color: '#9CA3AF' },
+  time: { marginTop: 8, fontSize: 12 },
   empty: { textAlign: 'center', marginTop: 40 },
   footer: { textAlign: 'center', paddingBottom: 12, fontSize: 12 },
 });

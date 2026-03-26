@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Audit Log | VISIORYX Sentinel</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-container": "#915f00",
+              "surface-dim": "#0b1326",
+              "surface-bright": "#31394d",
+              "on-secondary-container": "#003415",
+              "on-primary-container": "#e4eaff",
+              "on-tertiary-fixed-variant": "#624000",
+              "outline": "#8c909f",
+              "on-primary-fixed": "#001a43",
+              "surface-tint": "#afc6ff",
+              "outline-variant": "#424753",
+              "on-tertiary-fixed": "#291800",
+              "primary-fixed": "#d9e2ff",
+              "primary-fixed-dim": "#afc6ff",
+              "primary-container": "#2065d1",
+              "surface-container-high": "#222a3d",
+              "secondary": "#57e082",
+              "secondary-container": "#00aa54",
+              "tertiary-fixed-dim": "#ffb950",
+              "on-background": "#dae2fd",
+              "surface": "#0b1326",
+              "inverse-surface": "#dae2fd",
+              "surface-container-lowest": "#060e20",
+              "surface-container": "#171f33",
+              "on-primary": "#002d6c",
+              "on-surface-variant": "#c2c6d5",
+              "on-primary-fixed-variant": "#004398",
+              "on-secondary-fixed": "#00210b",
+              "tertiary-fixed": "#ffddb3",
+              "error": "#ffb4ab",
+              "on-tertiary-container": "#ffe6ca",
+              "primary": "#afc6ff",
+              "inverse-on-surface": "#283044",
+              "on-secondary": "#003918",
+              "surface-container-highest": "#2d3449",
+              "error-container": "#93000a",
+              "on-error-container": "#ffdad6",
+              "tertiary": "#ffb950",
+              "surface-variant": "#2d3449",
+              "surface-container-low": "#131b2e",
+              "secondary-fixed": "#75fd9c",
+              "on-secondary-fixed-variant": "#005226",
+              "background": "#0b1326",
+              "on-tertiary": "#452b00",
+              "secondary-fixed-dim": "#57e082",
+              "on-surface": "#dae2fd",
+              "inverse-primary": "#0459c5",
+              "on-error": "#690005"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0b1326; }
+        ::-webkit-scrollbar-thumb { background: #2d3449; border-radius: 10px; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="bg-[#0b1326] dark:bg-[#0b1326] sticky top-0 z-50">
+<div class="flex justify-between items-center w-full px-6 py-4 max-w-7xl mx-auto">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#afc6ff]" data-icon="shield">shield</span>
+<h1 class="text-[#afc6ff] font-black tracking-[0.1em] text-xl uppercase">VISIORYX</h1>
+</div>
+<div class="flex items-center gap-6">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-container-highest rounded-xl text-on-surface hover:opacity-80 transition-opacity active:scale-95 duration-150">
+<span class="material-symbols-outlined text-sm" data-icon="download">download</span>
+<span class="text-xs font-label uppercase tracking-wider font-bold">Export CSV</span>
+</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-high border-2 border-primary/20 overflow-hidden">
+<img alt="Admin Avatar" class="w-full h-full object-cover" data-alt="portrait of a professional male administrator in a dark studio setting with cinematic blue rim lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4wMO60YBlMW0f7OkHJOKhnCMhO_jKBSSLlRNeTW73FrYfm_g07luCZio909jpVjHVexN6tmoWus8McysqEV4IXwOXNSjrbOa_pJ-_mdLTw0Ms-oWWQoUBkuPEJH_HaiG9iwSPkX4Mvr4DeI278bOkMyay3QfOelMOzcRtUzXYOSpZZSPO1t-0uNmKhIT4Wrq9WZbIs7ydrbZXdlg_BlBv1HLgtk189c4G9hAjG_uC69CCz5WrgLahe_9f4fbNccHieVUSu25E8l4"/>
+</div>
+</div>
+</div>
+<div class="bg-gradient-to-b from-[#131b2e] to-transparent h-px"></div>
+</header>
+<main class="max-w-7xl mx-auto px-6 py-8 pb-32">
+<!-- Editorial Header Section -->
+<section class="mb-12">
+<h2 class="font-headline font-extrabold text-5xl tracking-tight text-on-surface mb-2">Audit Logs</h2>
+<p class="text-on-surface-variant font-body text-lg max-w-2xl opacity-80">
+                Detailed chronological surveillance of system-wide operations, authentication events, and hardware status transitions.
+            </p>
+</section>
+<!-- Filters & Search "Control Deck" -->
+<div class="bg-surface-container-low rounded-xl p-6 mb-8 flex flex-col md:flex-row gap-4 items-end justify-between">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 w-full">
+<!-- Search -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-bold">Search Events</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-sm" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl pl-10 pr-4 py-3 text-on-surface placeholder:text-outline/50 focus:ring-1 focus:ring-primary/40 transition-all" placeholder="e.g. 'Sarah Connor' or 'Front Gate'" type="text"/>
+</div>
+</div>
+<!-- Action Type Filter -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-bold">Category</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/40 appearance-none">
+<option>All Actions</option>
+<option>Auth Events</option>
+<option>Camera Ops</option>
+<option>User Management</option>
+<option>System Tasks</option>
+</select>
+</div>
+<!-- User Filter -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-bold">Operator</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/40 appearance-none">
+<option>All Users</option>
+<option>Sarah Connor</option>
+<option>Kyle Reese</option>
+<option>System Process</option>
+</select>
+</div>
+<!-- Date Filter -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-[0.1em] text-on-surface-variant font-bold">Timeframe</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline text-sm pointer-events-none" data-icon="calendar_today">calendar_today</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-xl px-4 py-3 text-on-surface focus:ring-1 focus:ring-primary/40" type="date"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Table Container -->
+<div class="bg-surface-container rounded-xl overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/50">
+<th class="px-6 py-4 font-label text-[10px] uppercase tracking-[0.2em] text-primary font-black">Timestamp</th>
+<th class="px-6 py-4 font-label text-[10px] uppercase tracking-[0.2em] text-primary font-black">Operator</th>
+<th class="px-6 py-4 font-label text-[10px] uppercase tracking-[0.2em] text-primary font-black">Event Description</th>
+<th class="px-6 py-4 font-label text-[10px] uppercase tracking-[0.2em] text-primary font-black">Category</th>
+<th class="px-6 py-4 font-label text-[10px] uppercase tracking-[0.2em] text-primary font-black">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-high/30 transition-colors group">
+<td class="px-6 py-5 tabular-nums text-on-surface-variant font-medium text-sm">2023-10-27 14:22:01</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-primary">SC</div>
+<span class="text-on-surface font-semibold text-sm">Sarah Connor</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-on-surface text-sm">Successful login from IP <span class="tabular-nums font-medium">192.168.1.104</span></span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Auth</span>
+</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 text-secondary text-xs font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Success
+                                </span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-high/30 transition-colors group">
+<td class="px-6 py-5 tabular-nums text-on-surface-variant font-medium text-sm">2023-10-27 14:18:45</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center"><span class="material-symbols-outlined text-sm text-outline" data-icon="settings_slow_motion">settings_slow_motion</span></div>
+<span class="text-on-surface font-semibold text-sm">System Process</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-on-surface text-sm">Camera <span class="text-primary font-medium">Front Gate</span> status changed to <span class="text-secondary font-medium">Online</span></span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Camera</span>
+</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 text-secondary text-xs font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary shadow-[0_0_8px_rgba(87,224,130,0.5)]"></span> Active
+                                </span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-high/30 transition-colors group">
+<td class="px-6 py-5 tabular-nums text-on-surface-variant font-medium text-sm">2023-10-27 13:55:12</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-primary">KR</div>
+<span class="text-on-surface font-semibold text-sm">Kyle Reese</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-on-surface text-sm">New enrollment link generated for <span class="italic text-on-surface-variant">visitor_ext_44</span></span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">User</span>
+</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 text-on-surface-variant text-xs font-bold uppercase opacity-60">
+<span class="w-1.5 h-1.5 rounded-full bg-on-surface-variant"></span> Info
+                                </span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-high/30 transition-colors group">
+<td class="px-6 py-5 tabular-nums text-on-surface-variant font-medium text-sm">2023-10-27 13:40:00</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-xs font-bold text-primary">SC</div>
+<span class="text-on-surface font-semibold text-sm">Sarah Connor</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-on-surface text-sm">Unauthorized access attempt at <span class="text-error font-medium">Server Room A</span></span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Auth</span>
+</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 text-error text-xs font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span> Alert
+                                </span>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container-high/30 transition-colors group">
+<td class="px-6 py-5 tabular-nums text-on-surface-variant font-medium text-sm">2023-10-27 12:10:33</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center"><span class="material-symbols-outlined text-sm text-outline" data-icon="settings_slow_motion">settings_slow_motion</span></div>
+<span class="text-on-surface font-semibold text-sm">System Process</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="text-on-surface text-sm">Automated firmware backup completed for <span class="tabular-nums">12</span> nodes</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-container-highest rounded-full text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">System</span>
+</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 text-secondary text-xs font-bold uppercase">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span> Success
+                                </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination-ish Footer -->
+<div class="px-6 py-4 bg-surface-container-high/20 flex justify-between items-center">
+<span class="text-xs font-label text-on-surface-variant/60 font-medium">Showing 1-15 of 2,482 entries</span>
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-primary text-on-primary font-bold text-xs">1</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface-variant hover:text-primary transition-colors text-xs font-bold">2</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface-variant hover:text-primary transition-colors text-xs font-bold">3</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center bg-surface-container-highest text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 pb-8 pt-4">
+<div class="bg-[#222a3d]/80 backdrop-blur-xl border border-[#424753]/20 shadow-[0_20px_40px_rgba(0,0,0,0.4)] fixed bottom-6 left-4 right-4 rounded-3xl mx-auto max-w-md h-16 flex justify-around items-center">
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff]/70 transition-colors group" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide uppercase mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff]/70 transition-colors group" href="#">
+<span class="material-symbols-outlined" data-icon="live_tv">live_tv</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide uppercase mt-1">Live</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff]/70 transition-colors group" href="#">
+<span class="material-symbols-outlined" data-icon="videocam">videocam</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide uppercase mt-1">Cameras</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff]/70 transition-colors group" href="#">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide uppercase mt-1">Alerts</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#afc6ff] relative after:content-[''] after:absolute after:-bottom-1 after:w-1 after:h-1 after:bg-[#afc6ff] after:rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="menu" style="font-variation-settings: 'FILL' 1;">menu</span>
+<span class="font-['Inter'] text-[10px] font-medium tracking-wide uppercase mt-1">More</span>
+</a>
+</div>
+</nav>
+</body></html>

@@ -12,12 +12,14 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { RealtimeProvider } from '@/contexts/RealtimeContext';
 import { Brand } from '@/constants/Colors';
-import { Stitch } from '@/constants/stitchTheme';
+import { Stitch, FontFamily } from '@/constants/stitchTheme';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -79,13 +81,32 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <RootLayoutNav />
+      <RealtimeProvider>
+        <RootLayoutNav />
+      </RealtimeProvider>
     </AuthProvider>
   );
 }
 
+const stackHeaderOptions = (isDark: boolean) => ({
+  headerStyle: {
+    backgroundColor: isDark ? Stitch.surface : '#F4F6F8',
+    borderBottomWidth: isDark ? 0 : StyleSheet.hairlineWidth,
+    borderBottomColor: isDark ? 'transparent' : '#E5E7EB',
+  },
+  headerTintColor: isDark ? Stitch.onSurface : '#111827',
+  headerTitleStyle: {
+    fontFamily: FontFamily.headlineBlack,
+    fontWeight: '800' as const,
+    fontSize: isDark ? 20 : 18,
+    color: isDark ? Stitch.primary : '#111827',
+  },
+});
+
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const hdr = stackHeaderOptions(isDark);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? NavDark : NavLight}>
@@ -93,11 +114,18 @@ function RootLayoutNav() {
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="camera/[id]" options={{ title: 'Live view', headerBackTitle: 'Back' }} />
-        <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
-        <Stack.Screen name="detections" options={{ title: 'Detections' }} />
-        <Stack.Screen name="audit" options={{ title: 'Audit log' }} />
-        <Stack.Screen name="settings" options={{ title: 'Email & SMTP' }} />
+        <Stack.Screen
+          name="camera/[id]"
+          options={{
+            title: 'Live view',
+            headerBackTitle: 'Back',
+            ...hdr,
+          }}
+        />
+        <Stack.Screen name="analytics" options={{ title: 'Analytics', ...hdr }} />
+        <Stack.Screen name="detections" options={{ title: 'Detections', ...hdr }} />
+        <Stack.Screen name="audit" options={{ title: 'Audit log', ...hdr }} />
+        <Stack.Screen name="settings" options={{ title: 'Email & SMTP', ...hdr }} />
       </Stack>
     </ThemeProvider>
   );

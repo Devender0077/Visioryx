@@ -1,14 +1,16 @@
 import React, { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useAuth } from '@/contexts/AuthContext';
-import { Stitch } from '@/constants/stitchTheme';
+import { Stitch, FontFamily } from '@/constants/stitchTheme';
+import { StitchTabBarBackground } from '@/components/StitchTabBarBackground';
+import { StitchTabIcon } from '@/components/StitchTabIcon';
+import { isEnrolleeRole } from '@/lib/roles';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -17,7 +19,7 @@ export default function TabLayout() {
   const isDark = colorScheme === 'dark';
   const { loading, user } = useAuth();
   const router = useRouter();
-  const isEnrollee = user?.role === 'enrollee';
+  const isEnrollee = isEnrolleeRole(user?.role);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -33,41 +35,62 @@ export default function TabLayout() {
     );
   }
 
+  const dockShadow =
+    Platform.OS === 'ios'
+      ? {
+          shadowColor: '#afc6ff',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.06,
+          shadowRadius: 40,
+        }
+      : { elevation: 12 };
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: palette.tint,
-        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarActiveTintColor: Stitch.primary,
+        tabBarInactiveTintColor: isDark ? Stitch.tabInactive : palette.tabIconDefault,
         tabBarStyle: isDark
           ? {
-              marginHorizontal: 14,
-              marginBottom: Math.max(insets.bottom, 8),
-              borderRadius: 22,
-              minHeight: 58,
-              paddingTop: 6,
-              paddingBottom: 6,
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
               borderTopWidth: 0,
-              backgroundColor: 'rgba(34, 42, 61, 0.9)',
-              borderWidth: 1,
-              borderColor: 'rgba(66, 71, 83, 0.4)',
-              elevation: 16,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 8 },
-              shadowOpacity: 0.3,
-              shadowRadius: 16,
+              backgroundColor: 'transparent',
+              borderTopLeftRadius: 16,
+              borderTopRightRadius: 16,
+              height: 56 + Math.max(insets.bottom, 10),
+              paddingBottom: Math.max(insets.bottom, 10),
+              paddingTop: 6,
+              paddingHorizontal: 4,
+              ...dockShadow,
             }
           : {
               backgroundColor: palette.card,
               borderTopColor: palette.border,
             },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', letterSpacing: 0.3 },
+        tabBarBackground: isDark ? () => <StitchTabBarBackground /> : undefined,
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontFamily: FontFamily.labelMedium,
+          letterSpacing: 0.6,
+          textTransform: 'uppercase',
+          marginTop: -2,
+        },
+        tabBarItemStyle: { paddingTop: 4 },
         headerStyle: {
           backgroundColor: isDark ? Stitch.surface : palette.card,
           borderBottomWidth: isDark ? 0 : StyleSheet.hairlineWidth,
           borderBottomColor: palette.border,
         },
-        headerTintColor: palette.text,
-        headerTitleStyle: { fontWeight: '700' },
+        headerTintColor: isDark ? Stitch.primary : palette.text,
+        headerTitleStyle: {
+          fontFamily: FontFamily.headlineBlack,
+          fontWeight: '800',
+          fontSize: isDark ? 20 : 18,
+          color: isDark ? Stitch.primary : palette.text,
+        },
         headerShown: useClientOnlyValue(false, true),
       }}
     >
@@ -75,8 +98,13 @@ export default function TabLayout() {
         name="index"
         options={{
           title: isEnrollee ? 'Home' : 'Overview',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="view-dashboard-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon
+              name={focused ? 'view-dashboard' : 'view-dashboard-outline'}
+              focused={focused}
+              color={color}
+              size={size}
+            />
           ),
         }}
       />
@@ -85,8 +113,8 @@ export default function TabLayout() {
         options={{
           title: 'Live',
           href: isEnrollee ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="television-play" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon name="video" focused={focused} color={color} size={size} />
           ),
         }}
       />
@@ -95,8 +123,8 @@ export default function TabLayout() {
         options={{
           title: 'Cameras',
           href: isEnrollee ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="cctv" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon name="video-off" focused={focused} color={color} size={size} />
           ),
         }}
       />
@@ -105,8 +133,8 @@ export default function TabLayout() {
         options={{
           title: 'Alerts',
           href: isEnrollee ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="bell-outline" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon name={focused ? 'bell' : 'bell-outline'} focused={focused} color={color} size={size} />
           ),
         }}
       />
@@ -115,8 +143,8 @@ export default function TabLayout() {
         options={{
           title: 'Enrollment',
           href: !isEnrollee ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="face-recognition" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon name="face-recognition" focused={focused} color={color} size={size} />
           ),
         }}
       />
@@ -124,8 +152,8 @@ export default function TabLayout() {
         name="more"
         options={{
           title: 'More',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="menu" color={color} size={size} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <StitchTabIcon name="dots-horizontal" focused={focused} color={color} size={size} />
           ),
         }}
       />

@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Visioryx - QR Enrollment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-lowest": "#060e20",
+              "background": "#0b1326",
+              "on-tertiary-fixed": "#291800",
+              "on-background": "#dae2fd",
+              "primary-fixed-dim": "#afc6ff",
+              "tertiary-container": "#915f00",
+              "surface-variant": "#2d3449",
+              "surface-dim": "#0b1326",
+              "on-primary-container": "#e4eaff",
+              "secondary": "#57e082",
+              "on-error": "#690005",
+              "surface-container-highest": "#2d3449",
+              "inverse-surface": "#dae2fd",
+              "on-secondary-fixed-variant": "#005226",
+              "tertiary-fixed": "#ffddb3",
+              "on-secondary-fixed": "#00210b",
+              "on-surface": "#dae2fd",
+              "on-primary-fixed": "#001a43",
+              "surface-bright": "#31394d",
+              "error": "#ffb4ab",
+              "surface-container-high": "#222a3d",
+              "inverse-on-surface": "#283044",
+              "secondary-fixed": "#75fd9c",
+              "secondary-container": "#00aa54",
+              "on-tertiary-container": "#ffe6ca",
+              "tertiary": "#ffb950",
+              "on-surface-variant": "#c2c6d5",
+              "surface-container": "#171f33",
+              "primary-container": "#2065d1",
+              "on-secondary-container": "#003415",
+              "surface": "#0b1326",
+              "on-primary-fixed-variant": "#004398",
+              "primary-fixed": "#d9e2ff",
+              "on-tertiary-fixed-variant": "#624000",
+              "on-error-container": "#ffdad6",
+              "outline": "#8c909f",
+              "error-container": "#93000a",
+              "surface-tint": "#afc6ff",
+              "on-primary": "#002d6c",
+              "on-secondary": "#003918",
+              "primary": "#afc6ff",
+              "tertiary-fixed-dim": "#ffb950",
+              "on-tertiary": "#452b00",
+              "surface-container-low": "#131b2e",
+              "outline-variant": "#424753",
+              "secondary-fixed-dim": "#57e082",
+              "inverse-primary": "#0459c5"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-panel {
+        background: rgba(23, 31, 51, 0.8);
+        backdrop-filter: blur(20px);
+      }
+      .qr-gradient {
+        background: linear-gradient(135deg, #afc6ff 0%, #2065d1 100%);
+      }
+      .tabular-nums {
+        font-variant-numeric: tabular-nums;
+      }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0b1326] shadow-[0_40px_40px_rgba(175,198,255,0.04)]">
+<div class="flex justify-between items-center w-full px-6 h-16 bg-[#131b2e]">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#afc6ff]" data-icon="shield">shield</span>
+<h1 class="font-manrope font-bold tracking-tight text-xl font-extrabold tracking-widest text-[#afc6ff] uppercase">Visioryx</h1>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/20">
+<img alt="User profile avatar" class="w-full h-full object-cover" data-alt="close-up portrait of a professional security administrator in a dark tech environment with blue ambient lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDXJQB87KBZTb254jzteN7BC_6riidc19y5RVQF-tEjsXYpzlQPdBcEleZagToJybpOkOaHs66n4DwzTrMYFc_oGOUcvor8OfD1nFQ8rWsb6Hdb1HkIISVtMydeaXKh8lIELPDo-NkoQqWW2TpWAdsCICRV_TBADidSscfNXn5SbCNA_HZZGEuL4XN2E-ZSHOVTdX0KDhZVEJYZr75B-yVnZZzOOZGsY0ZJem8kKSD_PymKkkv84nhCJS7JdprnkVr9Dzyq1kDZRCw"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-grow pt-24 pb-32 px-6 flex items-center justify-center">
+<div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+<!-- QR Enrollment Section (Active Modal-style content) -->
+<section class="bg-surface-container-high rounded-xl p-8 shadow-2xl relative overflow-hidden">
+<!-- Subtle Gradient Glow -->
+<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary/5 rounded-full blur-3xl"></div>
+<div class="relative z-10 flex flex-col items-center text-center">
+<h2 class="font-headline font-extrabold text-2xl tracking-tight text-on-surface mb-2">New User Enrollment</h2>
+<p class="text-on-surface-variant text-sm mb-8 max-w-xs">Share this code with the new user. It expires in 24 hours.</p>
+<!-- QR Code Container -->
+<div class="p-6 bg-white rounded-xl mb-8 shadow-inner relative group">
+<div class="w-48 h-48 flex items-center justify-center">
+<!-- Simulated QR Code SVG -->
+<svg class="text-surface" height="180" viewbox="0 0 100 100" width="180">
+<rect fill="white" height="100" width="100"></rect>
+<path d="M10 10h30v30h-30zM15 15v20h20v-20zM22 22h6v6h-6zM60 10h30v30h-30zM65 15v20h20v-20zM72 22h6v6h-6zM10 60h30v30h-30zM15 65v20h20v-20zM22 72h6v6h-6zM50 10h5v5h-5zM55 20h5v5h-5zM50 30h5v5h-5zM60 45h5v5h-5zM70 50h10v5h-10zM50 60h5v10h-5zM60 70h10v5h-10zM80 60h10v10h-10zM50 85h15v5h-15zM75 80h15v5h-15z" fill="currentColor"></path>
+</svg>
+</div>
+<div class="absolute inset-0 border-2 border-primary/20 rounded-xl pointer-events-none"></div>
+</div>
+<!-- Actions -->
+<div class="w-full space-y-3">
+<button class="w-full py-3 px-6 rounded-xl qr-gradient text-on-primary-fixed font-semibold flex items-center justify-center gap-2 active:scale-95 duration-200 shadow-lg shadow-primary/10">
+<span class="material-symbols-outlined text-lg" data-icon="content_copy">content_copy</span>
+                            Copy Enrollment Link
+                        </button>
+<button class="w-full py-3 px-6 rounded-xl bg-surface-container-highest text-on-surface font-semibold flex items-center justify-center gap-2 hover:bg-surface-bright active:scale-95 duration-200 transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="mail">mail</span>
+                            Email Link to User
+                        </button>
+</div>
+</div>
+</section>
+<!-- Active Links List Section -->
+<section class="space-y-6">
+<div class="flex items-center justify-between">
+<h3 class="font-headline font-bold text-lg text-[#afc6ff]">Active Enrollment Links</h3>
+<span class="bg-secondary-container/20 text-secondary-fixed text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">3 Pending</span>
+</div>
+<div class="space-y-4">
+<!-- Enrollment Item 1 -->
+<div class="bg-surface-container-low p-5 rounded-xl flex items-center justify-between group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="link">link</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface text-sm">SEC-USR-042</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider tabular-nums">Expires in 04:22:15</p>
+</div>
+</div>
+<button class="text-outline hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="cancel">cancel</span>
+</button>
+</div>
+<!-- Enrollment Item 2 -->
+<div class="bg-surface-container-low p-5 rounded-xl flex items-center justify-between group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="link">link</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface text-sm">OPS-MGR-881</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider tabular-nums">Expires in 12:45:01</p>
+</div>
+</div>
+<button class="text-outline hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="cancel">cancel</span>
+</button>
+</div>
+<!-- Enrollment Item 3 -->
+<div class="bg-surface-container-low p-5 rounded-xl flex items-center justify-between group hover:bg-surface-container transition-colors duration-200">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="link">link</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface text-sm">VISIT-EXT-09</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-wider tabular-nums">Expires in 21:10:44</p>
+</div>
+</div>
+<button class="text-outline hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="cancel">cancel</span>
+</button>
+</div>
+</div>
+<!-- Helper Card -->
+<div class="p-6 bg-surface-container-high rounded-xl border border-outline-variant/10">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-tertiary" data-icon="info">info</span>
+<div>
+<p class="text-sm font-medium text-on-surface mb-1">Security Note</p>
+<p class="text-xs text-on-surface-variant leading-relaxed">Enrollment codes are one-time use only and bound to hardware fingerprinting. Unauthorized link sharing is logged and audited.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-4 pb-8 pointer-events-none">
+<div class="bg-[#171f33]/80 backdrop-blur-xl pointer-events-auto fixed bottom-6 mx-auto w-[92%] left-0 right-0 rounded-2xl border border-[#424753]/20 shadow-2xl flex justify-around items-center h-16">
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all active:translate-y-0.5 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-wider mt-1">Overview</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all active:translate-y-0.5 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="videocam">videocam</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-wider mt-1">Live</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all active:translate-y-0.5 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="linked_camera">linked_camera</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-wider mt-1">Cameras</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#424753] hover:text-[#afc6ff] transition-all active:translate-y-0.5 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="notifications_active">notifications_active</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-wider mt-1">Alerts</span>
+</a>
+<!-- Active State: More (assuming enrollment is under settings/more) -->
+<a class="flex flex-col items-center justify-center text-[#afc6ff] relative after:content-[''] after:absolute after:-bottom-1 after:w-1 after:h-1 after:bg-[#afc6ff] after:rounded-full active:translate-y-0.5 duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+<span class="font-inter text-[10px] font-medium uppercase tracking-wider mt-1">More</span>
+</a>
+</div>
+</nav>
+</body></html>

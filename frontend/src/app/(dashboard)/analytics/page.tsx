@@ -18,6 +18,8 @@ import {
 } from 'recharts';
 import { api } from '@/lib/api';
 import { ChartEmptyIllustration } from '@/components/illustrations';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
+import { stitchChart } from '@/theme/stitchSx';
 
 type DayRange = 7 | 14 | 30;
 
@@ -48,44 +50,43 @@ export default function AnalyticsPage() {
 
   const rangeLabel = useMemo(() => `Last ${days} days`, [days]);
 
+  const axisCommon = { stroke: stitchChart.axisStroke, tick: { fill: stitchChart.tickFill, fontSize: 11 } };
+  const tooltipSx = {
+    contentStyle: {
+      backgroundColor: stitchChart.tooltipBg,
+      border: `1px solid ${stitchChart.tooltipBorder}`,
+      borderRadius: 12,
+      color: '#dae2fd',
+    },
+    labelStyle: { color: '#c2c6d5' },
+  };
+
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box
-        sx={{
-          mb: { xs: 2, sm: 3 },
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'stretch', sm: 'center' },
-          justifyContent: 'space-between',
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-            Analytics
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-            Face detections, cameras, and object events — switch the range to compare periods.
-          </Typography>
-        </Box>
-        <ToggleButtonGroup
-          exclusive
-          size="small"
-          value={days}
-          onChange={(_, v: DayRange | null) => v && setDays(v)}
-          sx={{ flexShrink: 0 }}
-        >
-          <ToggleButton value={7}>7d</ToggleButton>
-          <ToggleButton value={14}>14d</ToggleButton>
-          <ToggleButton value={30}>30d</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Telemetry"
+        title="Detection Intelligence"
+        subtitle="Real-time and historical face detections, object events, and per-camera load — switch the range to compare periods."
+        actions={
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={days}
+            onChange={(_, v: DayRange | null) => v && setDays(v)}
+            sx={{ flexShrink: 0 }}
+          >
+            <ToggleButton value={7}>7d</ToggleButton>
+            <ToggleButton value={14}>14d</ToggleButton>
+            <ToggleButton value={30}>30d</ToggleButton>
+          </ToggleButtonGroup>
+        }
+      />
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         <Grid item xs={12} lg={8}>
-          <Card sx={{ bgcolor: 'background.paper', height: '100%' }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
                 All detections ({rangeLabel})
               </Typography>
               {trends.length === 0 ? (
@@ -99,11 +100,11 @@ export default function AnalyticsPage() {
                 <Box sx={{ height: { xs: 240, sm: 300 } }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trends}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="count" name="Total" stroke="#2065D1" strokeWidth={2} dot={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={stitchChart.gridStroke} vertical={false} />
+                      <XAxis dataKey="date" {...axisCommon} />
+                      <YAxis allowDecimals={false} {...axisCommon} />
+                      <Tooltip {...tooltipSx} />
+                      <Line type="monotone" dataKey="count" name="Total" stroke="#2065d1" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </Box>
@@ -112,9 +113,9 @@ export default function AnalyticsPage() {
           </Card>
         </Grid>
         <Grid item xs={12} lg={4}>
-          <Card sx={{ bgcolor: 'background.paper', height: '100%' }}>
+          <Card sx={{ height: '100%' }}>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
                 Objects ({rangeLabel})
               </Typography>
               {objectStats.length === 0 ? (
@@ -128,11 +129,11 @@ export default function AnalyticsPage() {
                 <Box sx={{ height: { xs: 240, sm: 300 } }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={objectStats} layout="vertical" margin={{ left: 8, right: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" allowDecimals={false} />
-                      <YAxis dataKey="object" type="category" width={88} tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Bar dataKey="count" name="Count" fill="#00AB55" radius={[0, 4, 4, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={stitchChart.gridStroke} horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} {...axisCommon} />
+                      <YAxis dataKey="object" type="category" width={88} tick={{ fill: stitchChart.tickFill, fontSize: 11 }} />
+                      <Tooltip {...tooltipSx} />
+                      <Bar dataKey="count" name="Count" fill="#00aa54" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>
@@ -142,9 +143,9 @@ export default function AnalyticsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ bgcolor: 'background.paper' }}>
+          <Card>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
                 Known vs unknown faces ({rangeLabel})
               </Typography>
               {statusTrend.length === 0 ? (
@@ -158,26 +159,26 @@ export default function AnalyticsPage() {
                 <Box sx={{ height: { xs: 260, sm: 320 } }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={statusTrend}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} />
-                      <Tooltip />
-                      <Legend />
+                      <CartesianGrid strokeDasharray="3 3" stroke={stitchChart.gridStroke} vertical={false} />
+                      <XAxis dataKey="date" {...axisCommon} />
+                      <YAxis allowDecimals={false} {...axisCommon} />
+                      <Tooltip {...tooltipSx} />
+                      <Legend wrapperStyle={{ color: '#c2c6d5' }} />
                       <Area
                         type="monotone"
                         dataKey="unknown"
                         name="Unknown"
                         stackId="a"
-                        fill="#FFAB00"
-                        stroke="#FF9800"
+                        fill="#ffb950"
+                        stroke="#e5a545"
                       />
                       <Area
                         type="monotone"
                         dataKey="known"
                         name="Known"
                         stackId="a"
-                        fill="#00AB55"
-                        stroke="#009688"
+                        fill="#57e082"
+                        stroke="#3dcc6a"
                       />
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -188,9 +189,9 @@ export default function AnalyticsPage() {
         </Grid>
 
         <Grid item xs={12}>
-          <Card sx={{ bgcolor: 'background.paper' }}>
+          <Card>
             <CardContent sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+              <Typography variant="h6" fontWeight={700} sx={{ mb: 2, fontFamily: '"Manrope", "Public Sans", sans-serif' }}>
                 Detections by camera ({rangeLabel})
               </Typography>
               {byCamera.length === 0 ? (
@@ -204,11 +205,11 @@ export default function AnalyticsPage() {
                 <Box sx={{ height: Math.min(420, 48 + byCamera.length * 36) }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={byCamera} layout="vertical" margin={{ left: 16, right: 16 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" allowDecimals={false} />
-                      <YAxis dataKey="camera_name" type="category" width={140} tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Bar dataKey="count" name="Detections" fill="#2065D1" radius={[0, 4, 4, 0]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={stitchChart.gridStroke} horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} {...axisCommon} />
+                      <YAxis dataKey="camera_name" type="category" width={140} tick={{ fill: stitchChart.tickFill, fontSize: 11 }} />
+                      <Tooltip {...tooltipSx} />
+                      <Bar dataKey="count" name="Detections" fill="#2065d1" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>

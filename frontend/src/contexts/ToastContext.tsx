@@ -59,7 +59,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           sx={{
             width: '100%',
             borderRadius: 2,
-            boxShadow: '0px 0px 2px rgba(145, 158, 171, 0.2), 0px 12px 24px -4px rgba(145, 158, 171, 0.12)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45)',
           }}
         >
           {state.message}

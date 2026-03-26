@@ -19,6 +19,7 @@ import { Visibility, VisibilityOff, Security, Person, SmartToy } from '@mui/icon
 import NextLink from 'next/link';
 import { api } from '@/lib/api';
 import { useToast } from '@/contexts/ToastContext';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface UserMe {
   id: number;
@@ -206,14 +207,11 @@ export default function ProfilePage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          Profile
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Manage your account, security settings, and preferences.
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Identity"
+        title="Profile"
+        subtitle="Manage your account, password, and preferences. Face templates are managed under Users; open enrollment from here when eligible."
+      />
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>

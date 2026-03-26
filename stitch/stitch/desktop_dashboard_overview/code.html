@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>VISIORYX | Digital Sentinel Command Center</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1326;
+            color: #dae2fd;
+        }
+        .font-headline { font-family: 'Manrope', sans-serif; }
+        .tabular { font-variant-numeric: tabular-nums; }
+        .glass-panel {
+            background: rgba(23, 31, 51, 0.7);
+            backdrop-filter: blur(12px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary-fixed": "#d9e2ff",
+                "on-tertiary-container": "#ffe6ca",
+                "on-surface": "#dae2fd",
+                "secondary-fixed-dim": "#57e082",
+                "on-secondary-container": "#003415",
+                "error-container": "#93000a",
+                "on-primary-fixed-variant": "#004398",
+                "on-secondary-fixed": "#00210b",
+                "on-error-container": "#ffdad6",
+                "surface-variant": "#2d3449",
+                "surface-container-high": "#222a3d",
+                "on-tertiary": "#452b00",
+                "on-secondary": "#003918",
+                "surface-container": "#171f33",
+                "inverse-surface": "#dae2fd",
+                "surface-dim": "#0b1326",
+                "inverse-on-surface": "#283044",
+                "surface-bright": "#31394d",
+                "outline-variant": "#424753",
+                "tertiary-container": "#915f00",
+                "on-primary-fixed": "#001a43",
+                "secondary-fixed": "#75fd9c",
+                "error": "#ffb4ab",
+                "tertiary-fixed-dim": "#ffb950",
+                "inverse-primary": "#0459c5",
+                "on-tertiary-fixed-variant": "#624000",
+                "on-primary": "#002d6c",
+                "surface-tint": "#afc6ff",
+                "on-secondary-fixed-variant": "#005226",
+                "on-background": "#dae2fd",
+                "tertiary": "#ffb950",
+                "on-surface-variant": "#c2c6d5",
+                "on-tertiary-fixed": "#291800",
+                "surface-container-lowest": "#060e20",
+                "secondary": "#57e082",
+                "surface-container-low": "#131b2e",
+                "on-error": "#690005",
+                "surface-container-highest": "#2d3449",
+                "background": "#0b1326",
+                "surface": "#0b1326",
+                "on-primary-container": "#e4eaff",
+                "primary-fixed-dim": "#afc6ff",
+                "primary": "#afc6ff",
+                "secondary-container": "#00aa54",
+                "primary-container": "#2065d1",
+                "tertiary-fixed": "#ffddb3",
+                "outline": "#8c909f"
+              },
+              fontFamily: {
+                "headline": ["Manrope"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-surface text-on-surface selection:bg-primary-container/30">
+<!-- SideNavBar Component -->
+<aside class="h-screen w-64 fixed left-0 top-0 border-r-0 bg-[#131b2e] shadow-[1px_0_0_0_rgba(255,255,255,0.05)] shadow-2xl shadow-blue-900/20 flex flex-col h-full py-6 z-50">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-xl" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<h1 class="text-xl font-black tracking-widest text-[#afc6ff] font-headline">VISIORYX</h1>
+<p class="text-[10px] tracking-[0.2em] text-outline font-bold uppercase">Digital Sentinel</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1 px-3">
+<!-- Active Tab: Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#afc6ff] bg-[#222a3d] border-l-2 border-[#2065D1] font-bold font-headline transition-colors duration-200" href="#">
+<span class="material-symbols-outlined text-[22px]">dashboard</span>
+<span class="text-sm tracking-tight">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">videocam</span>
+<span class="text-sm font-medium font-headline tracking-tight">Live Monitoring</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">photo_camera</span>
+<span class="text-sm font-medium font-headline tracking-tight">Cameras</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">notifications_active</span>
+<span class="text-sm font-medium font-headline tracking-tight">Alerts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">group</span>
+<span class="text-sm font-medium font-headline tracking-tight">Users</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">analytics</span>
+<span class="text-sm font-medium font-headline tracking-tight">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-[#171f33] transition-colors duration-200 group" href="#">
+<span class="material-symbols-outlined text-[22px] group-active:translate-x-1 duration-150">history</span>
+<span class="text-sm font-medium font-headline tracking-tight">Audit Logs</span>
+</a>
+</nav>
+<div class="px-6 pt-6 mt-auto border-t border-white/5">
+<div class="flex items-center gap-3 mb-4 p-2 rounded-xl bg-surface-container-lowest/50">
+<img alt="User Profile" class="w-10 h-10 rounded-full border border-primary/20 object-cover" data-alt="professional portrait of a security director in a modern tech environment with soft blue lighting and blurred monitors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXKqwI_VWWItMNYvdcvFu7PdruUs68mv8t1jwcEaYvYKl_LGpb61UGyTfQEm8IbfyeG8qumWijJyjno8NYf7FvY8Qfz7kasRsE4yqJODgPz4k8saOdueWPPIBFTn1bCI4wVUZmRbUDjzql3-3Bls4xV58_FNMuiEzqeuEE934D6sdIl55YiOIUjXrfDa7OWGPU1EwigwpIcoD7Pg1mPQCs1s5rj4Al5CkdVx4kG4oGWos6FYx3wv_B0Um7RKjheJyPBleg-ken-Ew"/>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Marcus Thorne</p>
+<p class="text-[10px] text-outline truncate">Chief Security Officer</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar Component -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 z-40 bg-[#0b1326]/80 backdrop-blur-xl shadow-[0_1px_0_0_rgba(255,255,255,0.05)] flex justify-between items-center px-8">
+<div class="flex-1 max-w-xl">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-lg pl-10 pr-4 py-2 text-sm text-on-surface focus:ring-1 focus:ring-[#2065D1]/40 transition-all placeholder:text-slate-500 font-body tabular-nums" placeholder="Search entity, camera, or event log..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4 text-slate-400">
+<button class="hover:text-white transition-all focus:ring-1 focus:ring-[#2065D1]/40 p-1.5 rounded-lg">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:text-white transition-all focus:ring-1 focus:ring-[#2065D1]/40 p-1.5 rounded-lg">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="hover:text-white transition-all focus:ring-1 focus:ring-[#2065D1]/40 p-1.5 rounded-lg">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+<div class="h-6 w-[1px] bg-white/10"></div>
+<div class="flex items-center gap-2">
+<div class="text-right hidden sm:block">
+<p class="text-[10px] text-outline font-bold tracking-widest leading-none">SYSTEM TIME</p>
+<p class="text-sm font-headline tabular-nums font-bold text-primary">14:28:42 UTC</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-8 pb-12 min-h-screen">
+<!-- Header Section -->
+<div class="mb-10">
+<h2 class="text-4xl font-headline font-black tracking-tight mb-2">System Overview</h2>
+<div class="flex items-center gap-2 text-sm text-outline font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(87,224,130,0.4)]"></span>
+<span>Operational Sentinel Status: Optimal</span>
+<span class="mx-2">•</span>
+<span>All 42 primary neural nodes encrypted</span>
+</div>
+</div>
+<!-- KPI Grid - Asymmetric Layout -->
+<div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-6 mb-8">
+<div class="lg:col-span-3 surface-container-high rounded-xl p-6 relative overflow-hidden group">
+<div class="relative z-10">
+<p class="text-xs font-bold text-outline tracking-widest uppercase mb-4">Total Users</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-extrabold tabular tracking-tight">1,284</span>
+<span class="text-xs font-bold text-secondary">+12.4%</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">group</span>
+</div>
+</div>
+<div class="lg:col-span-3 surface-container-high rounded-xl p-6 relative overflow-hidden group">
+<div class="relative z-10">
+<p class="text-xs font-bold text-outline tracking-widest uppercase mb-4">Active Cameras</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-extrabold tabular tracking-tight">42</span>
+<span class="text-sm font-medium text-secondary">Online</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">videocam</span>
+</div>
+</div>
+<div class="lg:col-span-3 surface-container-high rounded-xl p-6 relative overflow-hidden group">
+<div class="relative z-10">
+<p class="text-xs font-bold text-outline tracking-widest uppercase mb-4">Today's Detections</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-extrabold tabular tracking-tight">8,102</span>
+<span class="text-xs font-bold text-primary">Avg Load</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+<span class="material-symbols-outlined text-[100px]" style="font-variation-settings: 'FILL' 1;">query_stats</span>
+</div>
+</div>
+<div class="lg:col-span-3 surface-container-high rounded-xl p-6 relative overflow-hidden border border-error/10 bg-error-container/5">
+<div class="relative z-10">
+<p class="text-xs font-bold text-error tracking-widest uppercase mb-4">Unknown Detections</p>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-headline font-extrabold tabular tracking-tight text-error">3</span>
+<span class="text-xs font-bold text-error px-2 py-0.5 rounded bg-error/10 border border-error/20">HIGH RISK</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-error text-[100px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+</div>
+</div>
+<!-- Main Bento Grid Area -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Neural Analysis Chart Area -->
+<div class="col-span-12 lg:col-span-8 space-y-8">
+<div class="surface-container rounded-xl p-8 relative overflow-hidden">
+<div class="flex justify-between items-start mb-8">
+<div>
+<h3 class="text-xl font-headline font-bold mb-1">Neural Analysis Activity</h3>
+<p class="text-sm text-outline">Real-time inference engine workload across clusters</p>
+</div>
+<div class="text-right">
+<p class="text-3xl font-headline font-black text-primary tabular">24.8%</p>
+<p class="text-[10px] font-bold text-outline tracking-tighter uppercase">Engine Load</p>
+</div>
+</div>
+<!-- Simplified Visual Chart using SVG -->
+<div class="h-64 w-full relative">
+<svg class="w-full h-full" viewbox="0 0 800 200">
+<defs>
+<lineargradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="#2065d1" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#2065d1" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,150 Q50,130 100,160 T200,120 T300,140 T400,100 T500,130 T600,80 T700,110 T800,90 L800,200 L0,200 Z" fill="url(#chartGradient)"></path>
+<path d="M0,150 Q50,130 100,160 T200,120 T300,140 T400,100 T500,130 T600,80 T700,110 T800,90" fill="none" stroke="#afc6ff" stroke-width="2.5"></path>
+<!-- Grid lines -->
+<line stroke="white" stroke-dasharray="4" stroke-opacity="0.05" x1="0" x2="800" y1="50" y2="50"></line>
+<line stroke="white" stroke-dasharray="4" stroke-opacity="0.05" x1="0" x2="800" y1="100" y2="100"></line>
+<line stroke="white" stroke-dasharray="4" stroke-opacity="0.05" x1="0" x2="800" y1="150" y2="150"></line>
+</svg>
+<div class="absolute inset-0 flex justify-between items-end pb-2 px-2 text-[10px] text-outline tabular">
+<span>08:00</span><span>10:00</span><span>12:00</span><span>14:00</span><span>16:00</span>
+</div>
+</div>
+</div>
+<!-- Recent Anomalies Feed -->
+<div>
+<div class="flex justify-between items-end mb-6">
+<h3 class="text-xl font-headline font-bold">Recent Anomalies</h3>
+<button class="text-sm font-bold text-primary hover:underline">View All Events</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Anomaly Item 1 -->
+<div class="surface-container-high rounded-xl p-4 flex gap-4 hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img alt="Security Feed" class="w-full h-full object-cover" data-alt="grainy night vision security camera still showing a dark parking lot with glowing green detection boxes around an unidentified person" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAb46MZLXpdbzQGgYCepPp_DTZlLMMNiEyqVUa1vm57Z78yJniFisEu-fx2U44Qah-B3HSSr-_CH5eH5arUopLX-bzhWoLpXWtO2KQwVy8AYpqcmBZxg5wRwpPzIzow95kTA4522Xcbo3KqbC4gf_KybQK6vvKwIXyZACjmXnfr_5TrCuJJVkly4fg535G8MN5-6kjf6ECXHnYcoj6pOag2qN1XkICQTxobxSpeIMbTuLJyjL6zCfQJjEpbNBW5JtLDxhBWJkdcXxY"/>
+<div class="absolute inset-0 bg-error/10 group-hover:bg-transparent transition-colors"></div>
+<div class="absolute top-1 left-1 bg-error text-[8px] font-black px-1 rounded">CAM-04</div>
+</div>
+<div class="flex-1 py-1">
+<div class="flex justify-between mb-1">
+<span class="text-[10px] font-bold text-error tracking-widest uppercase">Unauthorized Entry</span>
+<span class="text-[10px] tabular text-outline">14:22:01</span>
+</div>
+<p class="text-sm font-bold mb-1">Perimeter Zone B - North</p>
+<p class="text-xs text-outline leading-tight line-clamp-2">Neural engine flagged high-probability humanoid movement in restricted access zone...</p>
+</div>
+</div>
+<!-- Anomaly Item 2 -->
+<div class="surface-container-high rounded-xl p-4 flex gap-4 hover:bg-surface-container-highest transition-colors cursor-pointer group">
+<div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img alt="Security Feed" class="w-full h-full object-cover" data-alt="fisheye wide angle interior view of a data center hallway with blue server lights and a red digital overlay identifying an open door" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFcs8-SJELnZ-6sWck0j0LQsf5q-_F2TEpqYwYqcvfUsiYvAgt1ma6_mp-8-bGSzeVrH43VEx_Mig7y2309vkNFFGFrkZANSXg50c6NgK6yCtsNJAUD39P7Wevb4HeB_hcPDsi7hQkbGqphd8A5vPQ8b5PeEmRsS9mYgL_Yhg6oiyEon46jOD1mqkZJnxI6AEvrFFbKrE4OwTjJ45IaOrIKqXwm4HCLCc01209QFl3lxT2Q70_f5rmovazoMLeRul1yrDdSqbX918"/>
+<div class="absolute inset-0 bg-primary/10 group-hover:bg-transparent transition-colors"></div>
+<div class="absolute top-1 left-1 bg-primary text-[8px] font-black px-1 rounded">CAM-18</div>
+</div>
+<div class="flex-1 py-1">
+<div class="flex justify-between mb-1">
+<span class="text-[10px] font-bold text-primary tracking-widest uppercase">Door Ajar</span>
+<span class="text-[10px] tabular text-outline">14:15:48</span>
+</div>
+<p class="text-sm font-bold mb-1">Server Room 4 - Main Hub</p>
+<p class="text-xs text-outline leading-tight line-clamp-2">Physical access point 4-A remaining open beyond configured timeout duration (60s)...</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Analysis Panel -->
+<div class="col-span-12 lg:col-span-4 space-y-8">
+<!-- System Health Summary -->
+<div class="surface-container rounded-xl p-6">
+<h3 class="text-lg font-headline font-bold mb-6">System Health</h3>
+<div class="space-y-6">
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Network Latency</span>
+<span class="text-secondary">12ms</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[15%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Buffer Utilization</span>
+<span class="text-primary">64%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[64%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Database Sync</span>
+<span class="text-secondary">Synced</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[100%]"></div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-wider">
+<span>Encryption Depth</span>
+<span class="text-outline">AES-512</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[92%]"></div>
+</div>
+</div>
+</div>
+<div class="mt-8 pt-6 border-t border-white/5">
+<div class="flex items-center gap-3 p-3 rounded-lg bg-surface-container-lowest">
+<div class="w-10 h-10 rounded-lg flex items-center justify-center bg-primary/10 text-primary">
+<span class="material-symbols-outlined">memory</span>
+</div>
+<div>
+<p class="text-[10px] font-bold text-outline tracking-widest uppercase">Neural Chipset</p>
+<p class="text-sm font-bold">Sentinel-X Gen 4</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Global Activity Map Concept -->
+<div class="surface-container rounded-xl p-6 overflow-hidden relative group">
+<h3 class="text-lg font-headline font-bold mb-4">Node Distribution</h3>
+<div class="aspect-square w-full rounded-lg bg-surface-container-lowest relative overflow-hidden">
+<!-- Abstract "Map" Dots Representing Nodes -->
+<div class="absolute inset-0 opacity-20 pointer-events-none" style="background-image: radial-gradient(#2065d1 1px, transparent 1px); background-size: 20px 20px;"></div>
+<!-- Pulsing Nodes -->
+<div class="absolute top-1/4 left-1/3 w-3 h-3 bg-primary rounded-full animate-pulse shadow-[0_0_15px_#2065d1]"></div>
+<div class="absolute top-1/2 left-2/3 w-2 h-2 bg-secondary rounded-full animate-pulse delay-75 shadow-[0_0_10px_#57e082]"></div>
+<div class="absolute bottom-1/3 right-1/4 w-4 h-4 bg-error rounded-full animate-pulse delay-150 shadow-[0_0_20px_#ffb4ab]"></div>
+<div class="absolute bottom-1/4 left-1/4 w-2 h-2 bg-primary rounded-full animate-pulse delay-300"></div>
+<!-- Connection Lines (Visual Decor) -->
+<svg class="absolute inset-0 w-full h-full opacity-30">
+<line stroke="#2065d1" stroke-dasharray="4" stroke-width="1" x1="33%" x2="66%" y1="25%" y2="50%"></line>
+<line stroke="#2065d1" stroke-dasharray="4" stroke-width="1" x1="66%" x2="75%" y1="50%" y2="66%"></line>
+<line stroke="#2065d1" stroke-dasharray="4" stroke-width="1" x1="33%" x2="25%" y1="25%" y2="75%"></line>
+</svg>
+</div>
+<div class="mt-4 flex justify-between items-center text-[10px] font-bold text-outline tracking-wider uppercase">
+<div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-primary rounded-full"></span> Secure</div>
+<div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-secondary rounded-full"></span> Active</div>
+<div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-error rounded-full"></span> Alert</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Contextual "Emergency" FAB - Only for Dashboard -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-error text-on-error rounded-full shadow-2xl shadow-error/40 flex items-center justify-center group hover:scale-110 transition-transform active:scale-95 z-50">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">emergency</span>
+<div class="absolute right-full mr-4 bg-surface-container-highest px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border border-error/20">
+            Emergency Lockdown
+        </div>
+</button>
+</body></html>

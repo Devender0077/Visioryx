@@ -35,6 +35,7 @@ import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/formatDate';
 import { EmptyState } from '@/components/EmptyState';
 import { useToast } from '@/contexts/ToastContext';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface AuditRow {
   id: number;
@@ -140,14 +141,11 @@ export default function AuditLogPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          Audit log
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Admin actions: user and camera changes, email settings updates. Entries are append-only.
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Compliance"
+        title="Security Event Explorer"
+        subtitle="Append-only record of administrative actions, camera and email settings changes, and authentication telemetry."
+      />
 
       {error && (
         <Alert

@@ -30,6 +30,7 @@ import { api } from '@/lib/api';
 import { maskRtspUrl } from '@/lib/maskRtsp';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
+import { StitchPageHeader } from '@/components/StitchPageHeader';
 
 interface Camera {
   id: number;
@@ -135,14 +136,11 @@ export default function CamerasPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-          Cameras
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-          Manage camera sources for live monitoring and detection
-        </Typography>
-      </Box>
+      <StitchPageHeader
+        eyebrow="Network Management"
+        title="Active Cameras"
+        subtitle="Manage your distributed security nodes and RTSP sources for live monitoring and detection."
+      />
 
       <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
         <Typography variant="subtitle2" fontWeight={600} gutterBottom>RTSP & Remote Access</Typography>
@@ -166,7 +164,7 @@ export default function CamerasPage() {
         </Button>
       </Box>
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
-      <Card sx={{ bgcolor: 'background.paper' }}>
+      <Card>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress size={32} />

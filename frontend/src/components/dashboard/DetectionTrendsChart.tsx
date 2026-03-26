@@ -18,7 +18,7 @@ type TrendPoint = { date: string; count: number };
 
 export default function DetectionTrendsChart({ trends }: { trends: TrendPoint[] }) {
   return (
-    <Card sx={{ height: '100%' }}>
+    <Card sx={{ height: '100%', bgcolor: '#222a3d' }}>
       <CardContent sx={{ p: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
           <Box
@@ -27,7 +27,7 @@ export default function DetectionTrendsChart({ trends }: { trends: TrendPoint[] 
               height: 40,
               borderRadius: 3,
               bgcolor: 'primary.main',
-              color: 'white',
+              color: 'primary.contrastText',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -61,15 +61,18 @@ export default function DetectionTrendsChart({ trends }: { trends: TrendPoint[] 
                     <stop offset="95%" stopColor="#2065D1" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(145, 158, 171, 0.2)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#637381" />
-                <YAxis tick={{ fontSize: 12 }} stroke="#637381" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.08)" vertical={false} />
+                <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#c2c6d5' }} stroke="#424753" />
+                <YAxis tick={{ fontSize: 12, fill: '#c2c6d5' }} stroke="#424753" />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 12,
-                    border: '1px solid rgba(145, 158, 171, 0.24)',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+                    background: '#171f33',
+                    color: '#dae2fd',
                   }}
+                  labelStyle={{ color: '#c2c6d5' }}
                 />
                 <Area type="monotone" dataKey="count" stroke="none" fill="url(#colorCount)" />
                 <Line

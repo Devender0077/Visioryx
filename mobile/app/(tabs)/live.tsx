@@ -11,8 +11,10 @@ import {
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '@/lib/api';
-import Colors, { Brand } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Stitch, FontFamily } from '@/constants/stitchTheme';
+import { useStitchTheme } from '@/hooks/useStitchTheme';
+import { useRealtimeTick } from '@/contexts/RealtimeContext';
+import { stitchStyles } from '@/styles/stitchStyles';
 
 type Camera = {
   id: number;
@@ -23,8 +25,8 @@ type Camera = {
 
 export default function LiveScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const palette = Colors[colorScheme ?? 'light'];
+  const realtimeTick = useRealtimeTick();
+  const T = useStitchTheme();
   const [items, setItems] = useState<Camera[]>([]);
   const [activeIds, setActiveIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -48,48 +50,84 @@ export default function LiveScreen() {
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, realtimeTick]);
+
+  const header = (
+    <View style={styles.hero}>
+      <Text style={[stitchStyles.screenEyebrow, { color: T.accent }]}>Live Monitoring</Text>
+      <Text style={[stitchStyles.liveScreenTitle, { color: T.text }]}>Active Surveillance</Text>
+      <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 8 }]}>
+        Tap a feed to open full-screen MJPEG view.
+      </Text>
+    </View>
+  );
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: palette.background }]}>
-        <ActivityIndicator size="large" color={Brand.primary} />
+      <View style={[styles.center, { backgroundColor: T.bg }]}>
+        <ActivityIndicator size="large" color={T.accent} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, { backgroundColor: palette.background }]}>
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+    <View style={[styles.root, { backgroundColor: T.bg }]}>
+      {error ? (
+        <Text style={[styles.err, { color: Stitch.error }]}>{error}</Text>
+      ) : null}
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
+        ListHeaderComponent={header}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} />}
         ListEmptyComponent={
-          <Text style={[styles.empty, { color: palette.textSecondary }]}>
+          <Text style={[styles.empty, { color: T.textMuted }]}>
             No cameras configured. Add cameras in the web dashboard (admin).
           </Text>
         }
         renderItem={({ item }) => {
           const live = activeIds.has(item.id) && item.is_enabled;
+          const time = new Date().toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+          });
           return (
             <Pressable
-              style={[styles.row, { backgroundColor: palette.card, borderColor: palette.border }]}
+              style={[styles.bento, { backgroundColor: T.card }]}
               onPress={() => router.push(`/camera/${item.id}`)}
               disabled={!item.is_enabled}
             >
-              <MaterialCommunityIcons name="cctv" size={28} color={live ? Brand.success : palette.textSecondary} />
-              <View style={styles.rowText}>
-                <Text style={[styles.name, { color: palette.text }]}>{item.camera_name}</Text>
-                <Text style={{ color: palette.textSecondary, fontSize: 13 }}>
-                  {item.is_enabled ? (live ? 'Streaming' : 'Ready') : 'Disabled'}
-                </Text>
+              <View style={[styles.preview, { backgroundColor: T.cardMid }]}>
+                {live ? (
+                  <View style={styles.livePill}>
+                    <View style={[styles.liveDot, { backgroundColor: Stitch.onSecondaryContainer }]} />
+                    <Text style={styles.livePillText}>Live</Text>
+                  </View>
+                ) : item.is_enabled ? (
+                  <Text style={[styles.offlineHint, { color: T.textMuted }]}>Ready</Text>
+                ) : (
+                  <View style={styles.offPill}>
+                    <Text style={styles.offPillText}>Offline</Text>
+                  </View>
+                )}
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={22} color={palette.textSecondary} />
+              <View style={styles.bentoFoot}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.camTitle, { color: T.text }]}>{item.camera_name}</Text>
+                  <Text style={[styles.camMeta, { color: Stitch.outline }]} numberOfLines={1}>
+                    {time} · {item.is_enabled ? (live ? 'Streaming' : 'Standby') : 'Disabled'}
+                  </Text>
+                </View>
+                <View style={[styles.fsBtn, { backgroundColor: Stitch.surfaceContainerHighest }]}>
+                  <MaterialCommunityIcons name="fullscreen" size={22} color={live ? T.accent : T.textMuted} />
+                </View>
+              </View>
             </Pressable>
           );
         }}
-        contentContainerStyle={styles.listPad}
+        contentContainerStyle={[styles.listPad, { paddingBottom: T.tabBarPadBottom }]}
       />
     </View>
   );
@@ -98,17 +136,73 @@ export default function LiveScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  err: { color: Brand.danger, padding: 16 },
-  listPad: { padding: 16, paddingBottom: 32, gap: 10 },
-  row: {
+  err: { padding: 16 },
+  hero: { marginBottom: 16 },
+  listPad: { padding: 16, gap: 16 },
+  bento: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  preview: {
+    height: 120,
+    padding: 12,
+    justifyContent: 'flex-start',
+  },
+  livePill: {
+    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+    gap: 6,
+    backgroundColor: `${Stitch.secondaryContainer}E6`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3 },
+  livePillText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Stitch.onSecondaryContainer,
+  },
+  offPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: `${Stitch.error}22`,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  offPillText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Stitch.error,
+  },
+  offlineHint: { fontFamily: FontFamily.body, fontSize: 13 },
+  bentoFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
     gap: 12,
   },
-  rowText: { flex: 1 },
-  name: { fontSize: 16, fontWeight: '600' },
+  camTitle: {
+    fontFamily: FontFamily.headline,
+    fontSize: 18,
+  },
+  camMeta: {
+    fontFamily: FontFamily.body,
+    fontSize: 11,
+    marginTop: 4,
+    fontVariant: ['tabular-nums'],
+  },
+  fsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   empty: { textAlign: 'center', marginTop: 48, paddingHorizontal: 24 },
 });

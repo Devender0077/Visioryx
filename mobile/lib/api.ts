@@ -3,6 +3,89 @@ import { getApiBase } from './config';
 
 const TOKEN_KEY = 'visioryx_token';
 
+function networkHint(): string {
+  const base = getApiBase();
+  const isLocal =
+    base.includes('localhost') ||
+    base.includes('127.0.0.1') ||
+    base.includes('0.0.0.0');
+  if (isLocal) {
+    return ' On a physical phone, localhost is the phone itself — set EXPO_PUBLIC_API_URL=http://<YOUR_MAC_LAN_IP>:8000 in mobile/.env (same Wi‑Fi as the phone), then stop Metro and run: npm run start:clear.';
+  }
+  return ' Check the backend is running (uvicorn --host 0.0.0.0 --port 8000), same Wi‑Fi, macOS firewall allows port 8000, and iOS Settings → Privacy → Local Network → Expo Go is ON.';
+}
+
+/** Shown when connection test fails — same text is useful for sign-in errors. */
+export const LAN_TROUBLESHOOTING = `Common fixes (same Wi‑Fi but still failing):
+• iPhone: Settings → Privacy & Security → Local Network → turn ON for Expo Go.
+• Mac IP changes: run \`ipconfig getifaddr en0\` and update mobile/.env EXPO_PUBLIC_API_URL, then npm run start:clear.
+• Backend must listen on all interfaces: uvicorn … --host 0.0.0.0 --port 8000
+• macOS firewall: System Settings → Network → Firewall — allow Python/terminal or port 8000 for testing.
+• Guest / “isolated” Wi‑Fi often blocks device-to-device; use your main LAN.`;
+
+/** GET /health — no auth. Use from login to verify the phone can reach the laptop API. */
+export async function testApiReachable(): Promise<{ ok: boolean; detail: string }> {
+  const base = getApiBase();
+  try {
+    const res = await fetchWithHelp(`${base}/health`, { method: 'GET' }, 12_000);
+    const body = await res.text();
+    const line = `HTTP ${res.status}\n${body.slice(0, 400)}`;
+    if (!res.ok) {
+      return { ok: false, detail: line };
+    }
+    return { ok: true, detail: line };
+  } catch (e) {
+    return { ok: false, detail: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+const DEFAULT_TIMEOUT_MS = 45_000;
+
+async function fetchWithHelp(url: string, opts?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const merged: RequestInit = {
+    ...opts,
+    signal: opts?.signal ? mergeAbortSignals(opts.signal, controller.signal) : controller.signal,
+  };
+  try {
+    return await fetch(url, merged);
+  } catch (e) {
+    const aborted =
+      (e instanceof Error && e.name === 'AbortError') ||
+      (typeof e === 'object' && e !== null && (e as { name?: string }).name === 'AbortError');
+    if (aborted) {
+      throw new Error(
+        `Request timed out after ${timeoutMs / 1000}s. Check EXPO_PUBLIC_API_URL, Wi‑Fi, and that the API is reachable.`,
+      );
+    }
+    const raw = e instanceof Error ? e.message : String(e);
+    if (
+      raw.includes('Network request failed') ||
+      raw.includes('Failed to fetch') ||
+      raw.includes('NetworkError') ||
+      raw.includes('ECONNREFUSED')
+    ) {
+      throw new Error(`Cannot reach ${getApiBase()} (${raw}).${networkHint()}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const c = new AbortController();
+  const onAbort = () => c.abort();
+  if (a.aborted || b.aborted) {
+    c.abort();
+    return c.signal;
+  }
+  a.addEventListener('abort', onAbort);
+  b.addEventListener('abort', onAbort);
+  return c.signal;
+}
+
 export async function getStoredToken(): Promise<string | null> {
   try {
     return await SecureStore.getItemAsync(TOKEN_KEY);
@@ -19,16 +102,24 @@ export async function clearStoredToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-export async function publicApi<T>(path: string, opts?: RequestInit): Promise<T> {
+export async function publicApi<T>(
+  path: string,
+  opts?: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
   const isFormData = opts?.body instanceof FormData;
   const base = getApiBase();
-  const res = await fetch(`${base}${path}`, {
-    ...opts,
-    headers: {
-      ...(!isFormData && { 'Content-Type': 'application/json' }),
-      ...opts?.headers,
+  const res = await fetchWithHelp(
+    `${base}${path}`,
+    {
+      ...opts,
+      headers: {
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
+        ...opts?.headers,
+      },
     },
-  });
+    timeoutMs,
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = err.detail;
@@ -37,18 +128,51 @@ export async function publicApi<T>(path: string, opts?: RequestInit): Promise<T>
   return res.json();
 }
 
-export async function api<T>(path: string, opts?: RequestInit): Promise<T> {
+/** Same as `api` but uses an explicit Bearer token (e.g. right after login, parallel with SecureStore). */
+export async function apiWithToken<T>(
+  accessToken: string,
+  path: string,
+  opts?: RequestInit,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<T> {
+  const isFormData = opts?.body instanceof FormData;
+  const base = getApiBase();
+  const res = await fetchWithHelp(
+    `${base}${path}`,
+    {
+      ...opts,
+      headers: {
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
+        Authorization: `Bearer ${accessToken}`,
+        ...opts?.headers,
+      },
+    },
+    timeoutMs,
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const detail = err.detail;
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail || res.statusText));
+  }
+  return res.json();
+}
+
+export async function api<T>(path: string, opts?: RequestInit, timeoutMs: number = DEFAULT_TIMEOUT_MS): Promise<T> {
   const token = await getStoredToken();
   const isFormData = opts?.body instanceof FormData;
   const base = getApiBase();
-  const res = await fetch(`${base}${path}`, {
-    ...opts,
-    headers: {
-      ...(!isFormData && { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...opts?.headers,
+  const res = await fetchWithHelp(
+    `${base}${path}`,
+    {
+      ...opts,
+      headers: {
+        ...(!isFormData && { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...opts?.headers,
+      },
     },
-  });
+    timeoutMs,
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const detail = err.detail;

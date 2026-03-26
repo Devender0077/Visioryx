@@ -9,19 +9,17 @@ interface WelcomeCardProps {
   displayName?: string;
 }
 
-/**
- * Minimals-style welcome card with illustration and CTA.
- */
+/** Stitch Digital Sentinel — dark hero card */
 export function WelcomeCard({ displayName = 'Admin' }: WelcomeCardProps) {
   return (
     <Card
       sx={{
         overflow: 'hidden',
         position: 'relative',
-        background: 'linear-gradient(135deg, #161C24 0%, #212B36 50%, #1a2332 100%)',
+        background: 'linear-gradient(135deg, #131b2e 0%, #171f33 45%, #222a3d 100%)',
         color: 'white',
-        border: 'none',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
       }}
     >
       {/* Subtle pattern overlay */}
@@ -30,8 +28,8 @@ export function WelcomeCard({ displayName = 'Admin' }: WelcomeCardProps) {
           position: 'absolute',
           inset: 0,
           opacity: 0.04,
-          backgroundImage: `radial-gradient(circle at 20% 80%, #2065D1 1px, transparent 1px),
-                           radial-gradient(circle at 80% 20%, #00AB55 1px, transparent 1px)`,
+          backgroundImage: `radial-gradient(circle at 20% 80%, #2065d1 1px, transparent 1px),
+                           radial-gradient(circle at 80% 20%, #57e082 1px, transparent 1px)`,
           backgroundSize: '24px 24px',
         }}
       />
@@ -47,7 +45,14 @@ export function WelcomeCard({ displayName = 'Admin' }: WelcomeCardProps) {
         }}
       >
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+          <Typography
+            sx={{
+              fontFamily: '"Manrope", "Public Sans", sans-serif',
+              fontWeight: 800,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+              mb: 0.5,
+            }}
+          >
             Hi, {displayName} 👋
           </Typography>
           <Typography
@@ -67,13 +72,14 @@ export function WelcomeCard({ displayName = 'Admin' }: WelcomeCardProps) {
             variant="contained"
             endIcon={<ArrowForward />}
             sx={{
-              bgcolor: '#00AB55',
-              color: 'white',
+              bgcolor: '#00aa54',
+              color: '#003415',
               fontWeight: 600,
               px: 2.5,
               py: 1.25,
               '&:hover': {
-                bgcolor: '#007B55',
+                bgcolor: '#007b55',
+                color: '#fff',
               },
             }}
           >

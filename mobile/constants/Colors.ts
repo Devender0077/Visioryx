@@ -28,7 +28,8 @@ export default {
     textSecondary: Stitch.onSurfaceVariant,
     background: Stitch.surface,
     card: Stitch.surfaceContainerHigh,
-    border: outlineSoft,
+    /** Ghost edge — avoid heavy 1px lines (Stitch DESIGN.md) */
+    border: 'rgba(66, 71, 83, 0.28)',
     tint: Stitch.primary,
     tabIconDefault: '#8c909f',
     tabIconSelected: Stitch.primary,
