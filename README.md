@@ -266,6 +266,7 @@ docker compose -f docker/docker-compose.yml up -d
 | `DATABASE_URL_SYNC` | Sync URL for Alembic | `postgresql://postgres:postgres@localhost:5432/visioryx` |
 | `SECRET_KEY` | JWT secret (use `openssl rand -hex 32`) | — |
 | `CORS_ORIGINS` | Comma-separated browser origins allowed for the API | `http://localhost:3000,http://127.0.0.1:3000` |
+| `PUBLIC_DASHBOARD_URL` | Default base URL for enrollment links in emails when SMTP “public base URL” is empty | `http://localhost:3000` |
 | `FACE_SIMILARITY_THRESHOLD` | Cosine similarity to enrolled face (lower = more matches) | `0.52` |
 | `DEBUG` | Enable debug mode | `false` |
 
@@ -275,6 +276,46 @@ docker compose -f docker/docker-compose.yml up -d
 |----------|-------------|
 | `NEXT_PUBLIC_API_URL` | Backend API URL |
 | `NEXT_PUBLIC_WS_URL` | WebSocket URL |
+| `NEXT_PUBLIC_APP_ORIGIN` | Optional. Public dashboard URL (e.g. `https://visioryx.example.com`) for QR enrollment links when the browser origin is wrong (localhost tunnel, split DNS). |
+
+### Cloudflare, live streams, and object storage
+
+- **Live MJPEG** is a **long-lived HTTP response** from your API. Putting that hostname behind Cloudflare’s **proxied (orange) DNS** can cause **buffering, timeouts, or broken streams** because the proxy is not designed as a generic RTSP→MJPEG relay.
+- **Practical setup:** Keep the **Next.js app** on a proxied hostname (orange) for WAF/caching. Use a **DNS-only (grey cloud)** record for the **API hostname** that serves `/api/v1/stream/*`, **or** use a subdomain like `api.example.com` with grey cloud pointing at your origin. Point `NEXT_PUBLIC_API_URL` at that origin for streams.
+- **Cloudflare R2** (S3-compatible) is a good fit for **static files** (snapshots, face images) if you add an S3-compatible upload path later—**not** for piping live MJPEG in real time.
+- **Cloudflare Stream** is a separate product (VOD/live ingest); it does **not** replace this app’s built-in MJPEG/HLS path from RTSP.
+- **Smoother live video** is usually improved by **CPU/GPU on the server**, **network to the camera**, **decode resolution** (`STREAM_DECODE_*`), and **JPEG quality**—not by CDN-ing the MJPEG through a cache.
+
+**Enrollment email & QR:** Configure **Email & SMTP** in the dashboard (admin). Set **Public dashboard URL** there or `PUBLIC_DASHBOARD_URL` in `.env` so emailed links and production QR codes use your real domain (e.g. behind Cloudflare).
+
+### Performance tuning (server & live video)
+
+| Setting | Where | Effect |
+|--------|--------|--------|
+| `STREAM_DECODE_WIDTH` / `STREAM_DECODE_HEIGHT` | `backend/.env` | Lower (e.g. 960×540) = less CPU, less detail for faces. |
+| `STREAM_JPEG_QUALITY` | `backend/.env` | Lower = smaller MJPEG, less bandwidth, slightly softer image. |
+| `STREAM_ANNOTATE_EVERY_N_FRAMES` | `backend/.env` | **Higher** = smoother video, fewer AI overlays per second. |
+| `STREAM_ENABLE_YOLO_OVERLAY` / `STREAM_ENABLE_HOG_PERSONS` | `backend/.env` or dashboard (YOLO) | Turn off overlays you don’t need to save CPU. |
+| `FRAME_SKIP_RATE` | `backend/.env` | Process every Nth frame in pipelines (not MJPEG only). |
+
+**Frontend:** `npm run build` + `next start` for production; the Overview chart loads **lazy** on the client to reduce initial JS. Prefer **HTTPS** and a **grey-cloud API host** for streams (see above).
+
+### Mobile app: what are the options?
+
+Visioryx is a **web dashboard** (Next.js). To ship **native** iOS/Android apps:
+
+1. **Progressive Web App (PWA)** — Add a web app manifest + service worker so users “Add to Home Screen.” Fastest path; still limited compared to native (background, push, etc. vary by OS).
+2. **Capacitor** (or **Cordova**) — Wrap your **built** Next.js site in a **WebView**; same API (`NEXT_PUBLIC_API_URL`). Good when you want store presence with minimal UI rewrite.
+3. **Expo / React Native** — New **mobile UI** in React Native; **reuse FastAPI** as the only backend (same REST/WebSocket). Most work, best native UX and performance.
+4. **Responsive web only** — The current MUI layout already adapts to small screens; many teams stop here for internal tools.
+
+There is no separate “mobile backend”: the same **Python API** serves web and any future app.
+
+### Next.js vs React: which is “best”?
+
+- **React** is a **UI library** (components, state). You still choose **routing**, **build tool**, **SSR**, etc.
+- **Next.js** is a **framework on top of React** that gives you **file-based routing**, **SSR/SSG**, **API routes** (optional), **image optimization**, and **production defaults**. This project is **already Next.js**—there is nothing to “switch” for correctness.
+- **Rule of thumb:** new **full-stack or marketing + app** sites → **Next.js**; embedding UI inside an existing non-React app → sometimes **plain React** or **Vite + React** only.
 
 ---
 

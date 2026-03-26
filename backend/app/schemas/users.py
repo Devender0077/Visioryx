@@ -31,6 +31,11 @@ class UserResponse(UserBase):
         from_attributes = True
 
 
+class UserListResponse(BaseModel):
+    items: list[UserResponse]
+    total: int
+
+
 def user_to_response(user: Any) -> UserResponse:
     """Build response from ORM User without exposing raw embedding vector."""
     emb = getattr(user, "face_embedding", None)

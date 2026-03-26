@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "on-primary-fixed-variant": "#004398",
+            "surface-dim": "#0b1326",
+            "tertiary": "#ffb950",
+            "outline": "#8c909f",
+            "on-secondary": "#003918",
+            "surface-container-low": "#131b2e",
+            "on-primary": "#002d6c",
+            "error": "#ffb4ab",
+            "primary": "#afc6ff",
+            "tertiary-fixed": "#ffddb3",
+            "surface-bright": "#31394d",
+            "secondary-fixed": "#75fd9c",
+            "outline-variant": "#424753",
+            "primary-container": "#2065d1",
+            "inverse-primary": "#0459c5",
+            "on-background": "#dae2fd",
+            "on-error": "#690005",
+            "surface-variant": "#2d3449",
+            "primary-fixed": "#d9e2ff",
+            "inverse-on-surface": "#283044",
+            "surface-tint": "#afc6ff",
+            "tertiary-container": "#915f00",
+            "on-surface-variant": "#c2c6d5",
+            "on-secondary-fixed-variant": "#005226",
+            "surface-container": "#171f33",
+            "error-container": "#93000a",
+            "on-error-container": "#ffdad6",
+            "surface": "#0b1326",
+            "tertiary-fixed-dim": "#ffb950",
+            "on-secondary-fixed": "#00210b",
+            "on-tertiary-fixed": "#291800",
+            "surface-container-lowest": "#060e20",
+            "secondary-fixed-dim": "#57e082",
+            "on-secondary-container": "#003415",
+            "secondary-container": "#00aa54",
+            "surface-container-high": "#222a3d",
+            "on-primary-container": "#e4eaff",
+            "on-tertiary-container": "#ffe6ca",
+            "on-primary-fixed": "#001a43",
+            "surface-container-highest": "#2d3449",
+            "inverse-surface": "#dae2fd",
+            "secondary": "#57e082",
+            "on-tertiary": "#452b00",
+            "on-surface": "#dae2fd",
+            "primary-fixed-dim": "#afc6ff",
+            "background": "#0b1326",
+            "on-tertiary-fixed-variant": "#624000"
+          },
+          fontFamily: {
+            "headline": ["Manrope"],
+            "body": ["Inter"],
+            "label": ["Inter"]
+          },
+          borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      line-height: 1;
+      text-transform: none;
+      letter-spacing: normal;
+      word-wrap: normal;
+      white-space: nowrap;
+      direction: ltr;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    .glass-effect {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen pb-32">
+<!-- TopAppBar Execution -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 bg-[#0b1326] dark:bg-[#0b1326]">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border border-outline-variant/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="professional headshot of a male security administrator in a dark studio setting with subtle blue backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCgHrZsR-Q-6HZOm5G4kPd22mEpruFte5Pi-YIur_6CxUjr_jN7iMxf_I9WlE9rbMI1Yj3bCzmR0mK9YxqYQ7o2FVhy_-Hu6c0E1Low_oXrWzs0x0tA94Y38_S_OvzLo5eNA50lTXdRcDyaSyuwqBkRubRFFGKHpUGsebh5pvD2sc8EQHSa6SJkpPjlSFsMfXeOVeRsEuF1chlXQCdk5fqeXKm0D5QEmj6dhcb3BZ_H9cRsC7TnXmjn693MrYToZxk30fTOz14T660"/>
+</div>
+<h1 class="font-['Manrope'] font-black text-2xl text-[#afc6ff] tracking-tighter">Visioryx</h1>
+</div>
+<div class="flex items-center gap-3">
+<!-- Live Connection Chip -->
+<div class="hidden sm:flex items-center gap-2 bg-secondary-container/10 px-3 py-1 rounded-full">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+<span class="text-secondary font-label text-[10px] uppercase tracking-wider font-bold">Live</span>
+</div>
+<button class="p-2 rounded-full hover:bg-[#171f33] transition-colors text-[#afc6ff] active:scale-95 duration-150 ease-in-out">
+<span class="material-symbols-outlined" data-icon="sensors">sensors</span>
+</button>
+</div>
+</header>
+<main class="pt-24 px-6 max-w-7xl mx-auto space-y-10">
+<!-- Hero Section / Security Status -->
+<section class="relative group">
+<div class="flex flex-col md:flex-row justify-between items-end gap-6">
+<div>
+<span class="text-primary font-label text-xs uppercase tracking-[0.1em] font-bold">System Status</span>
+<h2 class="font-headline font-extrabold text-4xl md:text-5xl mt-2 tracking-tight">All systems vigilant.</h2>
+<p class="text-on-surface-variant mt-4 max-w-md leading-relaxed">Infrastructure monitoring is active across 12 nodes. No critical breaches detected in the last <span class="tabular-nums">24</span> hours.</p>
+</div>
+<!-- Shortcuts -->
+<div class="flex flex-wrap gap-3">
+<button class="flex items-center gap-2 bg-surface-container-high px-5 py-3 rounded-xl hover:bg-surface-container-highest transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary" data-icon="grid_view">grid_view</span>
+<span class="font-label font-semibold text-sm">Live Grid</span>
+</button>
+<button class="flex items-center gap-2 bg-surface-container-high px-5 py-3 rounded-xl hover:bg-surface-container-highest transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary" data-icon="person_search">person_search</span>
+<span class="font-label font-semibold text-sm">Detections</span>
+</button>
+<button class="flex items-center gap-2 bg-primary-container px-5 py-3 rounded-xl hover:opacity-90 transition-all active:scale-95 text-on-primary-container">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+<span class="font-label font-semibold text-sm">Alerts</span>
+</button>
+</div>
+</div>
+</section>
+<!-- KPI Bento Grid -->
+<section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<!-- Total Users -->
+<div class="bg-surface-container-high p-7 rounded-xl flex flex-col justify-between min-h-[160px] relative overflow-hidden">
+<div class="flex justify-between items-start z-10">
+<span class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Total Users</span>
+<span class="material-symbols-outlined text-primary/40" data-icon="group">group</span>
+</div>
+<div class="z-10">
+<div class="text-4xl font-headline font-extrabold tabular-nums tracking-tighter">1,284</div>
+<div class="flex items-center gap-1 mt-1 text-secondary text-xs font-medium">
+<span class="material-symbols-outlined text-xs" data-icon="trending_up">trending_up</span>
+<span class="tabular-nums">+12%</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-8xl" data-icon="group">group</span>
+</div>
+</div>
+<!-- Active Cameras -->
+<div class="bg-surface-container-high p-7 rounded-xl flex flex-col justify-between min-h-[160px] relative overflow-hidden">
+<div class="flex justify-between items-start z-10">
+<span class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Active Cameras</span>
+<span class="material-symbols-outlined text-secondary/40" data-icon="videocam">videocam</span>
+</div>
+<div class="z-10">
+<div class="text-4xl font-headline font-extrabold tabular-nums tracking-tighter">42</div>
+<div class="flex items-center gap-1 mt-1 text-on-surface-variant text-xs font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span>Stable connection</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-8xl" data-icon="videocam">videocam</span>
+</div>
+</div>
+<!-- Detections Today -->
+<div class="bg-surface-container-high p-7 rounded-xl flex flex-col justify-between min-h-[160px] relative overflow-hidden">
+<div class="flex justify-between items-start z-10">
+<span class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Detections Today</span>
+<span class="material-symbols-outlined text-tertiary/40" data-icon="bolt">bolt</span>
+</div>
+<div class="z-10">
+<div class="text-4xl font-headline font-extrabold tabular-nums tracking-tighter">8,102</div>
+<div class="flex items-center gap-1 mt-1 text-tertiary text-xs font-medium tabular-nums">
+            Last seen: 12:44:02
+          </div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-8xl" data-icon="bolt">bolt</span>
+</div>
+</div>
+<!-- Unknown Detections -->
+<div class="bg-surface-container-high p-7 rounded-xl flex flex-col justify-between min-h-[160px] relative overflow-hidden border border-error/10">
+<div class="flex justify-between items-start z-10">
+<span class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Unknown Detections</span>
+<span class="material-symbols-outlined text-error/40" data-icon="question_mark">question_mark</span>
+</div>
+<div class="z-10">
+<div class="text-4xl font-headline font-extrabold tabular-nums tracking-tighter text-error">03</div>
+<div class="flex items-center gap-1 mt-1 text-error text-xs font-medium">
+<span class="material-symbols-outlined text-xs" data-icon="priority_high">priority_high</span>
+<span>Requires review</span>
+</div>
+</div>
+<div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+<span class="material-symbols-outlined text-8xl" data-icon="question_mark">question_mark</span>
+</div>
+</div>
+</section>
+<!-- Visual Activity Section -->
+<section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="lg:col-span-2 bg-surface-container rounded-xl p-8 min-h-[300px] flex flex-col justify-between relative overflow-hidden">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline font-bold text-xl">Activity Density</h3>
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">7 Days</span>
+<span class="text-on-surface-variant px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider opacity-50">30 Days</span>
+</div>
+</div>
+<div class="flex-1 flex items-end gap-1.5 h-32">
+<!-- Mock Chart Bars -->
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[40%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[65%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[30%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[85%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/60 rounded-t-sm h-[95%] transition-all hover:bg-primary/80"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[50%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[60%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[45%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[20%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/30 rounded-t-sm h-[75%] transition-all hover:bg-primary/50"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[35%] transition-all hover:bg-primary/40"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[55%] transition-all hover:bg-primary/40"></div>
+</div>
+<div class="mt-6 flex justify-between text-[10px] uppercase font-bold text-on-surface-variant tracking-[0.15em]">
+<span>Monday</span>
+<span>Sunday</span>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-8 flex flex-col">
+<h3 class="font-headline font-bold text-xl mb-6">Recent Alerts</h3>
+<div class="space-y-4">
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors">
+<div class="w-10 h-10 bg-error-container rounded-lg flex items-center justify-center text-on-error-container">
+<span class="material-symbols-outlined" data-icon="person_alert">person_alert</span>
+</div>
+<div>
+<div class="text-sm font-bold">Unrecognized Entry</div>
+<div class="text-xs text-on-surface-variant tabular-nums mt-0.5">North Gate • 14:02:11</div>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors">
+<div class="w-10 h-10 bg-tertiary-container rounded-lg flex items-center justify-center text-on-tertiary-container">
+<span class="material-symbols-outlined" data-icon="videocam_off">videocam_off</span>
+</div>
+<div>
+<div class="text-sm font-bold">Camera Offline</div>
+<div class="text-xs text-on-surface-variant tabular-nums mt-0.5">Warehouse C • 13:45:50</div>
+</div>
+</div>
+<div class="flex gap-4 p-4 rounded-lg bg-surface-container hover:bg-surface-container-high transition-colors">
+<div class="w-10 h-10 bg-primary-container/20 rounded-lg flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" data-icon="update">update</span>
+</div>
+<div>
+<div class="text-sm font-bold">System Maintenance</div>
+<div class="text-xs text-on-surface-variant tabular-nums mt-0.5">Kernel Update • 12:00:00</div>
+</div>
+</div>
+</div>
+<button class="mt-auto pt-6 text-primary text-xs font-bold uppercase tracking-widest text-center hover:underline">View All Alerts</button>
+</div>
+</section>
+<!-- Visual Sentinel Imagery Section -->
+<section class="rounded-xl overflow-hidden h-64 relative group">
+<img alt="Security Grid" class="w-full h-full object-cover grayscale opacity-40 transition-transform duration-700 group-hover:scale-105" data-alt="abstract dark blue high-tech digital grid pattern with glowing nodes and data flows representing neural network connectivity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAv743yKBBwCEfJXJiKX2PMhsP186YP5wxLLdrTaUTyJPU-NyNVVrVw8Q5DwYx0Eu6lLE8RlZKX6kgpf7w2r5p4gkTiO9tDtO2pJB9hTyadR0wrCjoJQa6kFX1XUAsZJFqk5AZYTk1QUAsOmeDeH0-xAGWpFYEvvMKkAxFa5sAx6SognF42HEG2GjKTsCPZW1mxn1odN8UFW_pStPRG4IG6nCf25JsgWX1CRb9gUiXfo7D5CVfRyrvKnTMNN-_vcYKN35d9ZvT6Og8"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent"></div>
+<div class="absolute bottom-8 left-8 right-8 flex justify-between items-end">
+<div>
+<h3 class="font-headline font-bold text-2xl">Neural Analysis Active</h3>
+<p class="text-on-surface-variant text-sm mt-1">Visioryx AI is currently processing <span class="tabular-nums">1.2TB</span>/s of visual data.</p>
+</div>
+<div class="bg-surface-container-high/80 glass-effect p-4 rounded-xl border border-outline-variant/10">
+<div class="text-[10px] uppercase font-bold text-primary tracking-widest mb-1">Engine Load</div>
+<div class="text-2xl font-headline font-extrabold tabular-nums">24.8%</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar Execution -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-[#222a3d]/80 backdrop-blur-xl shadow-[0_-4px_40px_rgba(175,198,255,0.04)] rounded-t-xl">
+<!-- Overview (Active) -->
+<a class="flex flex-col items-center justify-center text-[#afc6ff] relative after:content-[''] after:absolute after:-bottom-1 after:w-1 after:h-1 after:bg-[#afc6ff] after:rounded-full group active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-[0.05em] mt-1">Overview</span>
+</a>
+<!-- Live -->
+<a class="flex flex-col items-center justify-center text-[#424753] opacity-60 hover:text-[#afc6ff] hover:opacity-100 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="videocam">videocam</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-[0.05em] mt-1">Live</span>
+</a>
+<!-- Cameras -->
+<a class="flex flex-col items-center justify-center text-[#424753] opacity-60 hover:text-[#afc6ff] hover:opacity-100 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="videocam_off">videocam_off</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-[0.05em] mt-1">Cameras</span>
+</a>
+<!-- Alerts -->
+<a class="flex flex-col items-center justify-center text-[#424753] opacity-60 hover:text-[#afc6ff] hover:opacity-100 transition-all active:scale-90 duration-200" href="#">
+<div class="relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute -top-1 -right-1 w-2 h-2 bg-error rounded-full border-2 border-[#222a3d]"></span>
+</div>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-[0.05em] mt-1">Alerts</span>
+</a>
+<!-- More -->
+<a class="flex flex-col items-center justify-center text-[#424753] opacity-60 hover:text-[#afc6ff] hover:opacity-100 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="more_horiz">more_horiz</span>
+<span class="font-['Inter'] font-medium text-[10px] uppercase tracking-[0.05em] mt-1">More</span>
+</a>
+</nav>
+</body></html>

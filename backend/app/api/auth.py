@@ -2,6 +2,8 @@
 Visioryx - Auth API
 JWT authentication endpoints.
 """
+import time
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -84,12 +86,20 @@ async def login(
 ):
     """Login with email and password. Returns JWT."""
     email_norm = data.email.strip().lower()
+    arr = _prune_failed_logins(email_norm)
+    if len(arr) >= _MAX_FAILED_IN_WINDOW:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed login attempts. Try again in 15 minutes.",
+        )
     result = await db.execute(select(AuthUser).where(func.lower(AuthUser.email) == email_norm))
     user = result.scalar_one_or_none()
     if not user or not verify_password(data.password, user.hashed_password):
+        arr.append(time.time())
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not user.is_active:
         raise HTTPException(status_code=401, detail="Account disabled")
+    _FAILED_LOGIN_TIMESTAMPS.pop(email_norm, None)
     token = create_access_token(subject=user.email, role=_role_from_db(user.role))
     return TokenResponse(access_token=token)
 

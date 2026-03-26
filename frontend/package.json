@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "dev:clean": "rm -rf .next && next dev",
+    "dev": "next dev -H 0.0.0.0",
+    "dev:clean": "rm -rf .next && next dev -H 0.0.0.0",
     "clean": "rm -rf .next",
     "build": "next build",
     "start": "next start",

@@ -5,9 +5,9 @@ User/face registration endpoints.
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import AdminUser
@@ -16,7 +16,7 @@ from app.core.config import get_settings
 from app.core.security import create_enrollment_token, decode_access_token
 from app.database.connection import get_db
 from app.database.models import Detection, User
-from app.schemas.users import UserCreate, UserResponse, UserUpdate, user_to_response
+from app.schemas.users import UserCreate, UserListResponse, UserResponse, UserUpdate, user_to_response
 from app.ai.face_detector import insightface_embeddings_enabled
 from app.services.detection_overlay import invalidate_embedding_cache
 from app.services.face_enrollment import (
@@ -25,18 +25,33 @@ from app.services.face_enrollment import (
     save_primary_face_image,
 )
 from app.services.smtp_mailer import public_dashboard_base_for_links, send_smtp_mail_sync
+from app.services.audit_service import record_audit
 
 router = APIRouter()
 
 
-@router.get("", response_model=list[UserResponse])
+@router.get("", response_model=UserListResponse)
 async def list_users(
     db: AsyncSession = Depends(get_db),
     current_user: AdminUser = None,
+    q: Optional[str] = Query(None, description="Search name or email"),
+    limit: int = Query(50, le=200),
+    offset: int = Query(0, ge=0),
 ):
-    """List all registered users."""
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
-    return [user_to_response(u) for u in result.scalars().all()]
+    """List registered users with optional search and pagination."""
+    filt = None
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        filt = or_(User.name.ilike(term), User.email.ilike(term))
+    count_stmt = select(func.count(User.id))
+    list_stmt = select(User).order_by(User.created_at.desc())
+    if filt is not None:
+        count_stmt = count_stmt.where(filt)
+        list_stmt = list_stmt.where(filt)
+    total = (await db.execute(count_stmt)).scalar() or 0
+    result = await db.execute(list_stmt.limit(limit).offset(offset))
+    items = [user_to_response(u) for u in result.scalars().all()]
+    return UserListResponse(items=items, total=total)
 
 
 @router.post("", response_model=UserResponse)
@@ -53,6 +68,14 @@ async def create_user(
     db.add(user)
     await db.flush()
     await db.refresh(user)
+    await record_audit(
+        db,
+        actor=current_user,
+        action="user.create",
+        resource_type="user",
+        resource_id=user.id,
+        detail={"name": user.name, "email": user.email},
+    )
     return user_to_response(user)
 
 
@@ -101,6 +124,14 @@ async def delete_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    await record_audit(
+        db,
+        actor=current_user,
+        action="user.delete",
+        resource_type="user",
+        resource_id=user.id,
+        detail={"email": user.email, "name": user.name},
+    )
     await db.execute(update(Detection).where(Detection.user_id == user_id).values(user_id=None))
     await db.delete(user)
     background_tasks.add_task(invalidate_embedding_cache)

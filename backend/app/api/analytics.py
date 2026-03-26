@@ -6,8 +6,9 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.api.deps import SurveillanceUser
 from app.database.connection import get_db
@@ -92,16 +93,24 @@ async def recent_detections(
     current_user: SurveillanceUser = None,
     limit: int = Query(10, le=50),
 ):
-    """Recent detection events for dashboard."""
+    """Recent detection events for dashboard (includes camera display name)."""
     result = await db.execute(
-        select(Detection.id, Detection.camera_id, Detection.status, Detection.confidence, Detection.timestamp)
+        select(Detection)
+        .options(selectinload(Detection.camera))
         .order_by(Detection.timestamp.desc())
         .limit(limit)
     )
-    rows = result.all()
+    rows = result.scalars().unique().all()
     return [
-        {"id": r.id, "camera_id": r.camera_id, "status": r.status, "confidence": r.confidence, "timestamp": r.timestamp.isoformat()}
-        for r in rows
+        {
+            "id": d.id,
+            "camera_id": d.camera_id,
+            "camera_name": d.camera.camera_name if d.camera else None,
+            "status": d.status,
+            "confidence": d.confidence,
+            "timestamp": d.timestamp.isoformat(),
+        }
+        for d in rows
     ]
 
 
@@ -138,3 +147,54 @@ async def object_stats(
         .group_by(ObjectDetection.object_name)
     )
     return [{"object": r[0], "count": r[1]} for r in result]
+
+
+@router.get("/detection-status-trends")
+async def detection_status_trends(
+    db: AsyncSession = Depends(get_db),
+    current_user: SurveillanceUser = None,
+    days: int = Query(7, le=30),
+):
+    """Per-day face detection counts split by known vs unknown."""
+    start = datetime.utcnow() - timedelta(days=days)
+    result = await db.execute(
+        select(
+            func.date(Detection.timestamp).label("d"),
+            Detection.status,
+            func.count(Detection.id).label("cnt"),
+        )
+        .where(Detection.timestamp >= start)
+        .group_by(func.date(Detection.timestamp), Detection.status)
+        .order_by(func.date(Detection.timestamp))
+    )
+    by_date: dict[str, dict] = {}
+    for r in result.all():
+        ds = str(r.d)
+        if ds not in by_date:
+            by_date[ds] = {"date": ds, "known": 0, "unknown": 0}
+        if r.status == "known":
+            by_date[ds]["known"] = int(r.cnt)
+        elif r.status == "unknown":
+            by_date[ds]["unknown"] = int(r.cnt)
+    return list(by_date.values())
+
+
+@router.get("/detections-by-camera")
+async def detections_by_camera(
+    db: AsyncSession = Depends(get_db),
+    current_user: SurveillanceUser = None,
+    days: int = Query(7, le=30),
+    limit: int = Query(10, le=50),
+):
+    """Top cameras by face detection count in the period."""
+    start = datetime.utcnow() - timedelta(days=days)
+    cnt = func.count(Detection.id).label("cnt")
+    result = await db.execute(
+        select(Camera.camera_name, cnt)
+        .join(Detection, Detection.camera_id == Camera.id)
+        .where(Detection.timestamp >= start)
+        .group_by(Camera.id, Camera.camera_name)
+        .order_by(desc(cnt))
+        .limit(limit)
+    )
+    return [{"camera_name": r[0], "count": r[1]} for r in result.all()]

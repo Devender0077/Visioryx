@@ -100,6 +100,9 @@ class Settings(BaseSettings):
     # WebSocket
     WS_HEARTBEAT_INTERVAL: int = 30
 
+    # Optional: POST JSON payloads when alerts are created (Slack/Discord/custom). Empty = disabled.
+    ALERT_WEBHOOK_URL: Optional[str] = None
+
     # Streaming
     # - "mjpeg": OpenCV VideoCapture + MJPEG endpoint (best dev compatibility; can crash on some macOS setups)
     # - "hls": FFmpeg subprocess generates HLS playlist + segments (recommended for stability)

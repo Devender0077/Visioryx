@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -11,6 +11,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputAdornment,
   Table,
   TableBody,
   TableCell,
@@ -22,9 +23,11 @@ import {
   TableContainer,
   Alert,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
-import { Add, Delete, Edit, Info } from '@mui/icons-material';
+import { Add, Delete, Edit, Info, Search, Visibility, VisibilityOff } from '@mui/icons-material';
 import { api } from '@/lib/api';
+import { maskRtspUrl } from '@/lib/maskRtsp';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
 
@@ -45,6 +48,21 @@ export default function CamerasPage() {
   const [url, setUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+  /** Row id → show full RTSP (otherwise masked) */
+  const [rtspRevealed, setRtspRevealed] = useState<Record<number, boolean>>({});
+  const [showRtspInDialog, setShowRtspInDialog] = useState(false);
+
+  const filteredCameras = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    if (!q) return cameras;
+    return cameras.filter(
+      (c) =>
+        c.camera_name.toLowerCase().includes(q) ||
+        c.rtsp_url.toLowerCase().includes(q) ||
+        String(c.id).includes(q),
+    );
+  }, [cameras, filter]);
 
   const load = () => {
     setLoading(true);
@@ -62,6 +80,7 @@ export default function CamerasPage() {
     setEditing(cam || null);
     setName(cam?.camera_name || '');
     setUrl(cam?.rtsp_url || '');
+    setShowRtspInDialog(false);
     setOpen(true);
   };
 
@@ -70,6 +89,11 @@ export default function CamerasPage() {
     setEditing(null);
     setName('');
     setUrl('');
+    setShowRtspInDialog(false);
+  };
+
+  const toggleRtspReveal = (id: number) => {
+    setRtspRevealed((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const handleSave = async () => {
@@ -128,7 +152,15 @@ export default function CamerasPage() {
         </Typography>
       </Alert>
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2, mb: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Search by name, URL, or ID"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          sx={{ minWidth: { xs: '100%', sm: 280 } }}
+          InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} fontSize="small" /> }}
+        />
         <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} sx={{ fontWeight: 600 }} size="medium">
           Add Camera
         </Button>
@@ -151,10 +183,37 @@ export default function CamerasPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {cameras.map((cam) => (
+            {filteredCameras.map((cam) => (
               <TableRow key={cam.id}>
                 <TableCell>{cam.camera_name}</TableCell>
-                <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{cam.rtsp_url}</TableCell>
+                <TableCell sx={{ maxWidth: 280 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      component="span"
+                      sx={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        flex: 1,
+                      }}
+                      title={rtspRevealed[cam.id] ? cam.rtsp_url : maskRtspUrl(cam.rtsp_url)}
+                    >
+                      {rtspRevealed[cam.id] ? cam.rtsp_url : maskRtspUrl(cam.rtsp_url)}
+                    </Typography>
+                    <Tooltip title={rtspRevealed[cam.id] ? 'Hide URL' : 'Show full URL'}>
+                      <IconButton
+                        size="small"
+                        aria-label={rtspRevealed[cam.id] ? 'Hide RTSP URL' : 'Reveal RTSP URL'}
+                        onClick={() => toggleRtspReveal(cam.id)}
+                      >
+                        {rtspRevealed[cam.id] ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
                 <TableCell><Chip label={cam.status} size="small" color={cam.status === 'active' ? 'success' : 'default'} /></TableCell>
                 <TableCell align="right">
                   <IconButton size="small" onClick={() => handleOpen(cam)}><Edit /></IconButton>
@@ -171,6 +230,11 @@ export default function CamerasPage() {
             <EmptyState message="No cameras configured. Click Add Camera to add a camera with a real RTSP URL." />
           </CardContent>
         )}
+        {!loading && cameras.length > 0 && filteredCameras.length === 0 && (
+          <CardContent>
+            <EmptyState message="No cameras match your search." />
+          </CardContent>
+        )}
       </Card>
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -180,11 +244,25 @@ export default function CamerasPage() {
           <TextField
             label="RTSP URL"
             fullWidth
+            type={showRtspInDialog ? 'text' : 'password'}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="rtsp://user:pass@ip:554/path"
             sx={{ mt: 2 }}
-            helperText="Same network as Visioryx required. Example: rtsp://admin:pass@192.168.1.100:554/stream1"
+            helperText="Credentials are masked until you click the eye. Same network as Visioryx required."
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={showRtspInDialog ? 'Hide RTSP URL' : 'Show RTSP URL'}
+                    edge="end"
+                    onClick={() => setShowRtspInDialog((v) => !v)}
+                  >
+                    {showRtspInDialog ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
           />
         </DialogContent>
         <DialogActions>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Box,
   Card,
@@ -19,32 +20,31 @@ import {
   Videocam,
   History,
   Warning,
-  TrendingUp,
   Notifications,
   Security,
   ArrowForward,
   Face,
 } from '@mui/icons-material';
-import {
-  LineChart,
-  Line,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ComposedChart,
-} from 'recharts';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { formatDateTime } from '@/lib/formatDate';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import {
-  EmptyStateIllustration,
-  ChartEmptyIllustration,
-} from '@/components/illustrations';
+import { EmptyStateIllustration } from '@/components/illustrations';
 import { WelcomeCard, FeaturedCard } from '@/components/dashboard';
+
+const DetectionTrendsChartLazy = dynamic(
+  () => import('@/components/dashboard/DetectionTrendsChart'),
+  {
+    ssr: false,
+    loading: () => (
+      <Card sx={{ height: '100%' }}>
+        <CardContent sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 360 }}>
+          <CircularProgress size={40} />
+        </CardContent>
+      </Card>
+    ),
+  },
+);
 
 interface OverviewData {
   total_users?: number;
@@ -58,6 +58,7 @@ interface OverviewData {
 interface RecentDetection {
   id: number;
   camera_id: number;
+  camera_name?: string | null;
   status: string;
   confidence: number;
   timestamp: string;
@@ -404,74 +405,7 @@ export default function DashboardPage() {
           <Grid container spacing={3}>
             {/* Detection trends */}
             <Grid item xs={12} lg={8}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 3,
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <TrendingUp sx={{ fontSize: 22 }} />
-                    </Box>
-                    <Box>
-                      <Typography variant="h6" fontWeight={700}>
-                        Detection Trends
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Last 7 days
-                      </Typography>
-                    </Box>
-                  </Box>
-                  {trends.length === 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-                      <ChartEmptyIllustration size={140} sx={{ mb: 2 }} />
-                      <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-                        No detection data yet. Start cameras to see trends.
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Box sx={{ height: 300 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={trends}>
-                          <defs>
-                            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#2065D1" stopOpacity={0.3} />
-                              <stop offset="95%" stopColor="#2065D1" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(145, 158, 171, 0.2)" vertical={false} />
-                          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#637381" />
-                          <YAxis tick={{ fontSize: 12 }} stroke="#637381" />
-                          <Tooltip
-                            contentStyle={{
-                              borderRadius: 12,
-                              border: '1px solid rgba(145, 158, 171, 0.24)',
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                            }}
-                          />
-                          <Area type="monotone" dataKey="count" stroke="none" fill="url(#colorCount)" />
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke="#2065D1"
-                            strokeWidth={2}
-                            dot={{ fill: '#2065D1', r: 4 }}
-                            activeDot={{ r: 6, fill: '#2065D1', stroke: 'white', strokeWidth: 2 }}
-                          />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
+              <DetectionTrendsChartLazy trends={trends} />
             </Grid>
 
             {/* Recent detections */}
@@ -529,7 +463,7 @@ export default function DashboardPage() {
                                   sx={{ height: 22, fontSize: '0.7rem' }}
                                 />
                                 <Typography variant="body2" fontWeight={500}>
-                                  Camera {d.camera_id}
+                                  {d.camera_name?.trim() || `Camera ${d.camera_id}`}
                                 </Typography>
                               </Box>
                             }

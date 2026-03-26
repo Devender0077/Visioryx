@@ -2,8 +2,6 @@
 Visioryx - Object Detector
 YOLOv8 object detection via Ultralytics.
 """
-from typing import Optional
-
 import numpy as np
 
 from app.core.config import get_settings
@@ -15,6 +13,48 @@ logger = get_logger("object_detector")
 TARGET_CLASSES = {"person", "cell phone", "laptop", "backpack", "handbag", "bottle", "chair", "car", "motorcycle", "bicycle", "cup", "book"}
 
 _model = None
+
+
+def _iou_xyxy(a: list[int], b: list[int]) -> float:
+    """Intersection-over-union for two axis-aligned boxes [x1,y1,x2,y2]."""
+    if len(a) < 4 or len(b) < 4:
+        return 0.0
+    ax1, ay1, ax2, ay2 = a[:4]
+    bx1, by1, bx2, by2 = b[:4]
+    ix1, iy1 = max(ax1, bx1), max(ay1, by1)
+    ix2, iy2 = min(ax2, bx2), min(ay2, by2)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    aa = max(0, ax2 - ax1) * max(0, ay2 - ay1)
+    ba = max(0, bx2 - bx1) * max(0, by2 - by1)
+    union = aa + ba - inter
+    return float(inter / union) if union > 0 else 0.0
+
+
+def _nms_by_class(detections: list[dict], iou_thresh: float) -> list[dict]:
+    """Greedy NMS per class so overlapping duplicate boxes are dropped (uses OBJECT_DETECTION_IOU_THRESHOLD)."""
+    if not detections or iou_thresh <= 0:
+        return detections
+    from collections import defaultdict
+
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for d in detections:
+        by_name[str(d.get("object_name", "?"))].append(d)
+    out: list[dict] = []
+    for objs in by_name.values():
+        sorted_objs = sorted(objs, key=lambda x: -float(x.get("confidence", 0)))
+        kept: list[dict] = []
+        for o in sorted_objs:
+            bb = o.get("bbox") or []
+            if not isinstance(bb, list) or len(bb) < 4:
+                kept.append(o)
+                continue
+            if all(_iou_xyxy(bb, k.get("bbox") or []) < iou_thresh for k in kept):
+                kept.append(o)
+        out.extend(kept)
+    return out
 
 
 def _get_model():
@@ -57,4 +97,4 @@ def detect_objects(frame: np.ndarray) -> list[dict]:
                 "confidence": conf,
                 "bbox": [int(x) for x in xyxy],
             })
-    return detections
+    return _nms_by_class(detections, settings.OBJECT_DETECTION_IOU_THRESHOLD)

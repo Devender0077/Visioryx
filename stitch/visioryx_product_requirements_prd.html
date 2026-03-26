@@ -1,0 +1,25 @@
+# Visioryx — Mobile App Product Requirements
+
+## Product Overview
+**Visioryx** is an AI-powered surveillance dashboard featuring live RTSP camera streams, face recognition, object detection, alerts, and analytics.
+
+## Brand & UI Principles
+- **Name:** Visioryx
+- **Feel:** Professional security / enterprise SaaS — clean, high contrast, calm.
+- **Primary Accent:** Blue `#2065D1`
+- **Status Colors:** Success `#00AB55`, Warning `#FFAB00`, Danger `#FF5630`
+- **Mode:** Support light and dark modes.
+- **Accessibility:** WCAG AA contrast, touch targets ≥ 44pt.
+
+## Key Features & Flows
+- **Auth:** JWT-based login, Splash screen.
+- **Home/Overview:** KPI cards for users, cameras, and detections.
+- **Live Monitoring:** Grid of camera streams + detail viewer.
+- **Management:** Camera and User lists (Admin/Operator roles).
+- **Alerts & Analytics:** Real-time event notifications and trend charts.
+- **Enrollment:** Multi-step photo upload process for face recognition.
+
+## Technical Context
+- **Backend:** FastAPI with WebSocket support.
+- **Video:** MJPEG streams via RTSP.
+- **Navigation:** Role-based navigation (Admin vs. Operator vs. Enrollee).

@@ -113,7 +113,7 @@ async def health_db():
 
 
 # API routes
-from app.api import auth, enroll, users, cameras, detections, analytics, alerts, settings as app_settings, email_smtp
+from app.api import auth, enroll, users, cameras, detections, analytics, alerts, settings as app_settings, email_smtp, audit, maintenance
 from app.core.websocket_manager import ws_manager
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
@@ -125,6 +125,8 @@ app.include_router(analytics.router, prefix=f"{settings.API_V1_PREFIX}/analytics
 app.include_router(alerts.router, prefix=f"{settings.API_V1_PREFIX}/alerts", tags=["alerts"])
 app.include_router(app_settings.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
 app.include_router(email_smtp.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
+app.include_router(audit.router, prefix=f"{settings.API_V1_PREFIX}/audit", tags=["audit"])
+app.include_router(maintenance.router, prefix=f"{settings.API_V1_PREFIX}/admin", tags=["admin"])
 from app.api import stream
 
 app.include_router(stream.router, prefix=f"{settings.API_V1_PREFIX}/stream", tags=["stream"])

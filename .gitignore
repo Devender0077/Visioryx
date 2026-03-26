@@ -56,3 +56,14 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Expo / React Native (mobile/)
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/android/
+mobile/ios/
+*.jks
+*.p8
+*.p12
+*.mobileprovision

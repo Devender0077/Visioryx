@@ -14,7 +14,8 @@ from app.api.deps import AdminUser
 from app.core.config import get_settings
 from app.database.connection import get_db
 from app.services.smtp_config_store import load_smtp_settings, save_smtp_settings
-from app.services.smtp_mailer import public_smtp_view, send_smtp_mail_sync
+from app.services.smtp_mailer import public_dashboard_base_for_links, public_smtp_view, send_smtp_mail_sync
+from app.services.audit_service import record_audit
 
 router = APIRouter()
 
@@ -56,6 +57,23 @@ class EmailSettingsPatch(BaseModel):
 
 class EmailTestRequest(BaseModel):
     to: EmailStr
+
+
+class EnrollmentBaseUrlResponse(BaseModel):
+    """Effective base URL for /enroll?token=… (matches emailed links)."""
+
+    base_url: str
+
+
+@router.get("/enrollment-base-url", response_model=EnrollmentBaseUrlResponse)
+async def get_enrollment_base_url(
+    current_user: AdminUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Public dashboard base for QR codes — same logic as enrollment emails (SMTP public URL or PUBLIC_DASHBOARD_URL)."""
+    cfg = await load_smtp_settings(db)
+    base = public_dashboard_base_for_links(cfg)
+    return EnrollmentBaseUrlResponse(base_url=base)
 
 
 def _response_from_cfg(cfg: dict) -> EmailSettingsResponse:
@@ -120,6 +138,14 @@ async def patch_email_settings(
         cfg["use_tls"] = False
 
     await save_smtp_settings(db, cfg)
+    await record_audit(
+        db,
+        actor=current_user,
+        action="settings.email.patch",
+        resource_type="settings",
+        resource_id=None,
+        detail={"smtp_host": (cfg.get("host") or "")[:255], "enabled": bool(cfg.get("enabled"))},
+    )
     await db.commit()
     return _response_from_cfg(cfg)
 

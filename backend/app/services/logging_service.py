@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from app.core.websocket_manager import ws_manager
+from app.services.webhook_notify import notify_alert_webhook
 from app.database.connection import AsyncSessionLocal
 from app.database.models import Alert, Detection, ObjectDetection
 
@@ -90,4 +91,6 @@ async def create_alert(camera_id: Optional[int], alert_type: str, message: str, 
         )
         db.add(alert)
         await db.commit()
+        await db.refresh(alert)
         await ws_manager.broadcast("alert", {"id": alert.id, "type": alert_type, "message": message})
+        await notify_alert_webhook(alert.id, alert_type, message)

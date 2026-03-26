@@ -9,12 +9,19 @@ const publicSans = Public_Sans({ subsets: ['latin'], weight: ['400', '500', '600
 export const metadata: Metadata = {
   title: 'Visioryx - AI Surveillance Dashboard',
   description: 'AI Powered Real-Time Face Recognition & Surveillance System',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    title: 'Visioryx',
+    statusBarStyle: 'default',
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#2065D1',
 };
 
 export default function RootLayout({

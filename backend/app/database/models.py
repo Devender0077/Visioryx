@@ -127,6 +127,21 @@ class AppSetting(Base):
     value: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
 
+class AuditLog(Base):
+    """Admin accountability: who changed what (dashboard actions)."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    actor_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("auth_users.id", ondelete="SET NULL"), nullable=True)
+    actor_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    action: Mapped[str] = mapped_column(String(128), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    detail: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class AuthUser(Base):
     """Authentication credentials for dashboard access."""
 

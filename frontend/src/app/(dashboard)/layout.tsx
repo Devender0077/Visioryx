@@ -33,6 +33,8 @@ import {
   ChevronRight,
   Person as PersonIcon,
   Face as FaceIcon,
+  MailOutline,
+  FactCheck,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 280;
@@ -56,6 +58,9 @@ const ENROLLEE_NAV_ITEMS = [
   { path: '/enroll', label: 'Face enrollment', icon: <FaceIcon /> },
   { path: '/profile', label: 'Profile', icon: <PersonIcon /> },
 ];
+
+const ADMIN_AUDIT_NAV = { path: '/audit', label: 'Audit log', icon: <FactCheck /> };
+const ADMIN_SETTINGS_NAV = { path: '/settings', label: 'Email & SMTP', icon: <MailOutline /> };
 
 export default function DashboardLayout({
   children,
@@ -82,16 +87,31 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (userRole !== 'enrollee') return;
-    const blocked = ['/live', '/cameras', '/users', '/detections', '/analytics', '/alerts'];
+    const blocked = ['/live', '/cameras', '/users', '/detections', '/analytics', '/alerts', '/settings', '/audit'];
     if (blocked.includes(pathname)) {
       router.replace('/dashboard');
     }
   }, [userRole, pathname, router]);
 
-  const navItems = useMemo(
-    () => (userRole === 'enrollee' ? ENROLLEE_NAV_ITEMS : FULL_NAV_ITEMS),
-    [userRole],
-  );
+  useEffect(() => {
+    if (!userRole || userRole === 'admin') return;
+    if (pathname === '/settings' || pathname.startsWith('/settings/')) {
+      router.replace('/dashboard');
+    }
+  }, [userRole, pathname, router]);
+
+  useEffect(() => {
+    if (!userRole || userRole === 'admin') return;
+    if (pathname === '/audit' || pathname.startsWith('/audit/')) {
+      router.replace('/dashboard');
+    }
+  }, [userRole, pathname, router]);
+
+  const navItems = useMemo(() => {
+    if (userRole === 'enrollee') return ENROLLEE_NAV_ITEMS;
+    if (userRole === 'admin') return [...FULL_NAV_ITEMS, ADMIN_AUDIT_NAV, ADMIN_SETTINGS_NAV];
+    return FULL_NAV_ITEMS;
+  }, [userRole]);
 
   useEffect(() => {
     if (mounted && typeof window !== 'undefined') {

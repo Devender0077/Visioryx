@@ -136,6 +136,10 @@ case "${1:-all}" in
         echo "  Dashboard: http://localhost:3000"
         echo "  API:       http://localhost:8000"
         echo "  API Docs:  http://localhost:8000/api/docs"
+        echo ""
+        echo "Phone / QR on same Wi‑Fi: use your computer's LAN IP (e.g. http://192.168.x.x:3000), set"
+        echo "  PUBLIC_DASHBOARD_URL or Admin → Email & SMTP → Public dashboard URL to that URL,"
+        echo "  and leave NEXT_PUBLIC_API_URL unset in frontend so API uses the Next.js proxy."
         wait
         ;;
     *)

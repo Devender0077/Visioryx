@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import AdminUser
+from app.api.deps import AdminUser, SurveillanceUser
 from app.database.connection import get_db
 from app.database.models import Camera
 from app.schemas.cameras import CameraCreate, CameraResponse, CameraUpdate
+from app.services.audit_service import record_audit
 
 router = APIRouter()
 
@@ -17,9 +18,9 @@ router = APIRouter()
 @router.get("", response_model=list[CameraResponse])
 async def list_cameras(
     db: AsyncSession = Depends(get_db),
-    current_user: AdminUser = None,
+    current_user: SurveillanceUser = None,
 ):
-    """List all cameras."""
+    """List all cameras (operators + admins; mutations remain admin-only)."""
     result = await db.execute(select(Camera).order_by(Camera.id))
     return result.scalars().all()
 
@@ -35,6 +36,14 @@ async def create_camera(
     db.add(camera)
     await db.flush()
     await db.refresh(camera)
+    await record_audit(
+        db,
+        actor=current_user,
+        action="camera.create",
+        resource_type="camera",
+        resource_id=camera.id,
+        detail={"camera_name": camera.camera_name},
+    )
     return camera
 
 
@@ -42,7 +51,7 @@ async def create_camera(
 async def get_camera(
     camera_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: AdminUser = None,
+    current_user: SurveillanceUser = None,
 ):
     """Get camera by ID."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
@@ -68,6 +77,14 @@ async def update_camera(
         setattr(camera, k, v)
     await db.flush()
     await db.refresh(camera)
+    await record_audit(
+        db,
+        actor=current_user,
+        action="camera.update",
+        resource_type="camera",
+        resource_id=camera.id,
+        detail={"camera_name": camera.camera_name},
+    )
     return camera
 
 
@@ -82,5 +99,13 @@ async def delete_camera(
     camera = result.scalar_one_or_none()
     if not camera:
         raise HTTPException(status_code=404, detail="Camera not found")
+    await record_audit(
+        db,
+        actor=current_user,
+        action="camera.delete",
+        resource_type="camera",
+        resource_id=camera.id,
+        detail={"camera_name": camera.camera_name},
+    )
     await db.delete(camera)
     return {"ok": True}

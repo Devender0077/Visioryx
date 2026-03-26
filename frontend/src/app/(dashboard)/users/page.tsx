@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -12,6 +13,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  InputAdornment,
   Table,
   TableBody,
   TableCell,
@@ -20,13 +22,19 @@ import {
   TextField,
   Typography,
   TableContainer,
+  TablePagination,
   Avatar,
   Stack,
   Chip,
   Tooltip,
 } from '@mui/material';
-import { Add, CloudUpload, DeleteOutline, QrCode2, Visibility } from '@mui/icons-material';
+import { Add, CloudUpload, DeleteOutline, Email, QrCode2, Search, Visibility } from '@mui/icons-material';
 import { api, getStreamBase, getToken } from '@/lib/api';
+import {
+  enrollmentBaseIsUnreachableFromOtherDevices,
+  getEnrollmentPublicBase,
+  getPublicAppOrigin,
+} from '@/lib/appOrigin';
 import { useToast } from '@/contexts/ToastContext';
 import { EmptyState } from '@/components/EmptyState';
 import QRCode from 'react-qr-code';
@@ -59,12 +67,60 @@ export default function UsersPage() {
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [deleteUser, setDeleteUser] = useState<User | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [emailingId, setEmailingId] = useState<number | null>(null);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [userTotal, setUserTotal] = useState(0);
+  const [userSearch, setUserSearch] = useState('');
+  const [userSearchDebounced, setUserSearchDebounced] = useState('');
+  const [phoneQrWarning, setPhoneQrWarning] = useState(false);
 
-  const load = () => api<User[]>('/api/v1/users').then(setUsers).catch(() => setError('Load failed'));
+  const load = useCallback(
+    () =>
+      api<{ items: User[]; total: number } | User[]>(
+        `/api/v1/users?limit=${rowsPerPage}&offset=${page * rowsPerPage}${
+          userSearchDebounced.trim() ? `&q=${encodeURIComponent(userSearchDebounced.trim())}` : ''
+        }`,
+      )
+        .then((r) => {
+          if (Array.isArray(r)) {
+            setUsers(r);
+            setUserTotal(r.length);
+          } else {
+            setUsers(r.items ?? []);
+            setUserTotal(typeof r.total === 'number' ? r.total : 0);
+          }
+        })
+        .catch(() => setError('Load failed')),
+    [page, rowsPerPage, userSearchDebounced],
+  );
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setUserSearchDebounced(userSearch), 400);
+    return () => window.clearTimeout(t);
+  }, [userSearch]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [userSearchDebounced]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getEnrollmentPublicBase()
+      .then((base) => {
+        if (!cancelled) setPhoneQrWarning(enrollmentBaseIsUnreachableFromOtherDevices(base));
+      })
+      .catch(() => {
+        if (!cancelled) setPhoneQrWarning(enrollmentBaseIsUnreachableFromOtherDevices(getPublicAppOrigin()));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const handleSave = async () => {
     try {
@@ -129,6 +185,21 @@ export default function UsersPage() {
     }
   };
 
+  const sendEnrollmentEmail = async (u: User) => {
+    setEmailingId(u.id);
+    setError(null);
+    try {
+      await api(`/api/v1/users/${u.id}/send-enrollment-email`, { method: 'POST' });
+      toast.success(`Enrollment link sent to ${u.email}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Send failed';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setEmailingId(null);
+    }
+  };
+
   const openEnrollmentQr = async (u: User) => {
     setEnrollUser(u);
     setEnrollUrl(null);
@@ -139,7 +210,8 @@ export default function UsersPage() {
         `/api/v1/users/${u.id}/enrollment-link`,
         { method: 'POST' },
       );
-      const full = `${typeof window !== 'undefined' ? window.location.origin : ''}${data.enroll_path}`;
+      const base = await getEnrollmentPublicBase();
+      const full = `${base.replace(/\/$/, '')}${data.enroll_path}`;
       setEnrollUrl(full);
       setEnrollHours(data.expires_in_hours);
     } catch (e) {
@@ -159,21 +231,66 @@ export default function UsersPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <Box sx={{ mb: { xs: 2, sm: 3 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Box>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: { xs: 'stretch', sm: 'flex-start' },
+            justifyContent: 'space-between',
+            gap: 2,
+            mb: 1,
+          }}
+        >
+          <Typography variant="h5" fontWeight={700} sx={{ flex: '1 1 auto', minWidth: 0 }}>
             Users
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
-            Register users for face recognition. Use the QR icon to send a phone link for self-capture
-            (multi-angle), or the upload icon for a single image from this browser. Supported: JPEG, PNG, WebP, HEIC.
-          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setOpen(true)}
+            sx={{ fontWeight: 600, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+          >
+            Register User
+          </Button>
         </Box>
-        <Button variant="contained" startIcon={<Add />} onClick={() => setOpen(true)} sx={{ fontWeight: 600 }}>
-          Register User
-        </Button>
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' }, maxWidth: 960 }}>
+          Register users for face recognition. QR opens a shareable link; email sends the same link via SMTP
+          (configure under Email &amp; SMTP). Upload is a single image from this browser. Supported: JPEG, PNG, WebP,
+          HEIC.
+        </Typography>
       </Box>
       {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
+      {phoneQrWarning && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Typography variant="subtitle2" fontWeight={700} gutterBottom>
+            QR codes won&apos;t work on your phone while the link uses localhost
+          </Typography>
+          <Typography variant="body2" component="div">
+            Set <strong>Public dashboard URL</strong> in Admin → Email &amp; SMTP (or{' '}
+            <code style={{ fontSize: '0.85em' }}>PUBLIC_DASHBOARD_URL</code> in backend{' '}
+            <code style={{ fontSize: '0.85em' }}>.env</code>) to your LAN URL, e.g.{' '}
+            <code style={{ fontSize: '0.85em' }}>http://192.168.x.x:3000</code>. Use the same URL in the browser when
+            testing. Optionally set <code style={{ fontSize: '0.85em' }}>NEXT_PUBLIC_APP_ORIGIN</code> in{' '}
+            <code style={{ fontSize: '0.85em' }}>frontend/.env.local</code>. Leave{' '}
+            <code style={{ fontSize: '0.85em' }}>NEXT_PUBLIC_API_URL</code> unset so the phone uses the Next.js proxy.
+          </Typography>
+        </Alert>
+      )}
+      <TextField
+        size="small"
+        placeholder="Search name or email"
+        value={userSearch}
+        onChange={(e) => setUserSearch(e.target.value)}
+        sx={{ mb: 2, maxWidth: 400 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Search fontSize="small" color="action" />
+            </InputAdornment>
+          ),
+        }}
+      />
       <input
         type="file"
         ref={fileInputRef}
@@ -258,6 +375,14 @@ export default function UsersPage() {
                       </IconButton>
                       <IconButton
                         size="small"
+                        onClick={() => void sendEnrollmentEmail(u)}
+                        disabled={emailingId === u.id}
+                        title="Email enrollment link (requires SMTP under Email & SMTP)"
+                      >
+                        {emailingId === u.id ? <CircularProgress size={20} /> : <Email />}
+                      </IconButton>
+                      <IconButton
+                        size="small"
                         onClick={() => {
                           setUploadUserId(u.id);
                           fileInputRef.current?.click();
@@ -282,6 +407,20 @@ export default function UsersPage() {
               </TableBody>
             </Table>
             </TableContainer>
+          )}
+          {users.length > 0 && (
+            <TablePagination
+              component="div"
+              count={userTotal}
+              page={page}
+              onPageChange={(_, p) => setPage(p)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(e) => {
+                setRowsPerPage(parseInt(e.target.value, 10));
+                setPage(0);
+              }}
+              rowsPerPageOptions={[10, 25, 50, 100]}
+            />
           )}
         </CardContent>
       </Card>

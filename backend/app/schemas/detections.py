@@ -18,3 +18,8 @@ class DetectionListItem(BaseModel):
     status: str
     confidence: float
     timestamp: datetime
+
+
+class DetectionListResponse(BaseModel):
+    items: list[DetectionListItem]
+    total: int

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Visioryx - Secure Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-fixed-variant": "#004398",
+                        "surface-dim": "#0b1326",
+                        "tertiary": "#ffb950",
+                        "outline": "#8c909f",
+                        "on-secondary": "#003918",
+                        "surface-container-low": "#131b2e",
+                        "on-primary": "#002d6c",
+                        "error": "#ffb4ab",
+                        "primary": "#afc6ff",
+                        "tertiary-fixed": "#ffddb3",
+                        "surface-bright": "#31394d",
+                        "secondary-fixed": "#75fd9c",
+                        "outline-variant": "#424753",
+                        "primary-container": "#2065d1",
+                        "inverse-primary": "#0459c5",
+                        "on-background": "#dae2fd",
+                        "on-error": "#690005",
+                        "surface-variant": "#2d3449",
+                        "primary-fixed": "#d9e2ff",
+                        "inverse-on-surface": "#283044",
+                        "surface-tint": "#afc6ff",
+                        "tertiary-container": "#915f00",
+                        "on-surface-variant": "#c2c6d5",
+                        "on-secondary-fixed-variant": "#005226",
+                        "surface-container": "#171f33",
+                        "error-container": "#93000a",
+                        "on-error-container": "#ffdad6",
+                        "surface": "#0b1326",
+                        "tertiary-fixed-dim": "#ffb950",
+                        "on-secondary-fixed": "#00210b",
+                        "on-tertiary-fixed": "#291800",
+                        "surface-container-lowest": "#060e20",
+                        "secondary-fixed-dim": "#57e082",
+                        "on-secondary-container": "#003415",
+                        "secondary-container": "#00aa54",
+                        "surface-container-high": "#222a3d",
+                        "on-primary-container": "#e4eaff",
+                        "on-tertiary-container": "#ffe6ca",
+                        "on-primary-fixed": "#001a43",
+                        "surface-container-highest": "#2d3449",
+                        "inverse-surface": "#dae2fd",
+                        "secondary": "#57e082",
+                        "on-tertiary": "#452b00",
+                        "on-surface": "#dae2fd",
+                        "primary-fixed-dim": "#afc6ff",
+                        "background": "#0b1326",
+                        "on-tertiary-fixed-variant": "#624000"
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(34, 42, 61, 0.4);
+            backdrop-filter: blur(20px);
+        }
+        .hero-gradient {
+            background: linear-gradient(135deg, #0b1326 0%, #131b2e 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body min-h-screen flex flex-col items-center justify-center p-4">
+<!-- Top Navigation Bar (Shared Component Style - Simplified for Transactional) -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-20">
+<div class="flex items-center gap-2">
+<span class="font-headline font-black text-3xl text-primary tracking-tighter">Visioryx</span>
+</div>
+<div class="hidden md:flex items-center gap-6">
+<a class="text-sm font-label uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+<a class="text-sm font-label uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors" href="#">Status</a>
+</div>
+</header>
+<main class="w-full max-w-[1200px] grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+<!-- Left Column: Editorial Content (The Sentinel Aesthetic) -->
+<div class="hidden lg:flex flex-col space-y-8 pr-12">
+<div class="space-y-4">
+<h1 class="font-headline font-extrabold text-6xl tracking-tight leading-[1.1] text-on-background">
+                    Advanced <br/>
+<span class="text-primary">Surveillance</span> <br/>
+                    Intelligence.
+                </h1>
+<p class="text-xl text-on-surface-variant max-w-md leading-relaxed">
+                    The next evolution of enterprise security. Precision monitoring, real-time analytics, and automated response protocols.
+                </p>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="p-6 rounded-xl bg-surface-container-low flex flex-col space-y-2">
+<span class="material-symbols-outlined text-primary text-3xl">verified_user</span>
+<span class="text-sm font-label text-on-surface-variant uppercase tracking-wider">Authentication</span>
+<span class="font-headline font-bold text-lg">Multi-Factor Ready</span>
+</div>
+<div class="p-6 rounded-xl bg-surface-container-low flex flex-col space-y-2">
+<span class="material-symbols-outlined text-secondary text-3xl">terminal</span>
+<span class="text-sm font-label text-on-surface-variant uppercase tracking-wider">Protocol</span>
+<span class="font-headline font-bold text-lg">E2E Encryption</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Login Card -->
+<div class="w-full flex justify-center lg:justify-end">
+<div class="w-full max-w-[440px] glass-panel p-10 rounded-xl shadow-[0_-4px_40px_rgba(175,198,255,0.04)] flex flex-col space-y-8">
+<div class="space-y-2">
+<h2 class="font-headline font-bold text-3xl text-on-surface">Secure Access</h2>
+<p class="text-on-surface-variant">Enter your credentials to monitor your assets.</p>
+</div>
+<form class="space-y-6">
+<!-- Error State Message -->
+<div class="flex items-center gap-3 p-4 rounded-xl bg-error-container/20 border border-error/20">
+<span class="material-symbols-outlined text-error text-xl">error</span>
+<p class="text-sm text-on-error-container">Invalid login credentials. Please try again.</p>
+</div>
+<div class="space-y-5">
+<!-- Email Field -->
+<div class="space-y-2">
+<label class="block text-xs font-label uppercase tracking-[0.1em] text-on-surface-variant ml-1" for="email">Work Email</label>
+<div class="relative group">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline transition-colors group-focus-within:text-primary">mail</span>
+<input class="w-full h-14 pl-12 pr-4 bg-surface-container-lowest border-none rounded-xl text-on-surface placeholder:text-outline/50 focus:ring-1 focus:ring-primary/40 transition-all font-body" id="email" name="email" placeholder="name@company.com" type="email" value="admin@visioryx.io"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="flex justify-between items-center px-1">
+<label class="block text-xs font-label uppercase tracking-[0.1em] text-on-surface-variant" for="password">Access Code</label>
+<a class="text-xs font-label uppercase tracking-[0.05em] text-primary hover:text-primary-fixed-dim transition-colors" href="#">Recovery</a>
+</div>
+<div class="relative group">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline transition-colors group-focus-within:text-primary">lock</span>
+<input class="w-full h-14 pl-12 pr-12 bg-surface-container-lowest border-none rounded-xl text-on-surface placeholder:text-outline/50 focus:ring-1 focus:ring-primary/40 transition-all font-body border-2 border-error/40" id="password" name="password" placeholder="••••••••" type="password"/>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline hover:text-on-surface transition-colors" type="button">
+                                    visibility_off
+                                </button>
+</div>
+<p class="text-[10px] text-error mt-1 ml-1 uppercase tracking-wider font-medium">Password must be at least 12 characters</p>
+</div>
+</div>
+<!-- Remember Me -->
+<div class="flex items-center gap-3 px-1">
+<div class="relative flex items-center">
+<input class="w-5 h-5 rounded-lg border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary focus:ring-offset-surface-dim" id="remember" type="checkbox"/>
+</div>
+<label class="text-sm text-on-surface-variant select-none" for="remember">Trusted device for 30 days</label>
+</div>
+<!-- Action Button -->
+<button class="w-full h-14 bg-gradient-to-br from-primary to-primary-container rounded-xl text-on-primary font-headline font-extrabold text-lg flex items-center justify-center gap-2 hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary-container/20">
+<span>Initialize Protocol</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</form>
+<!-- SSO Options -->
+<div class="space-y-6 pt-4">
+<div class="flex items-center gap-4">
+<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
+<span class="text-[10px] font-label uppercase tracking-[0.2em] text-outline">SSO Integrations</span>
+<div class="h-[1px] flex-grow bg-outline-variant/30"></div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-3 text-sm font-medium">
+<img alt="Google" class="w-4 h-4 grayscale opacity-70 group-hover:grayscale-0" data-alt="Official Google icon logo in minimal style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuClMw9pMecSa0KX6XWBj6h5lRSgZzfjUl21yQSxhsMSJ1i4p8ZDrfskyYQ5ikr5p2V7QW0p475Q0fWFWniPHeP6uIPw6Qu1E3ByWpc4YIz-qzfsM9zfqI41TpM7C4fCjFV5OjfBkKI45ZidIHiUyTadcD-DPl7ZTPDINl_7sZZI1JCp8LPvhO0G4PD-2v_IjuEBF3gw1nTy19b4-vkfLK0A_YDs7E_gfx4A-7DhPLJM0g5qaHMCW9ZjjcpzAT4JbHbNtw0f236RYbU"/>
+                            Google
+                        </button>
+<button class="h-12 rounded-xl bg-surface-container-high hover:bg-surface-container-highest transition-colors flex items-center justify-center gap-3 text-sm font-medium">
+<span class="material-symbols-outlined text-xl">cloud_done</span>
+                            Azure
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Meta -->
+<footer class="fixed bottom-8 w-full flex justify-center gap-12 text-[10px] font-label uppercase tracking-[0.2em] text-outline/50 px-8">
+<span>© 2024 Visioryx Systems</span>
+<span class="hidden md:inline">Global Security Standard v4.2.0</span>
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+</footer>
+<!-- Background Decorative Element -->
+<div class="fixed top-0 right-0 -z-10 w-full h-full opacity-20 pointer-events-none">
+<div class="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-primary/20 blur-[120px]"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-secondary-container/10 blur-[100px]"></div>
+</div>
+</body></html>
