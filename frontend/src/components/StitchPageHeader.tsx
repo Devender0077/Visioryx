@@ -1,6 +1,5 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
 import type { ReactNode } from 'react';
 
 export type StitchPageHeaderProps = {
@@ -10,58 +9,29 @@ export type StitchPageHeaderProps = {
   actions?: ReactNode;
 };
 
-const headlineFont = 'Manrope, Public Sans, sans-serif';
-
 export function StitchPageHeader({ eyebrow, title, subtitle, actions }: StitchPageHeaderProps) {
   return (
-    <Box
-      sx={{
-        mb: { xs: 2, sm: 3 },
-        display: 'flex',
-        flexDirection: { xs: 'column', md: 'row' },
-        alignItems: { md: 'flex-end' },
-        justifyContent: 'space-between',
-        gap: 2,
-      }}
-    >
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        {eyebrow ? (
-          <Typography
-            variant="caption"
-            component="p"
-            sx={{
-              color: 'primary.light',
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              fontSize: { xs: '0.65rem', sm: '0.7rem' },
-              mb: 0.75,
-            }}
-          >
+    <div className="mb-4 sm:mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex-1 min-w-0">
+        {eyebrow && (
+          <p className="text-[#2065d1] font-bold tracking-widest uppercase text-[10px] sm:text-[11px] mb-1.5 font-[Inter]">
             {eyebrow}
-          </Typography>
-        ) : null}
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            fontFamily: headlineFont,
-            fontWeight: 800,
-            letterSpacing: '-0.03em',
-            color: 'text.primary',
-            fontSize: { xs: '1.75rem', sm: '2.125rem' },
-            mb: subtitle ? 0.5 : 0,
-          }}
-        >
+          </p>
+        )}
+        <h1 className="font-[Manrope] font-extrabold tracking-tight text-white text-3xl sm:text-4xl mb-1 sm:mb-2">
           {title}
-        </Typography>
-        {subtitle ? (
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 900, lineHeight: 1.65 }}>
+        </h1>
+        {subtitle && (
+          <p className="text-[#8c909f] text-sm sm:text-base leading-relaxed max-w-4xl font-[Inter]">
             {subtitle}
-          </Typography>
-        ) : null}
-      </Box>
-      {actions ? <Box sx={{ flexShrink: 0 }}>{actions}</Box> : null}
-    </Box>
+          </p>
+        )}
+      </div>
+      {actions && (
+        <div className="shrink-0">
+          {actions}
+        </div>
+      )}
+    </div>
   );
 }

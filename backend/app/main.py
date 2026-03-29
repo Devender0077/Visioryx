@@ -9,7 +9,7 @@ import app.runtime_env  # noqa: F401 — BLAS thread limits before numpy/opencv
 import asyncio
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -74,6 +74,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add security headers (must be after CORS)
+from app.core.security_headers import (
+    SecurityHeadersMiddleware,
+    RateLimitMiddleware,
+    LoginRateLimitMiddleware,
+)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RateLimitMiddleware, requests_per_minute=100)
+app.add_middleware(LoginRateLimitMiddleware)
+
 
 @app.get("/")
 async def root():
@@ -113,9 +123,10 @@ async def health_db():
 
 
 # API routes
-from app.api import auth, enroll, users, cameras, detections, analytics, alerts, settings as app_settings, email_smtp, audit, maintenance
+from app.api import auth, enroll, users, cameras, detections, analytics, alerts, settings as app_settings, email_smtp, audit, maintenance, meta
 from app.core.websocket_manager import ws_manager
 
+app.include_router(meta.router, prefix=f"{settings.API_V1_PREFIX}/meta", tags=["meta"])
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
 app.include_router(enroll.router, prefix=f"{settings.API_V1_PREFIX}/enroll", tags=["enroll"])
 app.include_router(users.router, prefix=f"{settings.API_V1_PREFIX}/users", tags=["users"])
@@ -128,9 +139,22 @@ app.include_router(email_smtp.router, prefix=f"{settings.API_V1_PREFIX}/settings
 app.include_router(audit.router, prefix=f"{settings.API_V1_PREFIX}/audit", tags=["audit"])
 app.include_router(maintenance.router, prefix=f"{settings.API_V1_PREFIX}/admin", tags=["admin"])
 from app.api import stream
+from app.api import mobile_app
+from app.api import cloudflare
+from app.api import brand
 
 app.include_router(stream.router, prefix=f"{settings.API_V1_PREFIX}/stream", tags=["stream"])
+app.include_router(mobile_app.router, prefix=f"{settings.API_V1_PREFIX}/mobile-app", tags=["mobile-app"])
+app.include_router(cloudflare.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
+app.include_router(brand.router, prefix=f"{settings.API_V1_PREFIX}/settings", tags=["settings"])
 logger.info("Stream API registered: /api/v1/stream/{camera_id}/start, /stop, /mjpeg")
+from fastapi.staticfiles import StaticFiles
+import os
+storage_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "storage")
+if not os.path.exists(storage_path):
+    os.makedirs(storage_path, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=storage_path), name="storage")
+logger.info(f"Storage directory mounted at /storage (path: {storage_path})")
 
 
 @app.websocket("/ws")

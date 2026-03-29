@@ -241,7 +241,17 @@ def _run_full_overlay_detection(
                 user_id, sim = match
                 confidence = sim
                 display_label = _user_names.get(user_id, f"User {user_id}")
-        faces_annotated.append({"bbox": bbox, "status": status, "label": display_label})
+        h, w = frame.shape[:2]
+        x1, y1, x2, y2 = [int(x) for x in bbox[:4]]
+        # Normalize to 0-100% for responsive frontend drawing
+        norm_bbox = {
+            "x": round(max(0, x1) / w * 100, 2),
+            "y": round(max(0, y1) / h * 100, 2),
+            "w": round((x2 - x1) / w * 100, 2),
+            "h": round((y2 - y1) / h * 100, 2),
+        }
+        
+        faces_annotated.append({"bbox": bbox, "status": status, "label": display_label, "norm_bbox": norm_bbox})
 
         snapshot_path = None
         if status == "unknown" and bbox and emb and len(bbox) >= 4 and _should_save_unknown_snapshot(camera_id):
@@ -253,7 +263,7 @@ def _run_full_overlay_detection(
             confidence,
             snapshot_path=snapshot_path,
             embedding=emb if status == "unknown" else None,
-            bbox=bbox,
+            bbox=norm_bbox,
         )
 
     objects: list[dict] = []
@@ -271,18 +281,27 @@ def _run_full_overlay_detection(
             face_boxes = [f.get("bbox") for f in faces_raw if f.get("bbox")]
             hog_filtered = filter_hog_by_faces(hog_raw, face_boxes)
             for o in hog_filtered:
+                h, w = frame.shape[:2]
+                ox1, oy1, ox2, oy2 = [int(x) for x in o.get("bbox")[:4]]
+                norm_obbox = {
+                    "x": round(max(0, ox1) / w * 100, 2),
+                    "y": round(max(0, oy1) / h * 100, 2),
+                    "w": round((ox2 - ox1) / w * 100, 2),
+                    "h": round((oy2 - oy1) / h * 100, 2),
+                }
                 objects.append(
                     {
                         "object_name": o.get("object_name", "person"),
                         "confidence": float(o.get("confidence", 0.5)),
                         "bbox": o.get("bbox"),
+                        "norm_bbox": norm_obbox,
                     }
                 )
                 enqueue_object_detection(
                     camera_id,
                     o.get("object_name", "person"),
                     float(o.get("confidence", 0.5)),
-                    o.get("bbox"),
+                    norm_obbox,
                 )
         except Exception as e:
             logger.debug("HOG person detection skip: %s", e)
@@ -292,13 +311,21 @@ def _run_full_overlay_detection(
             from app.ai.object_detector import detect_objects
 
             yolo_objs = detect_objects(frame)
+            h, w = frame.shape[:2]
             for o in yolo_objs:
-                objects.append(o)
+                yx1, yy1, yx2, yy2 = [int(x) for x in o.get("bbox")[:4]]
+                norm_ybbox = {
+                    "x": round(max(0, yx1) / w * 100, 2),
+                    "y": round(max(0, yy1) / h * 100, 2),
+                    "w": round((yx2 - yx1) / w * 100, 2),
+                    "h": round((yy2 - yy1) / h * 100, 2),
+                }
+                objects.append({**o, "norm_bbox": norm_ybbox})
                 enqueue_object_detection(
                     camera_id,
                     o.get("object_name", "unknown"),
                     float(o.get("confidence", 0)),
-                    o.get("bbox"),
+                    norm_ybbox,
                 )
         except Exception as e:
             logger.debug("Object detection skip: %s", e)

@@ -1,27 +1,17 @@
 'use client';
 
-import { Box, SxProps, Theme } from '@mui/material';
-
 interface ChartEmptyIllustrationProps {
-  sx?: SxProps<Theme>;
   size?: number;
+  className?: string;
 }
 
-/**
- * Chart/analytics empty-state illustration.
- */
-export function ChartEmptyIllustration({ sx, size = 120 }: ChartEmptyIllustrationProps) {
+export function ChartEmptyIllustration({ size = 120, className = '' }: ChartEmptyIllustrationProps) {
   return (
-    <Box
-      component="svg"
+    <svg
       viewBox="0 0 120 80"
-      sx={{
-        width: size,
-        height: size,
-        maxWidth: '100%',
-        opacity: 0.5,
-        ...sx,
-      }}
+      width={size}
+      height={(size * 80) / 120}
+      className={`opacity-50 max-w-full h-auto ${className}`}
     >
       {/* Chart axes */}
       <line x1="20" y1="10" x2="20" y2="70" stroke="#919EAB" strokeWidth="1" opacity={0.3} />
@@ -40,6 +30,6 @@ export function ChartEmptyIllustration({ sx, size = 120 }: ChartEmptyIllustratio
         strokeDasharray="4 4"
         opacity={0.4}
       />
-    </Box>
+    </svg>
   );
 }

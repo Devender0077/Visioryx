@@ -1,18 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography,
-} from '@mui/material';
-import { PhotoCamera } from '@mui/icons-material';
 
 export type WebcamCaptureDialogProps = {
   open: boolean;
@@ -95,12 +83,13 @@ export function WebcamCaptureDialog({
       }
     })();
 
+    const video = videoRef.current;
     return () => {
       cancelled = true;
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
+      if (video) {
+        video.srcObject = null;
       }
     };
   }, [open]);
@@ -136,67 +125,100 @@ export function WebcamCaptureDialog({
   }, [onCaptured, onClose]);
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" aria-labelledby="webcam-dialog-title">
-      <DialogTitle id="webcam-dialog-title">{title}</DialogTitle>
-      <DialogContent>
-        {description && (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {description}
-          </Typography>
-        )}
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        <Box
-          sx={{
-            position: 'relative',
-            width: '100%',
-            aspectRatio: '4/3',
-            bgcolor: 'action.hover',
-            borderRadius: 1,
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {starting && (
-            <CircularProgress size={40} aria-label="Starting camera" />
+    <div 
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 transition-all duration-300 ${open ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`}
+      aria-labelledby="webcam-dialog-title"
+      role="dialog"
+      aria-modal="true"
+    >
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-[#060e20]/80 backdrop-blur-sm transition-opacity ${open ? 'opacity-100' : 'opacity-0'}`} 
+        onClick={onClose}
+      ></div>
+      
+      {/* Dialog Container */}
+      <div 
+        className={`relative w-full max-w-lg bg-[#131b2e] rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col transition-all duration-300 transform ${open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}
+      >
+        {/* Header */}
+        <div className="px-6 py-5 border-b border-white/5 flex justify-between items-center">
+          <h2 id="webcam-dialog-title" className="text-xl font-bold font-[Manrope] text-white tracking-tight">{title}</h2>
+          <button 
+            onClick={onClose}
+            className="text-[#8c909f] hover:text-white transition-colors p-1 rounded-md hover:bg-white/5"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
+        
+        {/* Content */}
+        <div className="px-6 py-6 space-y-4">
+          {description && (
+            <p className="text-sm text-[#c2c6d5]">{description}</p>
           )}
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- preview only, no audio track */}
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transform: 'scaleX(-1)',
-              display: starting && !ready ? 'none' : 'block',
-            }}
-          />
-        </Box>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-          Preview is mirrored like a selfie. The saved photo is not mirrored.
-        </Typography>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} color="inherit">
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<PhotoCamera />}
-          onClick={capture}
-          disabled={!ready || !!error}
-        >
-          Capture photo
-        </Button>
-      </DialogActions>
-    </Dialog>
+          
+          {error && (
+            <div className="p-3 bg-[#93000a]/20 border border-[#error]/20 rounded-xl flex items-start gap-2 text-[#ffdad6] text-sm">
+              <span className="material-symbols-outlined text-[#ffb4ab] text-lg shrink-0">error</span>
+              <p>{error}</p>
+            </div>
+          )}
+          
+          {/* Camera Feed Container */}
+          <div className="relative w-full aspect-[4/3] bg-[#060e20] rounded-xl overflow-hidden flex items-center justify-center border border-white/5 shadow-inner">
+            {starting && (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#131b2e]/50 z-10">
+                <div className="w-8 h-8 border-3 border-[#2065d1] border-t-[#afc6ff] rounded-full animate-spin"></div>
+              </div>
+            )}
+            
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className={`w-full h-full object-cover transform -scale-x-100 ${starting && !ready ? 'hidden' : 'block'}`}
+            />
+            
+            {/* Camera Viewfinder overlay */}
+            {ready && !error && (
+              <div className="absolute inset-0 pointer-events-none border-[2px] border-[#2065d1]/20 m-4 rounded-lg flex flex-col justify-between">
+                 <div className="flex justify-between w-full p-2">
+                    <div className="w-4 h-4 border-t-2 border-l-2 border-[#57e082]"></div>
+                    <div className="w-4 h-4 border-t-2 border-r-2 border-[#57e082]"></div>
+                 </div>
+                 <div className="flex justify-between w-full p-2">
+                    <div className="w-4 h-4 border-b-2 border-l-2 border-[#57e082]"></div>
+                    <div className="w-4 h-4 border-b-2 border-r-2 border-[#57e082]"></div>
+                 </div>
+              </div>
+            )}
+          </div>
+          
+          <p className="text-[10px] text-[#8c909f] uppercase tracking-wider font-bold">
+            Preview is mirrored like a selfie. Saved photo is standard.
+          </p>
+        </div>
+        
+        {/* Actions */}
+        <div className="px-6 py-4 bg-[#222a3d]/30 border-t border-white/5 flex justify-end gap-3">
+          <button 
+            onClick={onClose} 
+            className="px-4 py-2 text-sm font-bold text-[#c2c6d5] hover:text-white transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={capture}
+            disabled={!ready || !!error}
+            className="flex items-center gap-2 px-5 py-2 bg-gradient-to-r from-[#00aa54] to-[#57e082] text-[#00210b] font-bold text-sm rounded-lg hover:brightness-110 active:scale-95 transition-all shadow-lg shadow-[#00aa54]/20 disabled:opacity-50 disabled:scale-100 disabled:filter-grayscale"
+          >
+            <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+            Capture Frame
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -1,27 +1,17 @@
 'use client';
 
-import { Box, SxProps, Theme } from '@mui/material';
-
 interface WelcomeIllustrationProps {
-  sx?: SxProps<Theme>;
+  className?: string;
   size?: number;
 }
 
-/**
- * Dashboard welcome/hero illustration - security & analytics theme.
- */
-export function WelcomeIllustration({ sx, size = 280 }: WelcomeIllustrationProps) {
+export function WelcomeIllustration({ className = '', size = 280 }: WelcomeIllustrationProps) {
   return (
-    <Box
-      component="svg"
+    <svg
       viewBox="0 0 280 200"
-      sx={{
-        width: size,
-        height: 'auto',
-        maxWidth: '100%',
-        opacity: 0.85,
-        ...sx,
-      }}
+      width={size}
+      height={(size * 200) / 280}
+      className={`opacity-85 max-w-full h-auto ${className}`}
     >
       <defs>
         <linearGradient id="welcomeBg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -81,6 +71,6 @@ export function WelcomeIllustration({ sx, size = 280 }: WelcomeIllustrationProps
           opacity={0.7}
         />
       </g>
-    </Box>
+    </svg>
   );
 }

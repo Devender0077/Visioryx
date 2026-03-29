@@ -91,3 +91,28 @@ def decode_enrollment_token(token: str) -> Optional[int]:
         return int(payload.get("sub"))
     except (TypeError, ValueError):
         return None
+
+
+# Refresh token type identifier
+REFRESH_JWT_TYPE = "refresh"
+
+
+def create_refresh_token(subject: str | int, role: Role = Role.OPERATOR) -> str:
+    """Create long-lived refresh token (7 days)."""
+    settings = get_settings()
+    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "role": role.value,
+        "typ": REFRESH_JWT_TYPE,
+    }
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def decode_refresh_token(token: str) -> Optional[dict]:
+    """Decode refresh token and return payload if valid."""
+    payload = decode_access_token(token)
+    if not payload or payload.get("typ") != REFRESH_JWT_TYPE:
+        return None
+    return payload

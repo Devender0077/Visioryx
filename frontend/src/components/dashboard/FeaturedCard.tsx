@@ -1,6 +1,5 @@
 'use client';
 
-import { Box, Card, CardContent, Typography } from '@mui/material';
 import Link from 'next/link';
 
 /**
@@ -8,109 +7,28 @@ import Link from 'next/link';
  */
 export function FeaturedCard() {
   return (
-    <Link href="/live" style={{ textDecoration: 'none', display: 'block', height: '100%' }}>
-      <Card
-        sx={{
-          textDecoration: 'none',
-          color: 'inherit',
-          overflow: 'hidden',
-          position: 'relative',
-          isolation: 'isolate',
-          height: '100%',
-          minHeight: 180,
-          background: 'linear-gradient(135deg, #2065D1 0%, #3366FF 40%, #5A9AFA 100%)',
-          border: 'none',
-          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 20px 40px -12px rgba(32, 101, 209, 0.4)',
-          },
-        }}
-      >
+    <Link href="/live" className="block w-full h-full min-h-[180px] group">
+      <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gradient-to-br from-[#2065D1] via-[#3366FF] to-[#5A9AFA] transition-all duration-300 transform group-hover:-translate-y-1 group-hover:shadow-[0_20px_40px_-12px_rgba(32,101,209,0.4)] isolation-isolate">
+        
         {/* Slight dark overlay to guarantee text contrast */}
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.24) 100%)',
-            zIndex: 0,
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 to-black/25 z-0"></div>
 
         {/* Subtle gradient overlays - low opacity to not obscure text */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: -20,
-            right: -20,
-            width: 110,
-            height: 110,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%)',
-            zIndex: 0,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            bottom: -14,
-            left: -14,
-            width: 72,
-            height: 72,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(0,171,85,0.14) 0%, transparent 70%)',
-            zIndex: 0,
-          }}
-        />
+        <div className="absolute -top-5 -right-5 w-28 h-28 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.10)_0%,transparent_70%)] z-0"></div>
+        <div className="absolute -bottom-3 -left-3 w-20 h-20 rounded-full bg-[radial-gradient(circle,rgba(0,171,85,0.14)_0%,transparent_70%)] z-0"></div>
 
-        <CardContent
-          sx={{
-            p: 3,
-            position: 'relative',
-            zIndex: 1,
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'rgba(255,255,255,0.98)',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              mb: 0.5,
-              textShadow: '0 1px 2px rgba(0,0,0,0.35)',
-            }}
-          >
+        <div className="relative z-10 p-6 flex flex-col justify-end h-full">
+          <p className="text-[10px] text-white/95 font-bold uppercase tracking-widest mb-1 shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
             Quick Access
-          </Typography>
-          <Typography
-            variant="h6"
-            fontWeight={800}
-            sx={{
-              color: 'rgba(255,255,255,0.98)',
-              mb: 1,
-              textShadow: '0 1px 3px rgba(0,0,0,0.45)',
-              fontSize: { xs: '1.05rem', sm: '1.15rem' },
-            }}
-          >
+          </p>
+          <h3 className="text-xl sm:text-2xl font-extrabold text-white/95 mb-2 shadow-[0_1px_3px_rgba(0,0,0,0.45)]">
             Live Monitoring
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'rgba(255,255,255,0.92)',
-              textShadow: '0 1px 2px rgba(0,0,0,0.35)',
-              lineHeight: 1.5,
-            }}
-          >
+          </h3>
+          <p className="text-sm text-white/90 leading-relaxed shadow-[0_1px_2px_rgba(0,0,0,0.35)]">
             View real-time camera streams with face & object detection
-          </Typography>
-        </CardContent>
-      </Card>
+          </p>
+        </div>
+      </div>
     </Link>
   );
 }

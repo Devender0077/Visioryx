@@ -51,5 +51,26 @@ services:
     depends_on:
       - backend
 
+  mediamtx:
+    image: bluenviron/mediamtx:latest
+    container_name: visioryx-mediamtx
+    ports:
+      - "8554:8554" # RTSP
+      - "1935:1935" # RTMP
+      - "8888:8888" # HLS
+      - "8889:8889" # WebRTC
+      - "8890:8890" # SRT
+    environment:
+      - MTX_PROTOCOLS=tcp
+      - MTX_WEBRTC=yes
+      - MTX_WEBRTCADDRESS=:8889
+      - MTX_WEBRTCICEUDP=yes
+      - MTX_WEBRTCICEUDPSERVERPORT=19000
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml
+    # Add UDP port range for WebRTC if needed, but for local/testing host mode or single port often works
+    # ports:
+    #   - "19000:19000/udp"
+
 volumes:
   visioryx_pgdata:

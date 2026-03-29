@@ -39,6 +39,7 @@ async def log_object_detection(
                 "object_name": object_name,
                 "confidence": confidence,
                 "object_id": obj.id,
+                "bbox": bbox_dict,
             },
         )
         return obj.id
@@ -73,6 +74,8 @@ async def log_detection(
                 "status": status,
                 "confidence": confidence,
                 "detection_id": det.id,
+                "snapshot": snapshot,
+                "bbox": bbox,
             },
         )
         if status == "unknown":

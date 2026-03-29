@@ -22,6 +22,7 @@ def apply_blas_thread_limits() -> None:
     if sys.platform == "darwin":
         for key, val in pairs:
             os.environ[key] = val
+        os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 def bootstrap() -> None:

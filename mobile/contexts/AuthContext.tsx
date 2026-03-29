@@ -1,7 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   api,
-  apiWithToken,
   clearStoredToken,
   getStoredToken,
   publicApi,
@@ -14,7 +13,7 @@ type AuthContextValue = {
   tokenReady: boolean;
   user: UserMe | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 };
@@ -53,22 +52,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshUser]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string, rememberMe: boolean = false) => {
     const r = await publicApi<{ access_token: string }>(
       '/api/v1/auth/login',
       {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, expires_in_days: rememberMe ? 30 : 1 }),
       },
       30_000,
     );
-    // Run SecureStore + /me in parallel — sequential was slow on some devices.
-    const [me] = await Promise.all([
-      apiWithToken<UserMe>(r.access_token, '/api/v1/auth/me'),
-      setStoredToken(r.access_token),
-    ]);
+    // Persist token first, then load /me via the same `api()` path as the rest of the app
+    // (avoids races between SecureStore and Bearer headers on some devices).
+    await setStoredToken(r.access_token);
     setTokenReady(true);
-    setUser(me);
+    try {
+      const me = await api<UserMe>('/api/v1/auth/me');
+      setUser(me);
+    } catch (e) {
+      await clearStoredToken();
+      setTokenReady(false);
+      setUser(null);
+      throw e;
+    }
   }, []);
 
   const logout = useCallback(async () => {

@@ -41,6 +41,40 @@ export async function testApiReachable(): Promise<{ ok: boolean; detail: string 
 
 const DEFAULT_TIMEOUT_MS = 45_000;
 
+/** FastAPI returns `detail` as string (HTTPException) or list (422 validation). */
+function formatErrorBody(err: Record<string, unknown>, status: number): string {
+  const detail = err.detail;
+  if (typeof detail === 'string') {
+    return status === 401 || status === 403 ? detail : `${detail} (HTTP ${status})`;
+  }
+  if (Array.isArray(detail)) {
+    const parts = detail.map((item: unknown) => {
+      if (item && typeof item === 'object' && 'msg' in item) {
+        const o = item as { loc?: unknown[]; msg?: string };
+        const loc = Array.isArray(o.loc) ? o.loc.filter((x) => x !== 'body').join('.') : '';
+        return loc ? `${loc}: ${o.msg ?? ''}` : (o.msg ?? JSON.stringify(item));
+      }
+      return JSON.stringify(item);
+    });
+    return `Invalid request (HTTP ${status}): ${parts.join('; ')}`;
+  }
+  if (detail != null) return `HTTP ${status}: ${JSON.stringify(detail)}`;
+  if (typeof err.message === 'string') return `${err.message} (HTTP ${status})`;
+  return `HTTP ${status}: request failed`;
+}
+
+async function throwIfNotOk(res: Response): Promise<void> {
+  if (res.ok) return;
+  const text = await res.text();
+  let parsed: Record<string, unknown> = {};
+  try {
+    if (text) parsed = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 240) || res.statusText}`);
+  }
+  throw new Error(formatErrorBody(parsed, res.status));
+}
+
 async function fetchWithHelp(url: string, opts?: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -120,11 +154,7 @@ export async function publicApi<T>(
     },
     timeoutMs,
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = err.detail;
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail || res.statusText));
-  }
+  await throwIfNotOk(res);
   return res.json();
 }
 
@@ -149,11 +179,7 @@ export async function apiWithToken<T>(
     },
     timeoutMs,
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = err.detail;
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail || res.statusText));
-  }
+  await throwIfNotOk(res);
   return res.json();
 }
 
@@ -173,11 +199,7 @@ export async function api<T>(path: string, opts?: RequestInit, timeoutMs: number
     },
     timeoutMs,
   );
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    const detail = err.detail;
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail || res.statusText));
-  }
+  await throwIfNotOk(res);
   return res.json();
 }
 

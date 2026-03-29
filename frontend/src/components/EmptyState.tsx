@@ -1,6 +1,5 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
 import { EmptyStateIllustration } from './illustrations';
 
 interface EmptyStateProps {
@@ -8,16 +7,15 @@ interface EmptyStateProps {
   illustrationSize?: number;
 }
 
-/**
- * Reusable empty state with illustration (minimals.cc style).
- */
 export function EmptyState({ message, illustrationSize = 140 }: EmptyStateProps) {
   return (
-    <Box sx={{ py: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <EmptyStateIllustration size={illustrationSize} sx={{ mb: 2 }} />
-      <Typography variant="body2" color="text.secondary">
+    <div className="py-8 flex flex-col items-center text-center">
+      <div className="mb-4">
+        <EmptyStateIllustration size={illustrationSize} />
+      </div>
+      <p className="text-[#8c909f] text-sm font-medium font-[Inter]">
         {message}
-      </Typography>
-    </Box>
+      </p>
+    </div>
   );
 }

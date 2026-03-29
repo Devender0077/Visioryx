@@ -7,7 +7,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
-from app.database.connection import Base
+from app.database.base import Base
 from app.database.models import *  # noqa: F401, F403 - Import all models for Alembic
 
 config = context.config

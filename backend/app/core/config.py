@@ -43,6 +43,27 @@ class Settings(BaseSettings):
     APP_NAME: str = "Visioryx"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
+    
+    # Mobile App Downloads (can be updated via admin settings)
+    MOBILE_APP_IOS_URL: str = ""
+    MOBILE_APP_ANDROID_URL: str = ""
+    MOBILE_APP_VERSION: str = "1.0.0"
+    
+    # Cloudflare Configuration
+    CLOUDFLARE_ENABLED: bool = False
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_ZONE_ID: str = ""
+    CLOUDFLARE_DOMAIN: str = ""
+    CLOUDFLARE_R2_BUCKET: str = ""
+    CLOUDFLARE_R2_ACCESS_KEY: str = ""
+    CLOUDFLARE_R2_SECRET_KEY: str = ""
+    CLOUDFLARE_R2_PUBLIC_URL: str = ""
+    
+    # Brand Settings
+    COMPANY_NAME: str = "Visioryx"
+    COMPANY_LOGO_URL: str = ""
+    FAVICON_URL: str = ""
+    COPYRIGHT_TEXT: str = ""
 
     # API
     API_V1_PREFIX: str = "/api/v1"
@@ -63,6 +84,7 @@ class Settings(BaseSettings):
     PUBLIC_DASHBOARD_URL: str = "http://localhost:3000"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
     # Self-service face enrollment link (JWT). Shorter = more secure for QR sharing.
     ENROLLMENT_TOKEN_EXPIRE_HOURS: int = 48
 
@@ -135,6 +157,15 @@ class Settings(BaseSettings):
     STREAM_ENABLE_HOG_PERSONS: bool = Field(default_factory=_default_hog_persons)
     # YOLO / Ultralytics (torch) — default off on macOS; major source of SIGSEGV in dev.
     STREAM_ENABLE_YOLO_OVERLAY: bool = Field(default_factory=_default_yolo_overlay)
+    # WebRTC / MediaMTX
+    MEDIAMTX_URL: str = "http://localhost:8889"
+    MEDIAMTX_WS_URL: str = "ws://localhost:8889"
+    MEDIAMTX_API_URL: str = "http://localhost:9997"
+    MAX_CAMERAS: int = 100
+    
+    # "mjpeg", "hls", or "webrtc"
+    STREAM_MODE: str = "webrtc"
+    
     # nobuffer+low_delay hurts HEVC (IP cams): ref-frame errors / frozen first frame. Enable only for low-latency H.264.
     STREAM_FFMPEG_LOW_LATENCY: bool = False
     # If true, live overlay uses OpenCV Haar only (no face embeddings) — everyone shows Unknown. Use only if InsightFace crashes on live.

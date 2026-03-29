@@ -26,6 +26,8 @@ export const Stitch = {
   onSecondaryContainer: '#003415',
   tertiary: '#ffb950',
   error: '#ffb4ab',
+  errorContainer: '#93000a',
+  onErrorContainer: '#ffdad6',
 } as const;
 
 /** Registered via expo-font and Google font packages in app/_layout.tsx */

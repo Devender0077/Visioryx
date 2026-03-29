@@ -1,36 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  InputAdornment,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-  Chip,
-  TableContainer,
-  Alert,
-  CircularProgress,
-  Tooltip,
-} from '@mui/material';
-import { Add, Delete, Edit, Info, Search, Visibility, VisibilityOff } from '@mui/icons-material';
 import { api } from '@/lib/api';
 import { maskRtspUrl } from '@/lib/maskRtsp';
 import { useToast } from '@/contexts/ToastContext';
-import { EmptyState } from '@/components/EmptyState';
-import { StitchPageHeader } from '@/components/StitchPageHeader';
+import { EmptyStateIllustration } from '@/components/illustrations';
 
 interface Camera {
   id: number;
@@ -50,7 +24,7 @@ export default function CamerasPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
-  /** Row id → show full RTSP (otherwise masked) */
+  
   const [rtspRevealed, setRtspRevealed] = useState<Record<number, boolean>>({});
   const [showRtspInDialog, setShowRtspInDialog] = useState(false);
 
@@ -135,139 +109,238 @@ export default function CamerasPage() {
   };
 
   return (
-    <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <StitchPageHeader
-        eyebrow="Network Management"
-        title="Active Cameras"
-        subtitle="Manage your distributed security nodes and RTSP sources for live monitoring and detection."
-      />
+    <div className="animate-in fade-in duration-500">
+      
+      {/* Hero Header & Stats (Bento Grid Style) */}
+      <section className="grid grid-cols-12 gap-6 mb-10">
+        <div className="col-span-12 lg:col-span-7 flex flex-col justify-between p-8 rounded-xl bg-surface-variant/50 relative overflow-hidden group border border-white/5">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary-light/5 rounded-full blur-3xl -mr-20 -mt-20 group-hover:bg-primary-light/10 transition-colors duration-500"></div>
+          <div className="relative z-10">
+            <h2 className="font-manrope text-3xl font-extrabold text-on-surface tracking-tight mb-2">Camera Infrastructure</h2>
+            <p className="text-slate-400 max-w-md text-sm leading-relaxed">Manage your global sentinel network. Deploy new nodes, monitor health telemetry, and optimize tracking from a single interface.</p>
+          </div>
+          <div className="relative z-10 mt-8 flex gap-4">
+            <button 
+              onClick={() => handleOpen()}
+              className="bg-gradient-to-br from-primary-light to-primary text-primary-dark font-bold px-6 py-2.5 rounded-lg flex items-center gap-2 text-sm hover:opacity-90 transition-opacity shadow-lg shadow-primary-light/10"
+            >
+              <span className="material-symbols-outlined text-sm">add</span> Add Camera
+            </button>
+          </div>
+        </div>
 
-      <Alert severity="info" icon={<Info />} sx={{ mb: 2 }}>
-        <Typography variant="subtitle2" fontWeight={600} gutterBottom>RTSP & Remote Access</Typography>
-        <Typography variant="body2" component="span">
-          RTSP URLs with local IPs (e.g. 192.168.x.x) only work when <strong>Visioryx runs on the same network</strong> as your cameras.
-          If you&apos;re at home and cameras are at the office: deploy Visioryx on a machine at the office, or connect via VPN to the office network.
-        </Typography>
-      </Alert>
+        <div className="col-span-12 md:col-span-6 lg:col-span-2 p-6 rounded-xl bg-surface-variant flex flex-col justify-between border-t border-white/5">
+          <div className="flex justify-between items-start">
+            <span className="material-symbols-outlined text-primary-light" style={{ fontVariationSettings: "'FILL' 1" }}>sensors</span>
+          </div>
+          <div className="mt-4">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Nodes</p>
+            <p className="text-3xl font-manrope font-black text-on-surface tabular-nums">{cameras.length}</p>
+          </div>
+        </div>
 
-      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { sm: 'center' }, justifyContent: 'space-between', gap: 2, mb: 2 }}>
-        <TextField
-          size="small"
-          placeholder="Search by name, URL, or ID"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 280 } }}
-          InputProps={{ startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} fontSize="small" /> }}
-        />
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpen()} sx={{ fontWeight: 600 }} size="medium">
-          Add Camera
-        </Button>
-      </Box>
-      {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
-      <Card>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : (
-        <TableContainer sx={{ overflowX: 'auto' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>RTSP URL</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredCameras.map((cam) => (
-              <TableRow key={cam.id}>
-                <TableCell>{cam.camera_name}</TableCell>
-                <TableCell sx={{ maxWidth: 280 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                    <Typography
-                      variant="body2"
-                      component="span"
-                      sx={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.8rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        flex: 1,
-                      }}
-                      title={rtspRevealed[cam.id] ? cam.rtsp_url : maskRtspUrl(cam.rtsp_url)}
-                    >
-                      {rtspRevealed[cam.id] ? cam.rtsp_url : maskRtspUrl(cam.rtsp_url)}
-                    </Typography>
-                    <Tooltip title={rtspRevealed[cam.id] ? 'Hide URL' : 'Show full URL'}>
-                      <IconButton
-                        size="small"
-                        aria-label={rtspRevealed[cam.id] ? 'Hide RTSP URL' : 'Reveal RTSP URL'}
-                        onClick={() => toggleRtspReveal(cam.id)}
-                      >
-                        {rtspRevealed[cam.id] ? <VisibilityOff fontSize="small" /> : <Visibility fontSize="small" />}
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-                </TableCell>
-                <TableCell><Chip label={cam.status} size="small" color={cam.status === 'active' ? 'success' : 'default'} /></TableCell>
-                <TableCell align="right">
-                  <IconButton size="small" onClick={() => handleOpen(cam)}><Edit /></IconButton>
-                  <IconButton size="small" color="error" onClick={() => handleDelete(cam.id)}><Delete /></IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        </TableContainer>
-        )}
-        {!loading && cameras.length === 0 && (
-          <CardContent>
-            <EmptyState message="No cameras configured. Click Add Camera to add a camera with a real RTSP URL." />
-          </CardContent>
-        )}
-        {!loading && cameras.length > 0 && filteredCameras.length === 0 && (
-          <CardContent>
-            <EmptyState message="No cameras match your search." />
-          </CardContent>
-        )}
-      </Card>
+        <div className="col-span-12 md:col-span-6 lg:col-span-3 p-6 rounded-xl bg-surface-variant flex flex-col justify-between border-t border-white/5">
+          <div className="flex justify-between items-start">
+            <span className="material-symbols-outlined text-warning" style={{ fontVariationSettings: "'FILL' 1" }}>podcasts</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">REALTIME</span>
+          </div>
+          <div className="mt-4">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Active Streams</p>
+            <div className="flex items-end gap-2">
+               <p className="text-3xl font-manrope font-black text-on-surface tabular-nums">{cameras.filter(c => c.status === 'active').length}</p>
+            </div>
+            <div className="w-full h-1 bg-surface mt-3 rounded-full overflow-hidden">
+                <div className="h-full bg-warning" style={{ width: cameras.length > 0 ? `${(cameras.filter(c => c.status === 'active').length / cameras.length) * 100}%` : '0%' }}></div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>{editing ? 'Edit Camera' : 'Add Camera'}</DialogTitle>
-        <DialogContent>
-          <TextField label="Camera Name" fullWidth value={name} onChange={(e) => setName(e.target.value)} sx={{ mt: 1 }} placeholder="e.g. Office Cam 1" />
-          <TextField
-            label="RTSP URL"
-            fullWidth
-            type={showRtspInDialog ? 'text' : 'password'}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="rtsp://user:pass@ip:554/path"
-            sx={{ mt: 2 }}
-            helperText="Credentials are masked until you click the eye. Same network as Visioryx required."
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label={showRtspInDialog ? 'Hide RTSP URL' : 'Show RTSP URL'}
-                    edge="end"
-                    onClick={() => setShowRtspInDialog((v) => !v)}
-                  >
-                    {showRtspInDialog ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave}>Save</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      {/* Info Alert about Networking */}
+      <div className="bg-surface border-l-4 border-primary p-4 rounded-r-lg mb-6 flex gap-3 text-sm text-on-surface">
+        <span className="material-symbols-outlined text-primary-light">info</span>
+        <div>
+          <p className="font-bold mb-1">RTSP & Remote Access</p>
+          <p className="text-slate-400">
+            RTSP URLs with local IPs (e.g. 192.168.x.x) only work when <strong>Visioryx runs on the same network</strong> as your cameras. 
+          </p>
+        </div>
+      </div>
+
+      {error && <span className="text-error font-bold bg-error/10 px-3 py-1 rounded-md mb-4 inline-block">{error}</span>}
+
+      {/* Table Section */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between px-2">
+           <div className="relative w-full max-w-sm">
+             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+             <input 
+               className="w-full bg-surface-variant border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary/40 text-on-surface placeholder:text-slate-600 transition-all outline-none" 
+               placeholder="Search by name, URL, or ID" 
+               type="text"
+               value={filter}
+               onChange={e => setFilter(e.target.value)}
+             />
+           </div>
+        </div>
+
+        <div className="bg-surface-variant rounded-xl overflow-hidden border border-white/5 shadow-2xl">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse font-inter">
+              <thead>
+                <tr className="bg-surface border-b border-white/10">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden sm:table-cell">ID</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Device Name</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">RTSP Target</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                </tr>
+              </thead>
+            <tbody className="divide-y divide-white/5">
+              
+              {loading && (
+                 <tr>
+                    <td colSpan={5} className="py-20 text-center">
+                       <span className="material-symbols-outlined animate-spin text-4xl text-primary">sync</span>
+                    </td>
+                 </tr>
+              )}
+
+              {!loading && cameras.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center">
+                    <EmptyStateIllustration size={160} className="mx-auto opacity-50 mb-4" />
+                    <p className="text-[#8c909f]">No cameras configured. Add a camera to begin monitoring.</p>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && cameras.length > 0 && filteredCameras.length === 0 && (
+                 <tr>
+                    <td colSpan={5} className="py-10 text-center text-[#8c909f]">
+                       No cameras match your search.
+                    </td>
+                 </tr>
+              )}
+
+              {!loading && filteredCameras.map(cam => (
+                 <tr key={cam.id} className="hover:bg-surface/50 transition-colors group">
+                    <td className="px-6 py-4 hidden sm:table-cell text-xs font-bold text-slate-400 tabular-nums">#{cam.id}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-background border border-white/10 flex items-center justify-center">
+                             <span className="material-symbols-outlined opacity-50 text-primary-light">videocam</span>
+                         </div>
+                         <div>
+                            <p className="text-sm font-bold text-on-surface">{cam.camera_name}</p>
+                            <p className="text-[10px] text-slate-500 font-medium tracking-tight">Camera Node</p>
+                         </div>
+                      </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                        <div className="flex items-center gap-2 max-w-xs group/url">
+                            <code className="text-xs font-inter tabular-nums text-slate-400 truncate">
+                                {rtspRevealed[cam.id] ? cam.rtsp_url : maskRtspUrl(cam.rtsp_url)}
+                            </code>
+                            <button 
+                                onClick={() => toggleRtspReveal(cam.id)}
+                                className="p-1 text-slate-600 hover:text-white transition-colors opacity-0 group-hover/url:opacity-100"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">{rtspRevealed[cam.id] ? 'visibility_off' : 'visibility'}</span>
+                            </button>
+                        </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                           {cam.status === 'active' ? (
+                               <>
+                                <span className="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_rgba(87,224,130,0.5)]"></span>
+                                <span className="text-xs font-semibold text-secondary">Active</span>
+                               </>
+                           ) : (
+                               <>
+                                <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                                <span className="text-xs font-semibold text-slate-500">{cam.status || 'Offline'}</span>
+                               </>
+                           )}
+                        </div>
+                    </td>
+
+                    <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1">
+                            <button onClick={() => handleOpen(cam)} className="p-2 text-slate-500 hover:text-white hover:bg-white/5 rounded-lg transition-all" title="Edit">
+                                <span className="material-symbols-outlined text-lg">edit</span>
+                            </button>
+                            <button onClick={() => handleDelete(cam.id)} className="p-2 text-slate-500 hover:text-[#ffb4ab] hover:bg-[#ffb4ab]/5 rounded-lg transition-all" title="Delete">
+                                 <span className="material-symbols-outlined text-lg">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                 </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </section>
+
+      {/* Tailwind Modal Dialog */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface border border-white/10 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+             
+             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-surface-variant/50">
+                <h3 className="text-xl font-bold font-manrope text-on-surface">
+                  {editing ? 'Configure Node' : 'Deploy New Node'}
+                </h3>
+                <button onClick={handleClose} className="text-slate-500 hover:text-white transition-colors">
+                   <span className="material-symbols-outlined text-xl">close</span>
+                </button>
+             </div>
+
+             <div className="p-6 space-y-5">
+                <div>
+                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Camera Alias</label>
+                   <input 
+                     type="text"
+                     value={name}
+                     onChange={e => setName(e.target.value)}
+                     className="w-full bg-background border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:ring-1 focus:ring-primary/50 text-on-surface outline-none transition-all placeholder:text-slate-600"
+                     placeholder="e.g. Office Cam 1"
+                   />
+                </div>
+
+                <div>
+                   <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stream Protocol URL (RTSP)</label>
+                   <div className="relative">
+                       <input 
+                         type={showRtspInDialog ? 'text' : 'password'}
+                         value={url}
+                         onChange={e => setUrl(e.target.value)}
+                         className="w-full bg-background border border-white/10 rounded-lg pl-4 pr-10 py-2.5 text-sm focus:ring-1 focus:ring-primary/50 text-on-surface outline-none transition-all placeholder:text-slate-600 font-inter tracking-wider"
+                         placeholder="rtsp://user:pass@ip:554/path"
+                       />
+                       <button 
+                           onClick={() => setShowRtspInDialog(!showRtspInDialog)}
+                           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
+                       >
+                           <span className="material-symbols-outlined text-lg">{showRtspInDialog ? 'visibility_off' : 'visibility'}</span>
+                       </button>
+                   </div>
+                   <p className="text-[10px] text-slate-400 mt-2">Credentials are masked. Same network as Visioryx required for LAN IPs.</p>
+                </div>
+             </div>
+
+             <div className="p-6 bg-surface-variant border-t border-white/5 flex justify-end gap-3">
+                 <button onClick={handleClose} className="px-5 py-2 rounded-lg text-sm font-bold text-slate-300 hover:bg-white/5 transition-colors">Abort</button>
+                 <button onClick={handleSave} className="px-6 py-2 bg-gradient-to-br from-primary-light to-primary text-primary-dark rounded-lg text-sm font-bold hover:opacity-95 transition-opacity shadow-[0_4px_12px_rgba(32,101,209,0.3)]">Inject Core</button>
+             </div>
+          </div>
+        </div>
+      )}
+
+    </div>
   );
 }

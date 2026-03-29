@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '@/lib/api';
 import { useStitchTheme } from '@/hooks/useStitchTheme';
-import { Stitch } from '@/constants/stitchTheme';
+import { Stitch, FontFamily } from '@/constants/stitchTheme';
 import { useRealtimeTick } from '@/contexts/RealtimeContext';
 import { stitchStyles } from '@/styles/stitchStyles';
 
@@ -20,6 +22,7 @@ type ListRes = { items: Row[]; total: number };
 
 export default function AuditScreen() {
   const realtimeTick = useRealtimeTick();
+  const router = useRouter();
   const T = useStitchTheme();
   const [items, setItems] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -46,13 +49,15 @@ export default function AuditScreen() {
   }, [load, realtimeTick]);
 
   const listHeader = (
-    <View style={styles.hero}>
-      <Text style={[stitchStyles.screenEyebrow, { color: T.accent }]}>Compliance</Text>
-      <Text style={[stitchStyles.liveScreenTitle, { fontSize: 22, color: T.text }]}>Activity log</Text>
-      <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 6 }]}>
-        Chronological record of administrative actions. {total > 0 ? `${total} entries.` : ''}
-      </Text>
-      {error ? <Text style={[styles.err, { color: Stitch.error, marginTop: 8 }]}>{error}</Text> : null}
+    <View>
+      <View style={styles.hero}>
+        <Text style={[stitchStyles.screenEyebrow, { color: T.accent }]}>Compliance</Text>
+        <Text style={[stitchStyles.liveScreenTitle, { fontSize: 22, color: T.text }]}>Activity log</Text>
+        <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 6 }]}>
+          Chronological record of administrative actions. {total > 0 ? `${total} entries.` : ''}
+        </Text>
+        {error ? <Text style={[styles.err, { color: Stitch.error, marginTop: 8 }]}>{error}</Text> : null}
+      </View>
     </View>
   );
 
@@ -101,6 +106,19 @@ export default function AuditScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Stitch.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   hero: { marginBottom: 12 },
   err: { fontSize: 13 },
   listPad: { padding: 16, gap: 10 },

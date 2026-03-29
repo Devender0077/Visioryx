@@ -1,27 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Box,
-  Card,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Typography,
-  Chip,
-  TableContainer,
-  Alert,
-  TextField,
-  MenuItem,
-  TablePagination,
-  InputAdornment,
-  Stack,
-  Button,
-} from '@mui/material';
-import Search from '@mui/icons-material/Search';
-import FileDownload from '@mui/icons-material/FileDownload';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { downloadAuthenticatedFile } from '@/lib/downloadCsv';
@@ -75,22 +54,23 @@ export default function DetectionsPage() {
     try {
       const params = new URLSearchParams();
       params.set('limit', String(rowsPerPage));
+      // In a real UI with numeric pages, we offset
       params.set('offset', String(page * rowsPerPage));
       if (search.trim()) params.set('q', search.trim());
       if (status) params.set('status', status);
       if (cameraId) params.set('camera_id', cameraId);
       const res = await api<{ items: Detection[]; total: number } | Detection[]>(
-        `/api/v1/detections?${params.toString()}`,
+        `/api/v1/detections?${params.toString()}`
       );
       if (Array.isArray(res)) {
-        setItems(res);
-        setTotal(res.length);
+         setItems(res);
+         setTotal(res.length);
       } else {
-        setItems(res.items ?? []);
-        setTotal(typeof res.total === 'number' ? res.total : 0);
+         setItems(res.items ?? []);
+         setTotal(typeof res.total === 'number' ? res.total : 0);
       }
     } catch {
-      setError('Load failed');
+      setError('Failed to load detections');
     } finally {
       setLoading(false);
     }
@@ -139,153 +119,211 @@ export default function DetectionsPage() {
     }
   };
 
+  // Math for pagination
+  const totalPages = Math.max(1, Math.ceil(total / rowsPerPage));
+
   return (
-    <Box sx={{ width: '100%', maxWidth: '100%' }}>
-      <StitchPageHeader
-        eyebrow="Forensics"
-        title="Detection Intelligence"
-        subtitle="Deep-layer face detections across your camera grid. Known rows show enrolled names; confidence for known is similarity to the enrolled face, for unknown it is detector score only. Export CSV for audits."
-      />
+    <div className="animate-in fade-in duration-500 pb-12 w-full max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-4">
+         <StitchPageHeader
+            eyebrow="Forensics"
+            title="Detection Intelligence"
+            subtitle="Deep-layer face detections across your camera grid. Known rows show enrolled names; confidence for known is similarity to the enrolled face, for unknown it is detector score only."
+         />
+         
+         <div className="flex gap-3 shrink-0">
+            <button 
+               onClick={handleExportCsv}
+               className="bg-surface-variant px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-surface transition-colors text-white border border-white/5"
+            >
+               <span className="material-symbols-outlined text-sm">download</span>
+               Export Dataset
+            </button>
+            <button className="bg-gradient-to-br from-primary-light to-primary px-6 py-2.5 rounded-xl font-bold text-sm text-on-surface flex items-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
+               <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>calendar_today</span>
+               Last 14 Days
+            </button>
+         </div>
+      </div>
+
       {enrolledCount === 0 && usersSummary.length > 0 && usersSummary.some((u) => u.image_path && !u.has_face_embedding) && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          A photo is saved but <strong>no face embedding</strong> was stored — usually the face was unclear, too small, or the server
-          is in OpenCV-only mode (no InsightFace). Re-upload a <strong>single, front-facing</strong> photo on the{' '}
-          <Link href="/users" style={{ fontWeight: 600 }}>
-            Users
-          </Link>{' '}
-          page, or install InsightFace in the backend and restart the API.
-        </Alert>
+         <div className="mb-6 bg-warning-dark/30 border border-warning/30 p-4 rounded-xl flex items-start gap-3">
+            <span className="material-symbols-outlined text-warning">warning</span>
+            <div>
+               <p className="text-[#ffe6ca] text-sm">
+                  A photo is saved but <strong>no face embedding</strong> was stored — usually the face was unclear, too small, or the server
+                  is in OpenCV-only mode. Re-upload a front-facing photo on the{' '}
+                  <Link href="/users" className="font-bold underline text-white hover:text-primary transition-colors">Users</Link>{' '}
+                  page.
+               </p>
+            </div>
+         </div>
       )}
       {enrolledCount === 0 && !usersSummary.some((u) => u.image_path && !u.has_face_embedding) && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          No enrolled faces yet — add users on the{' '}
-          <Link href="/users" style={{ fontWeight: 600 }}>
-            Users
-          </Link>{' '}
-          page and upload a clear front-facing photo so names can appear here as <strong>known</strong>.
-        </Alert>
+         <div className="mb-6 bg-primary-dark/30 border border-primary-light/30 p-4 rounded-xl flex items-start gap-3">
+            <span className="material-symbols-outlined text-primary-light">info</span>
+            <div>
+               <p className="text-[#e4eaff] text-sm">
+                  No enrolled faces yet — add users on the{' '}
+                  <Link href="/users" className="font-bold underline text-white hover:text-[#dae2fd] transition-colors">Users</Link>{' '}
+                  page and upload a clear front-facing photo so names can appear here as <strong>known</strong>.
+               </p>
+            </div>
+         </div>
       )}
-      {error && <Typography color="error" sx={{ mb: 1 }}>{error}</Typography>}
+      {error && (
+         <div className="mb-6 bg-error-dark/20 border border-error/20 p-4 rounded-xl flex items-center gap-2 text-error-light text-sm">
+            <span className="material-symbols-outlined text-error text-sm">error</span>
+            {error}
+         </div>
+      )}
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
-        <TextField
-          size="small"
-          label="Search"
-          placeholder="Camera, person, or ID"
-          value={searchInput}
-          onChange={(e) => {
-            setSearchInput(e.target.value);
-            setPage(0);
-          }}
-          sx={{ minWidth: { xs: '100%', sm: 260 } }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search fontSize="small" color="action" />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <TextField
-          size="small"
-          label="Status"
-          select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setPage(0);
-          }}
-          sx={{ minWidth: 140 }}
-        >
-          <MenuItem value="">All</MenuItem>
-          <MenuItem value="known">Known</MenuItem>
-          <MenuItem value="unknown">Unknown</MenuItem>
-        </TextField>
-        <TextField
-          size="small"
-          label="Camera"
-          select
-          value={cameraId}
-          onChange={(e) => {
-            setCameraId(e.target.value);
-            setPage(0);
-          }}
-          sx={{ minWidth: 200 }}
-        >
-          <MenuItem value="">All cameras</MenuItem>
-          {cameras.map((c) => (
-            <MenuItem key={c.id} value={String(c.id)}>
-              {c.camera_name}
-            </MenuItem>
-          ))}
-        </TextField>
-        <Button
-          variant="outlined"
-          size="medium"
-          startIcon={<FileDownload />}
-          onClick={() => void handleExportCsv()}
-          sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
-        >
-          Export CSV
-        </Button>
-      </Stack>
+      {/* Forensic Log Table */}
+      <section className="bg-surface-variant rounded-xl overflow-hidden shadow-2xl border border-white/5">
+         <div className="p-6 md:p-8 border-b border-white/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+               <h2 className="font-manrope text-xl font-bold text-white mb-1">Forensic Log</h2>
+               <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Global detection stream</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+               <div className="relative group flex-grow md:flex-grow-0">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-primary-light transition-colors text-sm">search</span>
+                  <input 
+                     type="text"
+                     value={searchInput}
+                     onChange={(e) => { setSearchInput(e.target.value); setPage(0); }}
+                     placeholder="Search Person or ID..."
+                     className="w-full md:w-64 bg-background border border-white/5 rounded-lg py-2 pl-9 pr-4 text-sm text-white focus:ring-1 focus:ring-primary/40 outline-none transition-all placeholder:text-slate-600"
+                  />
+               </div>
+               
+               <select 
+                  value={status}
+                  onChange={(e) => { setStatus(e.target.value); setPage(0); }}
+                  className="bg-background border border-white/5 rounded-lg py-2 px-3 text-sm text-white focus:ring-1 focus:ring-primary/40 outline-none transition-all cursor-pointer"
+               >
+                  <option value="">All Statuses</option>
+                  <option value="known">Known</option>
+                  <option value="unknown">Unknown</option>
+               </select>
 
-      <Card sx={{ bgcolor: 'background.paper' }}>
-        {loading ? (
-          <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">Loading…</Typography>
-          </Box>
-        ) : items.length === 0 ? (
-          <Box sx={{ p: 3 }}>
-            <EmptyState message="No detections match your filters. Start cameras or adjust search." />
-          </Box>
-        ) : (
-          <>
-            <TableContainer sx={{ overflowX: 'auto' }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Person</TableCell>
-                    <TableCell>Camera</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Confidence</TableCell>
-                    <TableCell>Time</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {items.map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell>{d.id}</TableCell>
-                      <TableCell sx={{ fontWeight: d.user_name ? 600 : 400 }}>
-                        {d.user_name ?? '—'}
-                      </TableCell>
-                      <TableCell>{cameraLabel(d)}</TableCell>
-                      <TableCell>
-                        <Chip label={d.status} size="small" color={d.status === 'known' ? 'success' : 'warning'} />
-                      </TableCell>
-                      <TableCell>{(d.confidence * 100).toFixed(0)}%</TableCell>
-                      <TableCell>{formatDateTime(d.timestamp)}</TableCell>
-                    </TableRow>
+               <select 
+                  value={cameraId}
+                  onChange={(e) => { setCameraId(e.target.value); setPage(0); }}
+                  className="bg-background border border-white/5 rounded-lg py-2 px-3 text-sm text-white focus:ring-1 focus:ring-primary/40 outline-none transition-all cursor-pointer"
+               >
+                  <option value="">All Cameras</option>
+                  {cameras.map((c) => (
+                     <option key={c.id} value={String(c.id)}>{c.camera_name}</option>
                   ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              component="div"
-              count={total}
-              page={page}
-              onPageChange={(_, p) => setPage(p)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value, 10));
-                setPage(0);
-              }}
-              rowsPerPageOptions={[10, 25, 50, 100]}
-            />
-          </>
-        )}
-      </Card>
-    </Box>
+               </select>
+            </div>
+         </div>
+
+          <div className="bg-surface rounded-xl overflow-hidden border border-white/5 shadow-2xl">
+            <div className="overflow-x-auto">
+             <table className="w-full text-left font-inter">
+                <thead>
+                   <tr className="bg-surface border-b border-white/10">
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">ID</th>
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Person</th>
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Camera / Node</th>
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Confidence</th>
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Status</th>
+                      <th className="px-6 md:px-8 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 text-right">Timestamp</th>
+                   </tr>
+                </thead>
+               <tbody className="divide-y divide-white/5">
+                  {loading ? (
+                     <tr>
+                        <td colSpan={6} className="px-8 py-12 text-center text-slate-500 animate-pulse">Loading neural forensic data...</td>
+                     </tr>
+                  ) : items.length === 0 ? (
+                     <tr>
+                        <td colSpan={6} className="px-8 py-12">
+                           <EmptyState message="No detections found matching your filters." />
+                        </td>
+                     </tr>
+                  ) : (
+                     items.map((d) => (
+                        <tr key={d.id} className="hover:bg-white/5 transition-colors group">
+                           <td className="px-6 md:px-8 py-4 tabular-nums text-slate-400 font-medium">#{d.id}</td>
+                           <td className="px-6 md:px-8 py-4">
+                              <div className="flex items-center gap-2">
+                                 <span className={`material-symbols-outlined text-lg ${d.status === 'known' ? 'text-secondary' : 'text-slate-400'}`}>
+                                    {d.status === 'known' ? 'person' : 'person_off'}
+                                 </span>
+                                 <span className={`font-bold ${d.status === 'known' ? 'text-white' : 'text-slate-400'}`}>
+                                    {d.user_name || 'Unidentified'}
+                                 </span>
+                              </div>
+                           </td>
+                           <td className="px-6 md:px-8 py-4 text-slate-400">{cameraLabel(d)}</td>
+                           <td className={`px-6 md:px-8 py-4 tabular-nums font-medium ${d.confidence > 0.85 ? 'text-secondary' : d.confidence > 0.6 ? 'text-warning' : 'text-error'}`}>
+                              {(d.confidence * 100).toFixed(1)}%
+                           </td>
+                           <td className="px-6 md:px-8 py-4">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter ${
+                                 d.status === 'known' ? 'bg-success/20 text-secondary' : 'bg-slate-800 text-slate-300'
+                              }`}>
+                                 {d.status}
+                              </span>
+                           </td>
+                           <td className="px-6 md:px-8 py-4 text-right tabular-nums text-slate-400">
+                              {formatDateTime(d.timestamp)}
+                           </td>
+                        </tr>
+                     ))
+                  )}
+               </tbody>
+            </table>
+            </div>
+         </div>
+
+         {/* Pagination Footer */}
+         <div className="p-4 bg-surface-variant/20 border-t border-white/5 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-xs text-slate-400">
+               Showing <span className="text-white font-bold">{items.length > 0 ? page * rowsPerPage + 1 : 0}</span> to <span className="text-white font-bold">{Math.min((page + 1) * rowsPerPage, total)}</span> of <span className="text-white font-bold">{total}</span>
+            </div>
+            
+            <div className="flex items-center gap-4">
+               <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500">Rows per page:</span>
+                  <select 
+                     value={rowsPerPage}
+                     onChange={(e) => { setRowsPerPage(Number(e.target.value)); setPage(0); }}
+                     className="bg-transparent text-sm text-white font-bold focus:outline-none cursor-pointer"
+                  >
+                     <option value={10} className="bg-background">10</option>
+                     <option value={25} className="bg-background">25</option>
+                     <option value={50} className="bg-background">50</option>
+                     <option value={100} className="bg-background">100</option>
+                  </select>
+               </div>
+               
+               <div className="flex items-center gap-1 bg-background p-1 rounded-lg border border-white/5">
+                  <button 
+                     onClick={() => setPage(p => Math.max(0, p - 1))}
+                     disabled={page === 0}
+                     className="p-1 rounded text-slate-400 hover:text-white hover:bg-surface-variant disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                     <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  </button>
+                  <span className="text-xs font-bold px-2 text-white">
+                     {totalPages > 0 ? page + 1 : 0} / {totalPages}
+                  </span>
+                  <button 
+                     onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                     disabled={page >= totalPages - 1 || totalPages === 0}
+                     className="p-1 rounded text-slate-400 hover:text-white hover:bg-surface-variant disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                  >
+                     <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+               </div>
+            </div>
+         </div>
+      </section>
+    </div>
   );
 }

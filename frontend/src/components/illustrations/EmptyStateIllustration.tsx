@@ -1,28 +1,17 @@
 'use client';
 
-import { Box, SxProps, Theme } from '@mui/material';
-
 interface EmptyStateIllustrationProps {
-  sx?: SxProps<Theme>;
   size?: number;
+  className?: string;
 }
 
-/**
- * Minimal empty-state illustration (minimals.cc style).
- * Use for "No detections", "No alerts", etc.
- */
-export function EmptyStateIllustration({ sx, size = 200 }: EmptyStateIllustrationProps) {
+export function EmptyStateIllustration({ size = 200, className = '' }: EmptyStateIllustrationProps) {
   return (
-    <Box
-      component="svg"
+    <svg
       viewBox="0 0 200 200"
-      sx={{
-        width: size,
-        height: size,
-        maxWidth: '100%',
-        opacity: 0.6,
-        ...sx,
-      }}
+      width={size}
+      height={size}
+      className={`opacity-60 max-w-full h-auto ${className}`}
     >
       <defs>
         <linearGradient id="emptyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -57,6 +46,6 @@ export function EmptyStateIllustration({ sx, size = 200 }: EmptyStateIllustratio
         strokeLinecap="round"
         opacity={0.5}
       />
-    </Box>
+    </svg>
   );
 }

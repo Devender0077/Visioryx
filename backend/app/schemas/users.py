@@ -18,12 +18,14 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
+    role: Optional[str] = None
 
 
 class UserResponse(UserBase):
     id: int
     image_path: Optional[str] = None
     is_active: bool
+    role: str
     created_at: datetime
     has_face_embedding: bool = False
 
@@ -46,6 +48,7 @@ def user_to_response(user: Any) -> UserResponse:
         email=user.email,
         image_path=user.image_path,
         is_active=user.is_active,
+        role=user.role,
         created_at=user.created_at,
         has_face_embedding=has_emb,
     )

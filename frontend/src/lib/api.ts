@@ -21,6 +21,19 @@ export function getToken(): string | null {
   return localStorage.getItem('token');
 }
 
+async function errorMessageFromResponse(res: Response): Promise<string> {
+  const text = await res.text();
+  if (!text) return res.statusText || `HTTP ${res.status}`;
+  try {
+    const err = JSON.parse(text) as { detail?: unknown };
+    if (typeof err.detail === 'string') return err.detail;
+    if (err.detail != null) return JSON.stringify(err.detail);
+  } catch {
+    /* not JSON — e.g. proxy/HTML error page */
+  }
+  return text.trim().slice(0, 240) || res.statusText || `HTTP ${res.status}`;
+}
+
 /** JSON fetch without Authorization — for public routes (e.g. enrollment verify). Does not redirect on 401. */
 export async function publicApi<T>(path: string, opts?: RequestInit): Promise<T> {
   const isFormData = opts?.body instanceof FormData;
@@ -33,8 +46,7 @@ export async function publicApi<T>(path: string, opts?: RequestInit): Promise<T>
     },
   });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || res.statusText));
+    throw new Error(await errorMessageFromResponse(res));
   }
   return res.json();
 }
@@ -63,8 +75,7 @@ export async function api<T>(path: string, opts?: RequestInit): Promise<T> {
         window.location.href = '/login';
       }
     }
-    const err = await res.json().catch(() => ({}));
-    throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || res.statusText));
+    throw new Error(await errorMessageFromResponse(res));
   }
   return res.json();
 }

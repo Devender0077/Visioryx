@@ -1,7 +1,5 @@
 'use client';
 
-import { Box, Button, Card, CardContent, Typography } from '@mui/material';
-import { ArrowForward } from '@mui/icons-material';
 import Link from 'next/link';
 import { WelcomeIllustration } from '@/components/illustrations';
 
@@ -12,84 +10,27 @@ interface WelcomeCardProps {
 /** Stitch Digital Sentinel — dark hero card */
 export function WelcomeCard({ displayName = 'Admin' }: WelcomeCardProps) {
   return (
-    <Card
-      sx={{
-        overflow: 'hidden',
-        position: 'relative',
-        background: 'linear-gradient(135deg, #131b2e 0%, #171f33 45%, #222a3d 100%)',
-        color: 'white',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
-      }}
-    >
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#131b2e] via-[#171f33] to-[#222a3d] border border-white/5 shadow-[0_16px_48px_rgba(0,0,0,0.45)] text-white">
       {/* Subtle pattern overlay */}
-      <Box
-        sx={{
-          position: 'absolute',
-          inset: 0,
-          opacity: 0.04,
-          backgroundImage: `radial-gradient(circle at 20% 80%, #2065d1 1px, transparent 1px),
-                           radial-gradient(circle at 80% 20%, #57e082 1px, transparent 1px)`,
-          backgroundSize: '24px 24px',
-        }}
-      />
-      <CardContent
-        sx={{
-          p: 3,
-          display: 'flex',
-          flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { xs: 'flex-start', sm: 'center' },
-          justifyContent: 'space-between',
-          gap: 2,
-          position: 'relative',
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
-          <Typography
-            sx={{
-              fontFamily: '"Manrope", "Public Sans", sans-serif',
-              fontWeight: 800,
-              fontSize: { xs: '1.25rem', sm: '1.5rem' },
-              mb: 0.5,
-            }}
-          >
-            Hi, {displayName} 👋
-          </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'rgba(255,255,255,0.72)',
-              maxWidth: 420,
-              mb: 2,
-              lineHeight: 1.6,
-            }}
-          >
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, #2065d1 1px, transparent 1px), radial-gradient(circle at 80% 20%, #57e082 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
+      
+      <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 z-10">
+        <div className="flex-1">
+          <h2 className="font-[Manrope] font-extrabold text-2xl sm:text-3xl tracking-tight mb-2">
+            Hi, {displayName} <span className="inline-block animate-[wave_2.5s_infinite]">👋</span>
+          </h2>
+          <p className="text-[#c2c6d5] max-w-[420px] mb-6 leading-relaxed text-sm">
             Monitor your AI surveillance system in real time. View live streams, manage cameras, and track face recognition events.
-          </Typography>
-          <Button
-            component={Link}
-            href="/live"
-            variant="contained"
-            endIcon={<ArrowForward />}
-            sx={{
-              bgcolor: '#00aa54',
-              color: '#003415',
-              fontWeight: 600,
-              px: 2.5,
-              py: 1.25,
-              '&:hover': {
-                bgcolor: '#007b55',
-                color: '#fff',
-              },
-            }}
-          >
+          </p>
+          <Link href="/live" className="inline-flex items-center gap-2 bg-[#00aa54] hover:bg-[#007b55] text-[#003415] hover:text-white font-bold px-6 py-3 rounded-xl transition-colors shadow-lg shadow-[#00aa54]/20 group">
             Go to Live
-          </Button>
-        </Box>
-        <Box sx={{ flexShrink: 0, display: { xs: 'none', md: 'block' } }}>
-          <WelcomeIllustration size={220} sx={{ opacity: 0.9 }} />
-        </Box>
-      </CardContent>
-    </Card>
+            <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+          </Link>
+        </div>
+        <div className="hidden md:block shrink-0">
+          <WelcomeIllustration size={220} className="opacity-90 drop-shadow-2xl" />
+        </div>
+      </div>
+    </div>
   );
 }

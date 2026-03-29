@@ -1,5 +1,6 @@
 """Visioryx Database Module."""
-from app.database.connection import Base, get_db
+from app.database.base import Base
+from app.database.connection import get_db
 from app.database.models import (
     Alert,
     AuthUser,

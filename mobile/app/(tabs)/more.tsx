@@ -1,5 +1,6 @@
-import { useCallback } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, ActivityIndicator, Modal } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
@@ -8,11 +9,32 @@ import { Stitch, FontFamily } from '@/constants/stitchTheme';
 import { useStitchTheme, type StitchTheme } from '@/hooks/useStitchTheme';
 import { stitchStyles } from '@/styles/stitchStyles';
 import { isAdminRole, isSurveillanceRole, normalizeRole } from '@/lib/roles';
+import { api, publicApi } from '@/lib/api';
 
 export default function MoreScreen() {
   const { user, logout, refreshUser } = useAuth();
   const router = useRouter();
   const T = useStitchTheme();
+  const [apiVersion, setApiVersion] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void publicApi<{ backend_version?: string }>('/api/v1/meta/version')
+      .then((r) => {
+        if (!cancelled && r.backend_version) setApiVersion(r.backend_version);
+      })
+      .catch(() => {
+        if (!cancelled) setApiVersion(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const role = normalizeRole(user?.role);
   const isAdmin = isAdminRole(user?.role);
@@ -49,6 +71,37 @@ export default function MoreScreen() {
     ]);
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Error', 'New passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await api('/api/v1/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
+      Alert.alert('Success', 'Password changed successfully');
+      setShowPasswordModal(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to change password');
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
     <ScrollView
       style={[styles.root, { backgroundColor: T.bg }]}
@@ -70,6 +123,20 @@ export default function MoreScreen() {
       <View style={[styles.emailCard, { backgroundColor: T.card, borderLeftColor: Stitch.primary }]}>
         <Text style={[styles.emailLbl, { color: T.textMuted }]}>Connected email</Text>
         <Text style={[styles.emailVal, { color: T.text }]}>{user?.email}</Text>
+        <Pressable
+          style={styles.changePwBtn}
+          onPress={() => setShowPasswordModal(true)}
+        >
+          <LinearGradient
+            colors={[Stitch.primary, Stitch.primaryContainer]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.changePwGrad}
+          >
+            <MaterialCommunityIcons name="key-outline" size={16} color={Stitch.onPrimary} />
+            <Text style={styles.changePwText}>Change Password</Text>
+          </LinearGradient>
+        </Pressable>
       </View>
 
       {/* Stitch more_settings: Admin block before shortcuts for visibility */}
@@ -96,6 +163,22 @@ export default function MoreScreen() {
                 <MaterialCommunityIcons name="chevron-right" size={20} color={T.accent} />
               </View>
             </Pressable>
+
+            <Pressable
+              style={[styles.adminTile, { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: `${Stitch.outlineVariant}22` }]}
+              onPress={() => router.push('/users')}
+            >
+              <MaterialCommunityIcons name="account-group-outline" size={28} color={T.accent} style={styles.adminIcon} />
+              <Text style={[styles.adminTitle, { color: T.text }]}>User management</Text>
+              <Text style={[styles.adminSub, { color: T.textMuted }]}>
+                Manage personnel access and edit facial recognition enrollment.
+              </Text>
+              <View style={styles.rowHint}>
+                <Text style={[styles.openHint, { color: T.accent }]}>Manage users →</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={T.accent} />
+              </View>
+            </Pressable>
+
             <Pressable style={styles.adminTile} onPress={() => router.push('/audit')}>
               <MaterialCommunityIcons name="clipboard-text-clock-outline" size={28} color={T.accent} style={styles.adminIcon} />
               <Text style={[styles.adminTitle, { color: T.text }]}>Audit log</Text>
@@ -133,15 +216,24 @@ export default function MoreScreen() {
 
       <View style={[styles.metaBox, { backgroundColor: `${Stitch.surfaceContainerLowest}88`, borderColor: `${Stitch.outlineVariant}18` }]}>
         <View style={styles.metaCol}>
-          <Text style={styles.metaLbl}>App version</Text>
+          <Text style={styles.metaLbl}>App</Text>
           <Text style={[styles.metaVal, { color: T.text }]}>v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        </View>
+        <View style={[styles.metaDivider, { backgroundColor: `${Stitch.outlineVariant}33` }]} />
+        <View style={styles.metaCol}>
+          <Text style={styles.metaLbl}>API</Text>
+          <Text style={[styles.metaVal, { color: T.text }]} numberOfLines={1}>
+            {apiVersion == null ? '—' : `v${apiVersion}`}
+          </Text>
         </View>
         <View style={[styles.metaDivider, { backgroundColor: `${Stitch.outlineVariant}33` }]} />
         <View style={styles.metaCol}>
           <Text style={styles.metaLbl}>Status</Text>
           <View style={styles.statusRow}>
             <View style={[styles.statusDot, { backgroundColor: Stitch.secondary }]} />
-            <Text style={[styles.statusTxt, { color: T.text }]}>Fully operational</Text>
+            <Text style={[styles.statusTxt, { color: T.text }]} numberOfLines={1}>
+              {apiVersion == null ? 'Offline' : 'Connected'}
+            </Text>
           </View>
         </View>
       </View>
@@ -150,6 +242,64 @@ export default function MoreScreen() {
         <MaterialCommunityIcons name="logout" size={22} color={Stitch.error} />
         <Text style={styles.logoutText}>Sign out</Text>
       </Pressable>
+
+      <Modal visible={showPasswordModal} transparent animationType="fade" onRequestClose={() => setShowPasswordModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: Stitch.surfaceContainer }]}>
+            <Text style={[styles.modalTitle, { color: Stitch.onSurface }]}>Change Password</Text>
+            
+            <Text style={[styles.modalLabel, { color: Stitch.primary }]}>Current Password</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: Stitch.surfaceContainerLowest, color: Stitch.onSurface, borderColor: Stitch.outlineVariant }]}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Enter current password"
+              placeholderTextColor={Stitch.outline}
+              secureTextEntry
+            />
+
+            <Text style={[styles.modalLabel, { color: Stitch.primary }]}>New Password</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: Stitch.surfaceContainerLowest, color: Stitch.onSurface, borderColor: Stitch.outlineVariant }]}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              placeholder="Enter new password"
+              placeholderTextColor={Stitch.outline}
+              secureTextEntry
+            />
+
+            <Text style={[styles.modalLabel, { color: Stitch.primary }]}>Confirm New Password</Text>
+            <TextInput
+              style={[styles.modalInput, { backgroundColor: Stitch.surfaceContainerLowest, color: Stitch.onSurface, borderColor: Stitch.outlineVariant }]}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm new password"
+              placeholderTextColor={Stitch.outline}
+              secureTextEntry
+            />
+
+            <View style={styles.modalActions}>
+              <Pressable 
+                style={[styles.modalBtn, { backgroundColor: Stitch.surfaceContainerHighest }]} 
+                onPress={() => setShowPasswordModal(false)}
+              >
+                <Text style={[styles.modalBtnText, { color: Stitch.onSurface }]}>Cancel</Text>
+              </Pressable>
+              <Pressable 
+                style={[styles.modalBtn, { backgroundColor: Stitch.primary }]} 
+                onPress={handleChangePassword}
+                disabled={changingPassword}
+              >
+                {changingPassword ? (
+                  <ActivityIndicator size="small" color={Stitch.onPrimary} />
+                ) : (
+                  <Text style={[styles.modalBtnText, { color: Stitch.onPrimary }]}>Change</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -325,4 +475,70 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   logoutText: { color: Stitch.error, fontSize: 16, fontFamily: FontFamily.labelSemibold },
+  changePwBtn: {
+    marginTop: 14,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  changePwGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 20,
+  },
+  changePwText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 14,
+    color: Stitch.onPrimary,
+    letterSpacing: 0.3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    borderRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    fontFamily: FontFamily.headlineBlack,
+    fontSize: 22,
+    marginBottom: 20,
+  },
+  modalLabel: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 10,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    fontFamily: FontFamily.body,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 24,
+  },
+  modalBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 14,
+  },
 });

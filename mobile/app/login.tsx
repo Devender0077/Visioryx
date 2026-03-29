@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -17,7 +18,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { Stitch, FontFamily } from '@/constants/stitchTheme';
 import { getApiBase } from '@/lib/config';
-import { LAN_TROUBLESHOOTING, testApiReachable } from '@/lib/api';
+import Constants from 'expo-constants';
+import { LAN_TROUBLESHOOTING, publicApi, testApiReachable } from '@/lib/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -27,6 +29,23 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testingApi, setTestingApi] = useState(false);
+  const [apiVersion, setApiVersion] = useState<string | null>(null);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void publicApi<{ backend_version?: string }>('/api/v1/meta/version')
+      .then((r) => {
+        if (!cancelled && r.backend_version) setApiVersion(r.backend_version);
+      })
+      .catch(() => {
+        if (!cancelled) setApiVersion(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const runConnectionTest = async () => {
     setTestingApi(true);
@@ -42,17 +61,48 @@ export default function LoginScreen() {
   };
 
   const onSubmit = async () => {
+    setLoginError(null);
     if (!email.trim() || !password) {
-      Alert.alert('Sign in', 'Enter email and password.');
+      setLoginError('Enter email and password.');
+      return;
+    }
+    if (password.length < 8) {
+      setLoginError('Password must be at least 8 characters.');
       return;
     }
     setBusy(true);
     try {
-      await login(email.trim(), password);
+      await login(email.trim(), password, rememberMe);
       router.replace('/(tabs)');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Unknown error';
-      Alert.alert('Sign in failed', `${msg}\n\n${LAN_TROUBLESHOOTING}`);
+      setLoginError('Invalid login credentials. Please try again.');
+      const credIssue =
+        /invalid email|password|account disabled|too many failed/i.test(msg) ||
+        msg.includes('429');
+      if (!credIssue) {
+        // Network / server issue — also show detailed alert
+        Alert.alert('Sign in failed', `${msg}\n\n${LAN_TROUBLESHOOTING}`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRecovery = async () => {
+    if (!email.trim()) {
+      Alert.alert('Recovery', 'Please enter your email address first.');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await publicApi<{ ok: boolean; message: string }>('/api/v1/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      });
+      Alert.alert('Password Recovery', result.message);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to process recovery request.');
     } finally {
       setBusy(false);
     }
@@ -60,28 +110,130 @@ export default function LoginScreen() {
 
   return (
     <LinearGradient
-      colors={['#060e20', Stitch.surface, Stitch.surfaceContainerLow]}
+      colors={['#0b1326', '#131b2e']}
       style={styles.gradient}
     >
+      {/* Decorative glow blobs matching stitch */}
+      <View style={styles.blobTopRight} pointerEvents="none" />
+      <View style={styles.blobBottomLeft} pointerEvents="none" />
+
       <KeyboardAvoidingView
         style={styles.root}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <StatusBar style="light" />
-        <View style={styles.header}>
-          <LinearGradient
-            colors={[Stitch.primary, Stitch.primaryContainer]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.logoRing}
-          >
-            <MaterialCommunityIcons name="cctv" size={40} color={Stitch.onPrimaryContainer} />
-          </LinearGradient>
-          <Text style={styles.title}>Visioryx</Text>
-          <Text style={styles.subtitle}>Secure access to your surveillance workspace</Text>
-          <Text style={styles.apiUrl} selectable>
-            API: {getApiBase()}
-          </Text>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+
+          {/* Top branding — matches stitch header */}
+          <View style={styles.brandRow}>
+            <MaterialCommunityIcons name="shield-lock" size={22} color={Stitch.primary} />
+            <Text style={styles.brandName}>Visioryx</Text>
+          </View>
+
+          {/* Glass card */}
+          <View style={styles.card}>
+            <View style={styles.cardIntro}>
+              <Text style={styles.cardTitle}>Secure Access</Text>
+              <Text style={styles.cardSub}>Enter your credentials to monitor your assets.</Text>
+            </View>
+
+            {/* Inline error banner — like stitch error state */}
+            {loginError ? (
+              <View style={styles.errorBanner}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={20} color={Stitch.error} />
+                <Text style={styles.errorText}>{loginError}</Text>
+              </View>
+            ) : null}
+
+            {/* Email */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Work Email</Text>
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="email-outline" size={20} color={Stitch.outline} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  placeholder="name@company.com"
+                  placeholderTextColor={`${Stitch.outline}80`}
+                  value={email}
+                  onChangeText={(v) => { setEmail(v); setLoginError(null); }}
+                />
+              </View>
+            </View>
+
+            {/* Password */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Access Code</Text>
+                <Pressable onPress={handleRecovery}>
+                  <Text style={styles.recoveryLink}>Recovery</Text>
+                </Pressable>
+              </View>
+              <View style={styles.inputContainer}>
+                <MaterialCommunityIcons name="lock-outline" size={20} color={Stitch.outline} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  secureTextEntry={!showPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={`${Stitch.outline}80`}
+                  value={password}
+                  onChangeText={(v) => { setPassword(v); setLoginError(null); }}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Pressable style={styles.eyeBtn} onPress={() => setShowPassword((v) => !v)}>
+                  <MaterialCommunityIcons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={Stitch.outline}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Remember Me */}
+            <Pressable style={styles.rememberRow} onPress={() => setRememberMe(!rememberMe)}>
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe && <MaterialCommunityIcons name="check" size={14} color={Stitch.onPrimary} />}
+              </View>
+              <Text style={styles.rememberText}>Trusted device for 30 days</Text>
+            </Pressable>
+
+            {/* CTA Button */}
+            <Pressable
+              style={[styles.buttonWrap, busy && styles.buttonDisabled]}
+              onPress={() => void onSubmit()}
+              disabled={busy}
+            >
+              <LinearGradient
+                colors={[Stitch.primary, Stitch.primaryContainer]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.button}
+              >
+                {busy ? (
+                  <ActivityIndicator color={Stitch.onPrimaryContainer} />
+                ) : (
+                  <>
+                    <Text style={styles.buttonText}>Initialize Protocol</Text>
+                    <MaterialCommunityIcons name="arrow-right" size={20} color={Stitch.onPrimary} />
+                  </>
+                )}
+              </LinearGradient>
+            </Pressable>
+
+
+          </View>
+
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>© 2024 Visioryx Systems</Text>
+            <Text style={styles.footerText}>Privacy Policy</Text>
+          </View>
+
+          {/* Debug / Connection */}
           <Pressable
             style={styles.testLink}
             onPress={() => void runConnectionTest()}
@@ -93,72 +245,14 @@ export default function LoginScreen() {
               <Text style={styles.testLinkText}>Test API connection</Text>
             )}
           </Pressable>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.cardIntro}>
-            <Text style={styles.cardTitle}>Secure Access</Text>
-            <Text style={styles.cardSub}>Enter your credentials to monitor your assets.</Text>
-          </View>
-          <Text style={styles.label}>Work Email</Text>
-          <TextInput
-            style={styles.input}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            placeholder="name@company.com"
-            placeholderTextColor={Stitch.outline}
-            value={email}
-            onChangeText={setEmail}
-          />
-          <Text style={styles.label}>Access Code</Text>
-          <View style={styles.passwordRow}>
-            <TextInput
-              style={styles.inputPassword}
-              secureTextEntry={!showPassword}
-              placeholder="••••••••"
-              placeholderTextColor={Stitch.onSurfaceVariant}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <Pressable
-              style={styles.eyeBtn}
-              onPress={() => setShowPassword((v) => !v)}
-              accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
-            >
-              <MaterialCommunityIcons
-                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={24}
-                color={Stitch.onSurfaceVariant}
-              />
-            </Pressable>
-          </View>
-          <Pressable
-            style={[styles.buttonWrap, busy && styles.buttonDisabled]}
-            onPress={() => void onSubmit()}
-            disabled={busy}
-          >
-            <LinearGradient
-              colors={[Stitch.primary, Stitch.primaryContainer]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.button}
-            >
-              {busy ? (
-                <ActivityIndicator color={Stitch.onPrimaryContainer} />
-              ) : (
-                <Text style={styles.buttonText}>Initialize Protocol</Text>
-              )}
-            </LinearGradient>
-          </Pressable>
-        </View>
-
-        <Text style={styles.hint}>
-          Phone on Wi‑Fi: in mobile/.env set EXPO_PUBLIC_API_URL=http://YOUR_LAN_IP:8000 (not localhost), then npm run
-          start:clear. Android emulator: http://10.0.2.2:8000.
-        </Text>
+          <Text style={styles.versionLine} selectable>
+            App v{Constants.expoConfig?.version ?? '1.0.0'}
+            {apiVersion != null ? ` · API v${apiVersion}` : ''}
+          </Text>
+          <Text style={styles.apiUrl} selectable>
+            API: {getApiBase()}
+          </Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
@@ -168,154 +262,272 @@ const styles = StyleSheet.create({
   gradient: {
     flex: 1,
   },
+  blobTopRight: {
+    position: 'absolute',
+    top: '-10%',
+    right: '-10%',
+    width: '50%',
+    height: '40%',
+    borderRadius: 9999,
+    backgroundColor: `${Stitch.primary}33`,
+    // blur not natively supported — opacity simulates effect
+    opacity: 0.2,
+  },
+  blobBottomLeft: {
+    position: 'absolute',
+    bottom: '-10%',
+    left: '-10%',
+    width: '40%',
+    height: '35%',
+    borderRadius: 9999,
+    backgroundColor: `${Stitch.secondaryContainer}22`,
+    opacity: 0.15,
+  },
   root: {
     flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
   },
-  header: {
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 40,
+  },
+  // Brand header matching stitch
+  brandRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 28,
+    gap: 8,
+    marginBottom: 32,
   },
-  logoRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
+  brandName: {
     fontFamily: FontFamily.headlineBlack,
-    fontSize: 32,
+    fontSize: 28,
     color: Stitch.primary,
-    marginTop: 16,
     letterSpacing: -0.5,
   },
-  subtitle: {
-    fontFamily: FontFamily.body,
-    marginTop: 10,
-    fontSize: 15,
-    color: Stitch.onSurfaceVariant,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 12,
-  },
-  apiUrl: {
-    fontFamily: FontFamily.body,
-    marginTop: 10,
-    fontSize: 11,
-    color: Stitch.onSurfaceVariant,
-    opacity: 0.85,
-    textAlign: 'center',
-    paddingHorizontal: 8,
-  },
-  testLink: {
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-  },
-  testLinkText: {
-    fontFamily: FontFamily.labelMedium,
-    fontSize: 14,
-    color: Stitch.primary,
-    textDecorationLine: 'underline',
-  },
+  // Glass card
   card: {
     backgroundColor: 'rgba(34, 42, 61, 0.4)',
     borderRadius: 16,
-    padding: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(66, 71, 83, 0.2)',
-    shadowColor: '#afc6ff',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.04,
-    shadowRadius: 40,
-    elevation: 8,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(175, 198, 255, 0.06)',
   },
-  cardIntro: { marginBottom: 20 },
+  cardIntro: {
+    marginBottom: 20,
+  },
   cardTitle: {
-    fontFamily: FontFamily.headline,
-    fontSize: 26,
+    fontFamily: FontFamily.headlineBlack,
+    fontSize: 28,
     color: Stitch.onSurface,
+    letterSpacing: -0.5,
   },
   cardSub: {
     fontFamily: FontFamily.body,
-    fontSize: 14,
+    fontSize: 15,
     color: Stitch.onSurfaceVariant,
     marginTop: 6,
+    lineHeight: 22,
+  },
+  // Error banner — inline in card
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(147, 0, 10, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 180, 171, 0.2)',
+    marginBottom: 20,
+  },
+  errorText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: Stitch.error,
+    flex: 1,
     lineHeight: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   label: {
     fontFamily: FontFamily.labelSemibold,
-    fontSize: 12,
-    letterSpacing: 0.6,
+    fontSize: 10,
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
     color: Stitch.onSurfaceVariant,
     marginBottom: 8,
   },
-  input: {
-    fontFamily: FontFamily.body,
-    backgroundColor: Stitch.surfaceContainerLowest,
-    borderWidth: 0,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    marginBottom: 16,
-    color: Stitch.onSurface,
+  recoveryLink: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 10,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    color: Stitch.primary,
+    marginBottom: 8,
   },
-  passwordRow: {
+  inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
     backgroundColor: Stitch.surfaceContainerLowest,
-    borderWidth: 0,
     borderRadius: 12,
-    paddingRight: 4,
+    paddingHorizontal: 4,
+    height: 56,
   },
-  inputPassword: {
+  inputIcon: {
+    marginLeft: 12,
+  },
+  input: {
     flex: 1,
     fontFamily: FontFamily.body,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
     fontSize: 16,
     color: Stitch.onSurface,
   },
   eyeBtn: {
-    padding: 10,
-    minWidth: 44,
-    minHeight: 44,
+    padding: 12,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 12,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Stitch.outlineVariant,
+    backgroundColor: Stitch.surfaceContainerLowest,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: Stitch.primary,
+    borderColor: Stitch.primary,
+  },
+  rememberText: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: Stitch.onSurfaceVariant,
   },
   buttonWrap: {
     borderRadius: 12,
     overflow: 'hidden',
-    marginTop: 4,
-    minHeight: 50,
+    shadowColor: Stitch.primaryContainer,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   buttonDisabled: {
-    opacity: 0.75,
+    opacity: 0.6,
   },
   button: {
-    flex: 1,
-    paddingVertical: 14,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    flexDirection: 'row',
+    gap: 8,
   },
   buttonText: {
-    fontFamily: FontFamily.labelSemibold,
-    color: Stitch.onPrimaryContainer,
+    fontFamily: FontFamily.headlineBlack,
+    color: Stitch.onPrimary,
     fontSize: 17,
+    letterSpacing: 0.3,
   },
-  hint: {
-    fontFamily: FontFamily.body,
-    marginTop: 24,
-    fontSize: 12,
+  // SSO
+  ssoSection: {
+    marginTop: 28,
+    paddingTop: 28,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(140, 144, 159, 0.18)',
+  },
+  ssoDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  ssoLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: 'rgba(140, 144, 159, 0.18)',
+  },
+  ssoText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 10,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: Stitch.outline,
+    marginHorizontal: 14,
+  },
+  ssoButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  ssoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    backgroundColor: Stitch.surfaceContainerHigh,
+    borderRadius: 12,
+  },
+  ssoButtonText: {
+    fontFamily: FontFamily.labelMedium,
+    fontSize: 14,
     color: Stitch.onSurfaceVariant,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 28,
+    marginTop: 32,
+  },
+  footerText: {
+    fontFamily: FontFamily.labelMedium,
+    fontSize: 10,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    color: Stitch.outline,
+    opacity: 0.5,
+  },
+  testLink: {
+    marginTop: 20,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  testLinkText: {
+    fontFamily: FontFamily.labelMedium,
+    fontSize: 12,
+    color: Stitch.primary,
+    letterSpacing: 0.5,
+  },
+  versionLine: {
+    fontFamily: FontFamily.body,
+    marginTop: 8,
+    fontSize: 11,
+    color: Stitch.onSurfaceVariant,
+    opacity: 0.45,
     textAlign: 'center',
-    lineHeight: 18,
+  },
+  apiUrl: {
+    fontFamily: FontFamily.body,
+    marginTop: 4,
+    fontSize: 10,
+    color: Stitch.onSurfaceVariant,
+    opacity: 0.25,
+    textAlign: 'center',
   },
 });

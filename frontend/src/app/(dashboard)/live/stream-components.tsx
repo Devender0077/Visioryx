@@ -1,8 +1,8 @@
 'use client';
 
-import type { ReactNode } from 'react';
-import { Box, Button, CircularProgress, IconButton, Typography } from '@mui/material';
-import { Videocam, Fullscreen, FullscreenExit, ZoomIn, ZoomOut } from '@mui/icons-material';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import Hls from 'hls.js';
+import { api } from '@/lib/api';
 
 export interface LiveCamera {
   id: number;
@@ -32,98 +32,253 @@ export function LiveStreamToolbar({
   onExitFullscreen,
 }: LiveStreamToolbarProps) {
   const isBar = variant === 'bar';
-  const layoutSx = isBar
-    ? {
-        display: 'flex',
-        flexWrap: 'wrap' as const,
-        alignItems: 'center',
-        gap: { xs: 0.5, sm: 1 },
-        p: { xs: 1, sm: 1.5 },
-        bgcolor: 'rgba(0,0,0,0.88)',
-        borderBottom: '1px solid rgba(255,255,255,0.12)',
-        flexShrink: 0,
-        zIndex: 2,
-      }
-    : {
-        position: 'absolute' as const,
-        top: 8,
-        right: 8,
-        display: 'flex',
-        flexWrap: 'wrap' as const,
-        gap: 0.5,
-        zIndex: 10,
-        justifyContent: 'flex-end',
-        maxWidth: 'calc(100% - 16px)',
-      };
+  const layoutClass = isBar
+    ? 'flex flex-wrap items-center gap-1 sm:gap-2 p-2 sm:p-3 bg-black/90 border-b border-white/10 shrink-0 z-10'
+    : 'absolute top-4 right-4 flex flex-wrap gap-1 z-10 justify-end max-w-[calc(100%-32px)]';
 
   return (
-    <Box sx={layoutSx}>
+    <div className={layoutClass}>
       {isBar && (
-        <Typography
-          variant="subtitle2"
-          sx={{
-            color: 'white',
-            fontWeight: 600,
-            flex: '1 1 auto',
-            minWidth: 0,
-            pr: 1,
-          }}
-          noWrap
-        >
+        <h3 className="text-white font-semibold flex-1 min-w-0 pr-2 truncate font-manrope">
           {cam.camera_name}
-        </Typography>
+        </h3>
       )}
-      <Button
-        variant="outlined"
-        size="small"
+      <button
         onClick={() => onRetry(cam.id)}
-        sx={{
-          color: 'white',
-          borderColor: 'rgba(255,255,255,0.5)',
-          fontSize: { xs: '0.7rem', sm: '0.8125rem' },
-          py: 0.5,
-          '&:hover': { borderColor: 'white', bgcolor: 'rgba(255,255,255,0.1)' },
-        }}
+        className="h-5 px-2 text-[9px] font-black uppercase tracking-widest border border-white/20 text-white rounded hover:bg-white/10 transition-colors bg-black/40 backdrop-blur flex items-center"
       >
         Reconnect
-      </Button>
-      <IconButton
-        size="small"
-        sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}
+      </button>
+      <button
         onClick={() => onZoomDelta(cam.id, 15)}
         title="Zoom in"
+        className="h-5 w-7 bg-black/40 backdrop-blur rounded text-white/70 hover:text-white transition-colors flex items-center justify-center border border-white/20"
       >
-        <ZoomIn fontSize="small" />
-      </IconButton>
-      <IconButton
-        size="small"
-        sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}
+        <span className="material-symbols-outlined text-[12px]">zoom_in</span>
+      </button>
+      <button
         onClick={() => onZoomDelta(cam.id, -15)}
         title="Zoom out"
+        className="h-5 w-7 bg-black/40 backdrop-blur rounded text-white/70 hover:text-white transition-colors flex items-center justify-center border border-white/20"
       >
-        <ZoomOut fontSize="small" />
-      </IconButton>
-      <IconButton
-        size="small"
-        sx={{ bgcolor: 'rgba(0,0,0,0.5)', color: 'white' }}
-        onClick={() =>
-          fullscreenCameraId === cam.id ? onExitFullscreen() : onToggleFullscreen(cam.id)
-        }
+        <span className="material-symbols-outlined text-[12px]">zoom_out</span>
+      </button>
+      <button
+        onClick={() => (fullscreenCameraId === cam.id ? onExitFullscreen() : onToggleFullscreen(cam.id))}
         title={fullscreenCameraId === cam.id ? 'Exit fullscreen' : 'Fullscreen'}
+        className="h-5 w-7 bg-black/40 backdrop-blur rounded text-white/70 hover:text-white transition-colors flex items-center justify-center border border-white/20"
       >
-        {fullscreenCameraId === cam.id ? <FullscreenExit fontSize="small" /> : <Fullscreen fontSize="small" />}
-      </IconButton>
+        <span className="material-symbols-outlined text-[12px]">
+          {fullscreenCameraId === cam.id ? 'fullscreen_exit' : 'fullscreen'}
+        </span>
+      </button>
       {isBar && (
-        <Button
-          variant="text"
-          size="small"
-          onClick={onExitFullscreen}
-          sx={{ color: 'grey.300', ml: { xs: 0, sm: 'auto' } }}
-        >
+        <button onClick={onExitFullscreen} className="text-slate-300 hover:text-white ml-auto px-2 text-sm font-inter">
           Close
-        </Button>
+        </button>
       )}
-    </Box>
+    </div>
+  );
+}
+
+export function DetectionsOverlay({ detections }: { detections: any[] }) {
+  const [activeDetections, setActiveDetections] = useState<any[]>([]);
+
+  useEffect(() => {
+    // Keep only detections from the last 2 seconds to avoid stale boxes
+    const now = Date.now();
+    const recent = detections.filter(d => (now - new Date(d.timestamp).getTime()) < 2000);
+    setActiveDetections(recent);
+
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setActiveDetections(prev => prev.filter(d => (current - new Date(d.timestamp).getTime()) < 2000));
+    }, 500);
+
+    return () => clearInterval(timer);
+  }, [detections]);
+
+  return (
+    <svg className="absolute inset-0 w-full h-full pointer-events-none z-30" viewBox="0 0 100 100" preserveAspectRatio="none">
+      {activeDetections.map((d) => {
+        const bbox = d.bbox;
+        if (!bbox || typeof bbox.x === 'undefined') return null;
+        
+        const isKnown = d.status === 'known';
+        const isObject = d.status === 'object';
+        const color = isKnown ? '#22c55e' : isObject ? '#3b82f6' : '#ef4444'; // Green, Blue, Red
+        
+        return (
+          <g key={d.id} className="fade-in animate-in">
+            <rect
+              x={bbox.x}
+              y={bbox.y}
+              width={bbox.w}
+              height={bbox.h}
+              fill="transparent"
+              stroke={color}
+              strokeWidth="0.5"
+              className="drop-shadow-md"
+            />
+            <rect
+              x={bbox.x}
+              y={Math.max(0, bbox.y - 4)}
+              width={Math.min(100 - bbox.x, (d.label?.length || 5) * 2 + 4)}
+              height="4"
+              fill={color}
+              opacity="0.8"
+            />
+            <text
+              x={bbox.x + 0.5}
+              y={Math.max(3, bbox.y - 1)}
+              fontSize="2.5"
+              fontWeight="bold"
+              fill="white"
+              fontFamily="Inter, sans-serif"
+            >
+              {d.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] }: { cameraId: number; getZoom: () => number; isFullscreen?: boolean; detections?: any[] }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    let cancelled = false;
+
+    const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+    pcRef.current = pc;
+
+    // WHEP is receive-only: add a transceiver for video
+    pc.addTransceiver('video', { direction: 'recvonly' });
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+
+    pc.ontrack = (event) => {
+      if (videoRef.current && event.streams[0]) {
+        videoRef.current.srcObject = event.streams[0];
+        setStatus('connected');
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+        setStatus('error');
+      }
+    };
+
+    const start = async () => {
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // Wait for ICE gathering to complete (WHEP needs a full offer)
+            if (pc.iceGatheringState !== 'complete') {
+              await new Promise<void>((resolve) => {
+                const check = () => {
+                  if (pc.iceGatheringState === 'complete' || cancelled) {
+                    resolve();
+                  }
+                };
+                pc.onicegatheringstatechange = check;
+                // Safety timeout: don't wait forever
+                setTimeout(resolve, 3000);
+              });
+            }
+
+            if (cancelled) return;
+            const fullOffer = pc.localDescription?.sdp;
+            if (!fullOffer) throw new Error('No local SDP');
+
+            const res = await api<{ sdp: string }>(`/api/v1/stream/${cameraId}/webrtc-signal`, {
+                method: 'POST',
+                body: JSON.stringify({ sdp: fullOffer }),
+            });
+            if (cancelled) return;
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: res.sdp }));
+        } catch (e) {
+            console.error('WebRTC WHEP error:', e);
+            if (!cancelled) setStatus('error');
+        }
+    };
+
+    start();
+
+    return () => {
+      cancelled = true;
+      pc.close();
+      pcRef.current = null;
+    };
+  }, [cameraId]);
+
+  return (
+    <div className="relative w-full h-full">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className={`w-full h-full block ${isFullscreen ? 'object-contain' : 'object-cover'}`}
+      />
+      <DetectionsOverlay detections={detections} />
+      {status === 'connecting' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-slate-300 font-bold uppercase tracking-widest">Connecting WebRTC...</span>
+          </div>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2 text-center px-4">
+            <span className="material-symbols-outlined text-3xl text-error">signal_disconnected</span>
+            <span className="text-xs text-slate-400 font-bold">WebRTC connection failed</span>
+            <span className="text-[10px] text-slate-500">Camera may not be reachable from MediaMTX</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function HLSPlayer({ url, getZoom, isFullscreen, detections = [] }: { url: string; getZoom: () => number; isFullscreen?: boolean; detections?: any[] }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!url || !videoRef.current) return;
+    const video = videoRef.current;
+
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+    } else if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      return () => hls.destroy();
+    }
+  }, [url]);
+
+  return (
+    <div className="relative w-full h-full">
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className={`w-full h-full block ${isFullscreen ? 'object-contain' : 'object-cover'}`}
+      />
+      <DetectionsOverlay detections={detections} />
+    </div>
   );
 }
 
@@ -143,6 +298,7 @@ export interface LiveStreamStageProps {
   onExitFullscreen: () => void;
   onLoadFrame: (cameraId: number) => void;
   onFrameError: (cameraId: number) => void;
+  detections?: any[];
   overlayToolbar?: ReactNode;
 }
 
@@ -162,108 +318,115 @@ export function LiveStreamStage({
   onExitFullscreen,
   onLoadFrame,
   onFrameError,
+  detections = [],
   overlayToolbar,
 }: LiveStreamStageProps) {
   const url = streamUrl(cam.id);
 
   return (
-    <Box
-      sx={{
-        bgcolor: 'black',
-        height: isFullscreen ? '100%' : { xs: 220, sm: 280, md: 320 },
-        minHeight: isFullscreen ? 0 : undefined,
-        borderRadius: isFullscreen ? 0 : 2,
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-        flex: isFullscreen ? 1 : undefined,
-      }}
+    <div
+      className={`bg-black flex items-center justify-center relative overflow-hidden ${
+        isFullscreen ? 'w-full h-full flex-1 min-h-0' : 'w-full aspect-video rounded-xl shadow-2xl ring-1 ring-white/5 bg-surface'
+      }`}
     >
       {streaming.has(cam.id) && streamErrors.has(cam.id) ? (
-        <Box sx={{ textAlign: 'center', p: 2 }}>
-          <Typography color="grey.500" sx={{ mb: 1 }}>
-            No signal — check network or RTSP URL
-          </Typography>
-          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-            Cameras must be on the same network. Use VPN if remote.
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button variant="outlined" size="small" onClick={() => onRetry(cam.id)}>
-              Retry
-            </Button>
-            <Button variant="outlined" size="small" color="error" onClick={() => onStop(cam.id)}>
-              Stop
-            </Button>
-          </Box>
-        </Box>
+        <div className="absolute inset-0 bg-background/80 flex flex-col items-center justify-center text-center p-8 backdrop-blur-sm z-20">
+          <span className="material-symbols-outlined text-4xl text-slate-500 mb-4">videocam_off</span>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Signal Lost</p>
+          <p className="text-xs text-slate-500 mb-4">No signal — check network or RTSP URL.<br/>Cameras must be on the same network or VPN.</p>
+          <div className="flex gap-2 justify-center flex-wrap">
+            <button
+              onClick={() => onRetry(cam.id)}
+              className="px-4 py-1.5 border border-white/20 rounded text-slate-300 hover:bg-white/10 hover:text-white transition-colors text-xs font-bold"
+            >
+              Retry Connection
+            </button>
+            <button
+              onClick={() => onStop(cam.id)}
+              className="px-4 py-1.5 bg-error-dark text-error-light hover:bg-error hover:text-black rounded transition-colors text-xs font-bold"
+            >
+              Stop Stream
+            </button>
+          </div>
+        </div>
       ) : streaming.has(cam.id) && url && showMjpeg ? (
-        <Box
-          sx={{
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: 'black',
-          }}
-        >
-          <Box
-            sx={{
-              width: '100%',
-              height: '100%',
-              transform: `scale(${getZoom(cam.id)})`,
-              transformOrigin: 'center center',
-            }}
+        <div className="w-full h-full overflow-hidden flex items-center justify-center bg-black relative">
+          <div
+            className="absolute inset-0 origin-center transition-transform duration-300 flex items-center justify-center"
+            style={{ transform: `scale(${getZoom(cam.id)})` }}
           >
-            <img
-              key={`stream-${cam.id}-${streamRetryKey[cam.id] ?? 0}`}
-              src={url}
-              alt={cam.camera_name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: isFullscreen ? 'contain' : 'cover',
-                display: 'block',
-              }}
-              onLoad={() => onLoadFrame(cam.id)}
-              onError={() => onFrameError(cam.id)}
-            />
-          </Box>
-        </Box>
+            {url.includes('/mjpeg') ? (
+               /* eslint-disable-next-line @next/next/no-img-element */
+               <div className="relative w-full h-full">
+                 <img
+                   key={`stream-${cam.id}-${streamRetryKey[cam.id] ?? 0}`}
+                   src={url}
+                   alt={cam.camera_name}
+                    className={`w-full h-full block ${isFullscreen ? 'object-contain' : 'object-cover'}`}
+                   onLoad={() => onLoadFrame(cam.id)}
+                   onError={() => onFrameError(cam.id)}
+                 />
+                 <DetectionsOverlay detections={detections.filter(d => d.camera_id === cam.id)} />
+               </div>
+            ) : url.includes('m3u8') ? (
+               <HLSPlayer url={url} getZoom={() => getZoom(cam.id)} isFullscreen={isFullscreen} detections={detections.filter(d => d.camera_id === cam.id)} />
+            ) : (
+               <WebRTCPlayer cameraId={cam.id} getZoom={() => getZoom(cam.id)} isFullscreen={isFullscreen} detections={detections.filter(d => d.camera_id === cam.id)} />
+            )}
+          </div>
+          {!isFullscreen && (
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+               <span className="px-2 py-0.5 bg-red-600 text-[10px] font-black rounded text-white flex items-center gap-1 shadow-lg shadow-red-900/50 uppercase">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> LIVE
+               </span>
+                <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md text-[10px] font-black text-slate-300 rounded uppercase tracking-widest border border-white/10 shadow-xl">
+                   {cam.camera_name}
+                </span>
+            </div>
+          )}
+        </div>
       ) : streaming.has(cam.id) && !showMjpeg ? (
-        <Box sx={{ textAlign: 'center', p: 2, px: 3 }}>
-          <Typography color="grey.400" variant="body2" sx={{ mb: 1 }}>
-            Stream is open in fullscreen viewer
-          </Typography>
-          <Button size="small" variant="outlined" onClick={onExitFullscreen}>
+        <div className="text-center p-6 bg-background w-full h-full flex flex-col items-center justify-center">
+          <p className="text-slate-400 text-sm mb-3">Stream is open in fullscreen viewer</p>
+          <button
+            onClick={onExitFullscreen}
+            className="px-4 py-2 border border-slate-600 text-slate-300 hover:bg-slate-800 rounded text-xs font-bold transition-colors"
+          >
             Exit fullscreen
-          </Button>
-        </Box>
+          </button>
+        </div>
       ) : (
-        <Box sx={{ textAlign: 'center', p: 2 }}>
-          <Typography color="grey.500" sx={{ mb: 2 }}>
+        <div className="text-center p-6 bg-background w-full h-full flex flex-col items-center justify-center absolute inset-0 z-10 transition-colors group">
+          <span className="material-symbols-outlined text-4xl text-slate-700 mb-3 group-hover:text-primary transition-colors">videocam</span>
+          <p className="text-slate-500 text-sm mb-4">
             {cam.is_enabled
               ? starting.has(cam.id)
-                ? 'Starting stream...'
-                : 'Click Start to view live feed'
+                ? 'Initializing stream...'
+                : 'Stream is currently inactive'
               : 'Camera disabled'}
-          </Typography>
+          </p>
           {cam.is_enabled && (
-            <Button
-              variant="contained"
-              startIcon={starting.has(cam.id) ? <CircularProgress size={20} color="inherit" /> : <Videocam />}
+            <button
               onClick={() => onStart(cam.id)}
               disabled={starting.has(cam.id)}
+              className="bg-gradient-to-br from-primary-light to-primary text-on-surface px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:scale-100 text-sm"
             >
-              {starting.has(cam.id) ? 'Starting...' : 'Start Stream'}
-            </Button>
+              {starting.has(cam.id) ? (
+                 <>
+                   <span className="material-symbols-outlined text-[18px] animate-spin">refresh</span>
+                   Starting...
+                 </>
+              ) : (
+                 <>
+                   <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                   Start Feed
+                 </>
+              )}
+            </button>
           )}
-        </Box>
+        </div>
       )}
       {overlayToolbar}
-    </Box>
+    </div>
   );
 }

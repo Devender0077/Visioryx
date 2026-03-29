@@ -15,7 +15,7 @@ from app.services.smtp_config_store import load_smtp_settings
 from app.core.config import get_settings
 from app.core.security import create_enrollment_token, decode_access_token
 from app.database.connection import get_db
-from app.database.models import Detection, User
+from app.database.models import Detection, User, AuthUser
 from app.schemas.users import UserCreate, UserListResponse, UserResponse, UserUpdate, user_to_response
 from app.ai.face_detector import insightface_embeddings_enabled
 from app.services.detection_overlay import invalidate_embedding_cache
@@ -48,6 +48,26 @@ async def list_users(
     if filt is not None:
         count_stmt = count_stmt.where(filt)
         list_stmt = list_stmt.where(filt)
+    # Sync check: ensure all AuthUsers have a corresponding User record
+    auth_result = await db.execute(select(AuthUser))
+    auth_users = auth_result.scalars().all()
+    user_emails_result = await db.execute(select(User.email))
+    existing_user_emails = set(user_emails_result.scalars().all())
+    
+    any_new = False
+    for au in auth_users:
+        if au.email not in existing_user_emails:
+            name_part = au.email.split('@')[0].capitalize() if au.email else "Admin"
+            new_u = User(name=name_part, email=au.email, role=au.role)
+            db.add(new_u)
+            any_new = True
+    
+    if any_new:
+        await db.commit()
+        # Refresh current user emails for the final query
+        user_emails_result = await db.execute(select(User.email))
+        existing_user_emails = set(user_emails_result.scalars().all())
+
     total = (await db.execute(count_stmt)).scalar() or 0
     result = await db.execute(list_stmt.limit(limit).offset(offset))
     items = [user_to_response(u) for u in result.scalars().all()]
@@ -105,9 +125,22 @@ async def update_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    for k, v in data.model_dump(exclude_unset=True).items():
+    
+    update_data = data.model_dump(exclude_unset=True)
+    
+    # If role is being updated, also update AuthUser
+    new_role = update_data.get('role')
+    if new_role:
+        auth_result = await db.execute(select(AuthUser).where(func.lower(AuthUser.email) == user.email.lower()))
+        auth_user = auth_result.scalar_one_or_none()
+        if auth_user:
+            auth_user.role = new_role
+    
+    for k, v in update_data.items():
         setattr(user, k, v)
+    
     await db.flush()
+    await db.commit()
     await db.refresh(user)
     return user_to_response(user)
 

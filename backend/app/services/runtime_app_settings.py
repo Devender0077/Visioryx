@@ -17,6 +17,9 @@ from app.database.models import AppSetting
 logger = get_logger("runtime_app_settings")
 
 KEY_YOLO_OBJECT_DETECTION = "yolo_object_detection_overlay"
+KEY_MOBILE_APP_VERSION = "mobile_app_version"
+KEY_MOBILE_APP_IOS_URL = "mobile_app_ios_url"
+KEY_MOBILE_APP_ANDROID_URL = "mobile_app_android_url"
 
 _engine = None
 _SessionLocal: Optional[sessionmaker] = None
@@ -112,3 +115,52 @@ def clear_yolo_database_override() -> None:
     except Exception as e:
         logger.warning("clear yolo override failed: %s", e)
     _yolo_overlay_db = None
+
+
+def get_mobile_app_settings() -> tuple[str, str, str]:
+    """Get mobile app version and download URLs."""
+    settings = get_settings()
+    version = _get_setting(KEY_MOBILE_APP_VERSION) or {}
+    ios_url = _get_setting(KEY_MOBILE_APP_IOS_URL) or {}
+    android_url = _get_setting(KEY_MOBILE_APP_ANDROID_URL) or {}
+    return (
+        version.get("value") or settings.MOBILE_APP_VERSION,
+        ios_url.get("value") or settings.MOBILE_APP_IOS_URL,
+        android_url.get("value") or settings.MOBILE_APP_ANDROID_URL,
+    )
+
+
+def set_mobile_app_settings(version: Optional[str] = None, ios_url: Optional[str] = None, android_url: Optional[str] = None) -> None:
+    """Set mobile app version and download URLs."""
+    def _save(key: str, value: Optional[str]):
+        if value is None:
+            return
+        try:
+            SessionLocal = _get_session_factory()
+            with SessionLocal() as db:
+                row = db.execute(select(AppSetting).where(AppSetting.key == key)).scalars().first()
+                if row:
+                    row.value = {"value": value}
+                else:
+                    row = AppSetting(key=key, value={"value": value})
+                    db.add(row)
+                db.commit()
+        except Exception as e:
+            logger.warning(f"set {key} failed: %s", e)
+    
+    if version is not None:
+        _save(KEY_MOBILE_APP_VERSION, version)
+    if ios_url is not None:
+        _save(KEY_MOBILE_APP_IOS_URL, ios_url)
+    if android_url is not None:
+        _save(KEY_MOBILE_APP_ANDROID_URL, android_url)
+
+
+def get_app_settings(key: str) -> Optional[dict[str, Any]]:
+    """Get arbitrary app setting by key."""
+    return _get_setting(key)
+
+
+def set_app_settings(key: str, value: dict[str, Any]) -> None:
+    """Set arbitrary app setting by key."""
+    _upsert_setting(key, value)

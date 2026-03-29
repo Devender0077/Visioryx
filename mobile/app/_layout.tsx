@@ -101,6 +101,8 @@ const stackHeaderOptions = (isDark: boolean) => ({
     fontSize: isDark ? 20 : 18,
     color: isDark ? Stitch.primary : '#111827',
   },
+  headerBackTitle: 'Back',
+  headerBackTitleVisible: true,
 });
 
 function RootLayoutNav() {
@@ -118,7 +120,6 @@ function RootLayoutNav() {
           name="camera/[id]"
           options={{
             title: 'Live view',
-            headerBackTitle: 'Back',
             ...hdr,
           }}
         />
@@ -126,6 +127,7 @@ function RootLayoutNav() {
         <Stack.Screen name="detections" options={{ title: 'Detections', ...hdr }} />
         <Stack.Screen name="audit" options={{ title: 'Audit log', ...hdr }} />
         <Stack.Screen name="settings" options={{ title: 'Email & SMTP', ...hdr }} />
+        <Stack.Screen name="users" options={{ title: 'User Management', ...hdr }} />
       </Stack>
     </ThemeProvider>
   );

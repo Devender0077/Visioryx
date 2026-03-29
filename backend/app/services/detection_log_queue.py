@@ -84,8 +84,8 @@ async def _process_queue():
                 snapshot_path = parts[5] if len(parts) > 5 else None
                 embedding = parts[6] if len(parts) > 6 else None
                 bbox = parts[7] if len(parts) > 7 else None
-                bbox_dict = None
-                if bbox and len(bbox) >= 4:
+                bbox_dict = bbox
+                if isinstance(bbox, (list, tuple)) and len(bbox) >= 4:
                     bbox_dict = {"x1": bbox[0], "y1": bbox[1], "x2": bbox[2], "y2": bbox[3]}
                 await log_detection(
                     camera_id, user_id, status, confidence,

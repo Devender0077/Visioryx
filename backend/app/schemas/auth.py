@@ -1,4 +1,6 @@
 """Auth schemas."""
+from typing import Optional
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -11,10 +13,12 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    expires_in_days: Optional[int] = Field(None, description="Extend token expiration (30 for 30 days)")
 
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: Optional[str] = None
     token_type: str = "bearer"
 
 
