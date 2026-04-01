@@ -115,20 +115,14 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
     max_retries = 15
     retry_count = 0
 
-    # Ultra low latency FFmpeg settings
+    # Simple, reliable FFmpeg settings - no fancy options that might not be supported
     base_cmd = [
         ff,
         "-hide_banner",
         "-loglevel",
-        "error",
+        "warning",
         "-rtsp_transport",
         "tcp",
-        # Low latency flags
-        "-fflags",
-        "nobuffer+flush_packets+discardcorrupt",
-        "-max_delay",
-        "500000",
-        "-an",
     ]
     base_cmd += [
         "-i",

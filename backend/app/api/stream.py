@@ -193,7 +193,6 @@ async def webrtc_signal(
     import httpx, logging
     logger = logging.getLogger("visioryx")
     settings = get_settings()
-    # MediaMTX v1.17+ uses WHEP for WebRTC reads: POST /{path}/whep with application/sdp
     mtx_url = settings.MEDIAMTX_URL.rstrip('/')
     mtx_signaling_url = f"{mtx_url}/{path_name}/whep"
     
@@ -209,9 +208,11 @@ async def webrtc_signal(
             )
             if not res.is_success:
                 logger.error(f"WHEP signaling failed for {path_name}: {res.status_code} {res.text}")
-                raise HTTPException(status_code=502, detail=f"MediaMTX WHEP failed: {res.text}")
-            # WHEP returns SDP answer with Content-Type: application/sdp
+                raise HTTPException(status_code=503, detail="MediaMTX not available. Use direct MJPEG stream instead.")
             return {"sdp": res.text, "content_type": res.headers.get("content-type", "application/sdp")}
+        except httpx.ConnectError:
+            logger.warning(f"MediaMTX not available for {path_name}")
+            raise HTTPException(status_code=503, detail="MediaMTX not available. Use direct MJPEG stream.")
         except HTTPException:
             raise
         except Exception as e:
@@ -260,7 +261,8 @@ async def start_camera_stream(
         # URL has no query params, add subtype as query param
         rtsp_url = f"{rtsp_url}?subtype={subtype}"
     
-    # 1. Register with MediaMTX for low-latency WebRTC streaming
+    # 1. Register with MediaMTX for low-latency WebRTC streaming (if available)
+    media_mtx_available = False
     if camera.rtsp_url and camera.rtsp_url.startswith("rtsp://"):
         try:
             mtx_api_base = settings.MEDIAMTX_API_URL.rstrip('/')
@@ -283,21 +285,13 @@ async def start_camera_stream(
                     "maxConcurrentStreams": 10,
                 }
                 res = await client.post(api_url, json=path_config, timeout=10.0)
-                if res.status_code == 409 or "already exists" in res.text:
-                    api_url_update = f"{mtx_api_base}/v3/config/paths/patch/{path_name}"
-                    await client.patch(api_url_update, json=path_config, timeout=10.0)
+                if res.status_code in [200, 201, 409]:
+                    media_mtx_available = True
                     from app.core.logger import setup_logger
-                    setup_logger("visioryx").info(f"Updated MediaMTX path: {path_name} with quality {quality}")
-                elif not res.is_success:
-                    from app.core.logger import setup_logger
-                    setup_logger("visioryx").warning(f"Failed to create MediaMTX path {path_name}: {res.status_code} {res.text}")
-                else:
-                    from app.core.logger import setup_logger
-                    setup_logger("visioryx").info(f"Created MediaMTX path: {path_name} with quality {quality}")
+                    setup_logger("visioryx").info(f"MediaMTX path registered: {path_name}")
         except Exception as e:
-            import traceback
-            from app.core.logger import setup_logger
-            setup_logger("visioryx").warning(f"Failed to register MediaMTX path {path_name}: {e}\n{traceback.format_exc()}")
+            # MediaMTX not available - will fall back to direct MJPEG
+            pass
 
     # 2. Start detection pipeline for face detection (runs parallel to WebRTC stream)
     stream_quality = quality or "720"
@@ -314,16 +308,26 @@ async def start_camera_stream(
     camera.status = "active"
     await db.commit()
 
-    # Use MediaMTX WebRTC for lowest latency streaming (direct from camera)
-    return {
-        "status": "started",
-        "camera_id": camera_id,
-        "mode": "webrtc",  # Use WebRTC via MediaMTX for lowest latency
-        "stream_type": "mediamtx",
-        "path_name": path_name,
-        "hls_url": f"{settings.MEDIAMTX_URL.replace(':8889', ':8888').rstrip('/')}/{path_name}/index.m3u8",
-        "webrtc_url": f"{settings.MEDIAMTX_WS_URL.rstrip('/')}/{path_name}/"
-    }
+    # Use MediaMTX WebRTC if available, otherwise use direct MJPEG
+    if media_mtx_available:
+        return {
+            "status": "started",
+            "camera_id": camera_id,
+            "mode": "webrtc",
+            "stream_type": "mediamtx",
+            "path_name": path_name,
+            "hls_url": f"{settings.MEDIAMTX_URL.replace(':8889', ':8888').rstrip('/')}/{path_name}/index.m3u8",
+            "webrtc_url": f"{settings.MEDIAMTX_WS_URL.rstrip('/')}/{path_name}/"
+        }
+    else:
+        # Fall back to direct MJPEG (local streaming)
+        return {
+            "status": "started",
+            "camera_id": camera_id,
+            "mode": "mjpeg",
+            "stream_type": "direct",
+            "path_name": path_name,
+        }
 
 
 @router.post("/{camera_id}/stop")
