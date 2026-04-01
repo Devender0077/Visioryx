@@ -163,12 +163,13 @@ def _detect_faces_opencv(frame: np.ndarray) -> list[dict]:
     for (x, y, rw, rh) in combined:
         boxes.append([int(x), int(y), int(x + rw), int(y + rh)])
     boxes = _nms_face_boxes(boxes, iou_thresh=0.35)
+    # OpenCV Haar is less accurate - use lower confidence score to reduce false positives
     return [
         {
             "bbox": b,
             "landmarks": None,
             "embedding": None,
-            "det_score": 1.0,
+            "det_score": 0.3,  # Lower score - needs higher threshold in overlay
         }
         for b in boxes
     ]

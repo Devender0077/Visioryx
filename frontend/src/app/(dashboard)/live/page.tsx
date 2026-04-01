@@ -30,6 +30,63 @@ export default function LiveMonitoringPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [detections, setDetections] = useState<any[]>([]); // New state for live feed
   const [activeFilter, setActiveFilter] = useState<'all' | 'known' | 'unknown' | 'object'>('all');
+  const [gridLayout, setGridLayout] = useState<'1x1' | '2x2' | '3x3'>('2x2');
+  const [streamQuality, setStreamQuality] = useState<'360p' | '720p' | '1080p'>('720p');
+  const [streamQualityPerCamera, setStreamQualityPerCamera] = useState<Record<number, string>>({});
+  const [latencyPerCamera, setLatencyPerCamera] = useState<Record<number, number>>({});
+  
+  const handleLatencyUpdate = (cameraId: number, latency: number) => {
+    setLatencyPerCamera(prev => ({ ...prev, [cameraId]: latency }));
+  };
+  
+  const startStreamWithQuality = async (cameraId: number, quality: '360p' | '720p' | '1080p') => {
+    setError(null);
+    setStarting((s) => new Set(s).add(cameraId));
+    try {
+      const data = await api<{ mode: string, hls_url?: string, webrtc_url?: string }>(`/api/v1/stream/${cameraId}/start?quality=${quality.replace('p', '')}`, { method: 'POST' });
+      setStreaming((s) => ({ ...s, [cameraId]: data }));
+      setStreamQualityPerCamera(prev => ({ ...prev, [cameraId]: quality }));
+      setStreamErrors((e) => {
+        const n = new Set(e);
+        n.delete(cameraId);
+        return n;
+      });
+      toast.success(`Stream started at ${quality}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Start failed';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setStarting((s) => {
+        const n = new Set(s);
+        n.delete(cameraId);
+        return n;
+      });
+    }
+  };
+
+  const handleQualityChange = async (newQuality: '360p' | '720p' | '1080p') => {
+    setStreamQuality(newQuality);
+    // If any camera is streaming, restart it with new quality
+    const activeCameras = Object.keys(streaming);
+    if (activeCameras.length > 0) {
+      for (const camId of activeCameras) {
+        const camIdNum = parseInt(camId);
+        await stopStream(camIdNum);
+        await startStreamWithQuality(camIdNum, newQuality);
+      }
+    }
+  };
+  
+  const getGridColumns = () => {
+    switch (gridLayout) {
+      case '1x1': return 'grid-cols-1';
+      case '2x2': return 'grid-cols-1 xl:grid-cols-2';
+      case '3x3': return 'grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3';
+      default: return 'grid-cols-1 xl:grid-cols-2';
+    }
+  };
+  
   const streamErrorTimersRef = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
 
   const syncStreamStatusFromServer = useCallback(async () => {
@@ -37,7 +94,7 @@ export default function LiveMonitoringPage() {
       const data = await api<{ active_camera_ids: number[] }>('/api/v1/stream/status');
       const activeMap: Record<number, { mode: string }> = {};
       (data.active_camera_ids ?? []).forEach(id => {
-        activeMap[id] = { mode: 'webrtc' }; // Default to webrtc on sync
+        activeMap[id] = { mode: 'webrtc' }; // Use WebRTC for smooth streaming
       });
       setStreaming(activeMap);
     } catch {
@@ -84,6 +141,7 @@ export default function LiveMonitoringPage() {
         const normalizedDetections = actualDets.map((d: any) => {
           const cameraName = cams.find((c: any) => c.id === d.camera_id)?.camera_name || `Camera ${d.camera_id}`;
           const userName = actualUsers.find((u: any) => u.id === d.user_id)?.name;
+          const bbox = d.bbox || null;
           return {
             id: d.id,
             type: d.type || 'face_recognized',
@@ -93,6 +151,7 @@ export default function LiveMonitoringPage() {
             status: d.status || (d.type === 'object_detected' ? 'object' : 'unknown'),
             label: d.label || userName || d.person_name || d.object_name || 'Event',
             snapshot: d.snapshot ? `/storage/${d.snapshot}` : d.image ? `/storage/${d.image}` : null,
+            bbox: bbox,
           };
         });
         setDetections(normalizedDetections);
@@ -128,18 +187,39 @@ export default function LiveMonitoringPage() {
 
   useEffect(() => {
     if (fullscreenCameraId === null) return;
+    
+    // Enable auto-rotate on mobile when entering fullscreen
+    const enableAutoRotate = async () => {
+      if (screen.orientation && 'lock' in screen.orientation) {
+        try {
+          await screen.orientation.lock('landscape');
+        } catch (e) {
+          console.log('Could not lock orientation:', e);
+        }
+      }
+    };
+    
+    enableAutoRotate();
+    
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setFullscreenCameraId(null);
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    
+    return () => {
+      // Unlock orientation when exiting fullscreen
+      if (screen.orientation && 'unlock' in screen.orientation) {
+        screen.orientation.unlock();
+      }
+      window.removeEventListener('keydown', onKey);
+    };
   }, [fullscreenCameraId]);
 
   const startStream = async (cameraId: number) => {
     setError(null);
     setStarting((s) => new Set(s).add(cameraId));
     try {
-      const data = await api<{ mode: string, hls_url?: string, webrtc_url?: string }>(`/api/v1/stream/${cameraId}/start`, { method: 'POST' });
+      const data = await api<{ mode: string, hls_url?: string, webrtc_url?: string }>(`/api/v1/stream/${cameraId}/start?quality=${streamQuality.replace('p', '')}`, { method: 'POST' });
       setStreaming((s) => ({ ...s, [cameraId]: data }));
       setStreamErrors((e) => {
         const n = new Set(e);
@@ -194,22 +274,26 @@ export default function LiveMonitoringPage() {
       const token = getToken();
       if (!token) return null;
 
-      // Priority 1: WebRTC
-      if (details.mode === 'webrtc') {
-         return 'webrtc';
+      const mode = details.mode || 'mjpeg';
+      
+      // Return WebRTC URL for smooth streaming with frontend overlay
+      if (mode === 'webrtc' && details.webrtc_url) {
+        return details.webrtc_url;
       }
 
-      // Priority 2: HLS (direct from MediaMTX)
-      if (details.mode === 'hls' && details.hls_url) {
-         return details.hls_url;
-      }
+      // Fall back to MJPEG
+      const qualityMap: Record<string, string> = {
+        '360p': '480',
+        '720p': '720', 
+        '1080p': '1080',
+      };
+      const quality = qualityMap[streamQuality] || '720';
 
-      // Fallback: MJPEG (proxy from Backend)
       const base = getStreamBase();
       const retry = streamRetryKey[cameraId] ?? 0;
-      return `${base}/api/v1/stream/${cameraId}/mjpeg?token=${encodeURIComponent(token)}&_=${retry}`;
+      return `${base}/api/v1/stream/${cameraId}/mjpeg?token=${encodeURIComponent(token)}&quality=${quality}&_=${retry}`;
     },
-    [cameras, streaming, streamRetryKey]
+    [cameras, streaming, streamRetryKey, streamQuality]
   );
 
   const retryStream = (cameraId: number) => {
@@ -281,6 +365,8 @@ export default function LiveMonitoringPage() {
                     onLoadFrame={clearStreamError}
                     onFrameError={scheduleStreamError}
                     detections={detections}
+                    latency={latencyPerCamera[cam.id] || 0}
+                    onLatencyUpdate={handleLatencyUpdate}
                   />
                 </div>
               </div>
@@ -311,6 +397,44 @@ export default function LiveMonitoringPage() {
           </div>
         )}
 
+        {/* Toolbar: Grid Layout & Quality */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-surface-variant rounded-lg p-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Grid</span>
+              {(['1x1', '2x2', '3x3'] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setGridLayout(g)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${
+                    gridLayout === g
+                      ? 'bg-primary text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 bg-surface-variant rounded-lg p-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-2">Quality</span>
+              {(['360p', '720p', '1080p'] as const).map((q) => (
+                <button
+                  key={q}
+                  onClick={() => handleQualityChange(q)}
+                  className={`px-3 py-1 text-[10px] font-bold rounded transition-colors ${
+                    streamQuality === q
+                      ? 'bg-primary text-white'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex justify-center py-20">
             <div className="w-10 h-10 border-4 border-primary border-t-white rounded-full animate-spin"></div>
@@ -325,10 +449,10 @@ export default function LiveMonitoringPage() {
              </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+          <div className={`grid ${getGridColumns()} gap-6`}>
             {cameras.map((cam) => (
                <div key={cam.id} className="group relative bg-surface-variant rounded-xl overflow-hidden ring-1 ring-white/5 shadow-2xl flex flex-col">
-                  {/* The stream stage renders the actual video + play button etc */}
+                   {/* The stream stage renders the actual video + play button etc */}
                   <LiveStreamStage
                     cam={cam}
                     showMjpeg={!!streaming[cam.id] && fullscreenCameraId !== cam.id}
@@ -345,16 +469,18 @@ export default function LiveMonitoringPage() {
                     onLoadFrame={clearStreamError}
                     onFrameError={scheduleStreamError}
                     detections={detections}
+                    latency={latencyPerCamera[cam.id] || 0}
                     overlayToolbar={
                       streaming[cam.id] && (fullscreenCameraId !== cam.id) ? (
                         <LiveStreamToolbar
                           cam={cam}
                           variant="overlay"
-                          fullscreenCameraId={fullscreenCameraId}
+                           fullscreenCameraId={fullscreenCameraId}
                           {...toolbarCallbacks}
                         />
                       ) : undefined
                     }
+                    onLatencyUpdate={handleLatencyUpdate}
                   />
 
                   {/* Tile Bottom Info Bar matching the Stitch style when stream is NOT covering it (or if it is, we can push it out or overlay it) */}
@@ -376,7 +502,7 @@ export default function LiveMonitoringPage() {
       </section>
 
       {/* Right-hand Sidebar (Detections) - Static to match Stitch UI since live detections aren't implemented here yet */}
-      <aside className="w-80 bg-surface-variant shadow-[-1px_0_0_0_rgba(255,255,255,0.05)] hidden lg:flex flex-col border-l border-white/5 overflow-y-auto shrink-0 z-10 transition-all">
+      <aside className="w-80 bg-surface-variant shadow-[-1px_0_0_0_rgba(255,255,255,0.05)] hidden lg:flex flex-col border-l border-white/5 shrink-0 z-10 transition-all">
          <div className="p-6 border-b border-white/5 shrink-0 sticky top-0 bg-surface-variant z-10">
             <div className="flex justify-between items-center mb-6">
                <h3 className="font-manrope font-bold text-lg text-primary-light">Detection Feed</h3>
@@ -405,7 +531,7 @@ export default function LiveMonitoringPage() {
             </div>
          </div>
          
-         <div className="flex-1 p-4 space-y-4">
+         <div className="flex-1 p-4 space-y-4 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#4b5563 #1f2937' }}>
             {detections.length === 0 ? (
                <div className="group bg-surface/40 p-3 rounded-xl hover:bg-surface transition-all cursor-pointer">
                   <div className="flex gap-3">
@@ -425,25 +551,25 @@ export default function LiveMonitoringPage() {
                </div>
             ) : (
                detections
-                 .filter(d => activeFilter === 'all' || d.status === activeFilter)
+                 .filter(d => activeFilter === 'all' || d.status === activeFilter || (activeFilter === 'unknown' && d.status !== 'known' && d.status !== 'object'))
                  .map((d) => (
                   <div key={d.id} className="group bg-surface/40 p-3 rounded-xl hover:bg-surface transition-all cursor-pointer animate-in slide-in-from-right duration-300">
                      <div className="flex gap-3">
-                        <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-background border border-white/10 flex items-center justify-center">
+                        <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-surface-variant border border-white/10 flex items-center justify-center">
                            {d.snapshot ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
-                              <img src={d.snapshot} alt={d.label} className="w-full h-full object-cover" />
+                              <img src={d.snapshot} alt={d.label || 'Detection'} className="w-full h-full object-cover" />
                            ) : (
-                              <span className="material-symbols-outlined text-2xl text-primary-light/40">{d.status === 'known' ? 'person' : 'warning_amber'}</span>
+                              <span className="material-symbols-outlined text-2xl text-primary-light/40">{d.status === 'known' ? 'person' : 'person_off'}</span>
                            )}
-                           <div className={`absolute inset-0 ${d.status === 'known' ? 'bg-secondary/5' : 'bg-error/5'}`}></div>
+                           <div className={`absolute inset-0 ${d.status === 'known' ? 'bg-secondary/5' : 'bg-amber-500/5'}`}></div>
                         </div>
                         <div className="flex-1 overflow-hidden">
-                           <p className="text-xs font-bold text-on-surface truncate">{d.label}</p>
+                           <p className="text-xs font-bold text-on-surface truncate">{d.label === 'Unknown Person' ? 'Unknown' : d.label}</p>
                            <p className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-tighter truncate">{d.camera_name}</p>
                            <div className="flex justify-between items-center mt-2">
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black border ${d.status === 'known' ? 'bg-secondary/10 text-secondary border-secondary/20' : 'bg-error/10 text-error border-error/20'} uppercase`}>
-                                 {d.status}
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black border ${d.status === 'known' ? 'bg-secondary/10 text-secondary border-secondary/20' : d.status === 'object' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'} uppercase`}>
+                                 {d.status === 'unknown' ? 'Unknown' : d.status}
                               </span>
                               <span className="tabular-nums text-[9px] text-slate-500 font-bold">{formatDateTime(d.timestamp).split(',')[1].trim()}</span>
                            </div>

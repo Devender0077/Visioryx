@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: 'Visioryx',
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
   },
 };
 

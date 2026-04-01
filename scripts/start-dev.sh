@@ -222,18 +222,8 @@ start_frontend() {
 
 start_mobile() {
     echo "Starting mobile on port 8080..."
-    if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-        echo "ERROR: Node.js / npm not found. Install Node 20+ from https://nodejs.org"
-        return 1
-    fi
     kill_port 8080
-    cd "$PROJECT_ROOT/mobile"
-    if ! (npm install --silent 2>/dev/null || npm install); then
-        echo "ERROR: npm install failed."
-        return 1
-    fi
-    # Use --port 8080 as requested. Default was 8081.
-    npx expo start --clear --port 8080 &
+    (cd "$PROJECT_ROOT/mobile" && export EXPO_NO_TYPESCRIPT_SETUP=1 && npx expo start --clear --port 8080) &
     echo "Mobile Metro bundler started: http://localhost:8080"
 }
 

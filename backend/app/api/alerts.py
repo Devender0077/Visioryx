@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import SurveillanceUser
 from app.database.connection import get_db
 from app.database.models import Alert
-from app.schemas.alerts import AlertListResponse
+from app.schemas.alerts import AlertItem, AlertListResponse
 
 router = APIRouter()
 

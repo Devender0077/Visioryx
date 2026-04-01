@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, Modal, TextInput, ActivityIndicator, Share, Clipboard } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View, Modal, TextInput, ActivityIndicator, Share } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '@/lib/api';
@@ -79,8 +79,8 @@ export default function EnrollScreen() {
   const handleCopyLink = () => {
     if (!enrollmentLink) return;
     const link = `${base}/enroll?token=${enrollmentLink.token}`;
-    Clipboard.setString(link);
-    Alert.alert('Copied', 'Enrollment link copied to clipboard');
+    // Clipboard copy disabled - use share instead
+    Alert.alert('Link', link);
   };
 
   const handleShareLink = async () => {

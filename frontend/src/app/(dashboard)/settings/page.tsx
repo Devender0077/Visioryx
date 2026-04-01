@@ -15,10 +15,15 @@ interface UserMe {
 interface AppSettingsDto {
   yolo_object_detection_enabled: boolean;
   yolo_object_detection_from_database: boolean;
+  face_detection_enabled: boolean;
+  face_detection_from_database: boolean;
+  person_detection_enabled: boolean;
+  person_detection_from_database: boolean;
   can_edit: boolean;
   mobile_app_version?: string;
   mobile_app_ios_url?: string;
   mobile_app_android_url?: string;
+  public_api_url?: string;
 }
 
 interface EmailSettingsDto {
@@ -92,6 +97,7 @@ export default function UnifiedSettingsPage() {
   const [mobileVersion, setMobileVersion] = useState('');
   const [mobileIosUrl, setMobileIosUrl] = useState('');
   const [mobileAndroidUrl, setMobileAndroidUrl] = useState('');
+  const [publicApiUrl, setPublicApiUrl] = useState('');
   const [mobileBusy, setMobileBusy] = useState(false);
 
   // Cloudflare settings
@@ -132,6 +138,10 @@ export default function UnifiedSettingsPage() {
         .catch(() => setAppSettings({
           yolo_object_detection_enabled: false,
           yolo_object_detection_from_database: false,
+          face_detection_enabled: true,
+          face_detection_from_database: false,
+          person_detection_enabled: false,
+          person_detection_from_database: false,
           can_edit: true
         }));
     }
@@ -141,6 +151,7 @@ export default function UnifiedSettingsPage() {
       setMobileVersion(appSettings.mobile_app_version || '');
       setMobileIosUrl(appSettings.mobile_app_ios_url || '');
       setMobileAndroidUrl(appSettings.mobile_app_android_url || '');
+      setPublicApiUrl(appSettings.public_api_url || '');
     }
 
     // Load Cloudflare settings when tab is active
@@ -177,6 +188,7 @@ export default function UnifiedSettingsPage() {
           mobile_app_version: mobileVersion || undefined,
           mobile_app_ios_url: mobileIosUrl || undefined,
           mobile_app_android_url: mobileAndroidUrl || undefined,
+          public_api_url: publicApiUrl || undefined,
         }),
       });
       setAppSettings(next);
@@ -389,6 +401,40 @@ export default function UnifiedSettingsPage() {
       toast.success(enabled ? 'Neural engine engaged' : 'Neural engine idle');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'AI update failed');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handleFaceToggle = async (enabled: boolean) => {
+    if (!appSettings?.can_edit) return;
+    setAiBusy(true);
+    try {
+      const next = await api<AppSettingsDto>('/api/v1/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ face_detection_enabled: enabled }),
+      });
+      setAppSettings(next);
+      toast.success(enabled ? 'Face detection enabled' : 'Face detection disabled');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Face detection update failed');
+    } finally {
+      setAiBusy(false);
+    }
+  };
+
+  const handlePersonToggle = async (enabled: boolean) => {
+    if (!appSettings?.can_edit) return;
+    setAiBusy(true);
+    try {
+      const next = await api<AppSettingsDto>('/api/v1/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ person_detection_enabled: enabled }),
+      });
+      setAppSettings(next);
+      toast.success(enabled ? 'Person detection enabled' : 'Person detection disabled');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Person detection update failed');
     } finally {
       setAiBusy(false);
     }
@@ -748,18 +794,104 @@ export default function UnifiedSettingsPage() {
                         </div>
                      </div>
                      
-                     <div className="bg-surface-variant p-6 rounded-xl border border-white/5 max-w-lg">
-                        <h4 className="text-primary-light text-xs font-bold mb-3 flex items-center gap-2 font-manrope">
-                           <span className="material-symbols-outlined text-sm">info</span> Runtime Topology
-                        </h4>
-                        <p className="text-xs text-slate-400 leading-relaxed font-inter">
-                           Enabling live object detection will inject inference scripts into every active camera stream. 
-                           This will increase CPU/GPU load significantly. Use for forensic monitoring only.
-                        </p>
-                     </div>
-                  </div>
+                      <div className="bg-surface-variant p-6 rounded-xl border border-white/5 max-w-lg">
+                         <h4 className="text-primary-light text-xs font-bold mb-3 flex items-center gap-2 font-manrope">
+                            <span className="material-symbols-outlined text-sm">info</span> Runtime Topology
+                         </h4>
+                         <p className="text-xs text-slate-400 leading-relaxed font-inter">
+                            Enabling live object detection will inject inference scripts into every active camera stream. 
+                            This will increase CPU/GPU load significantly. Use for forensic monitoring only.
+                         </p>
+                      </div>
+                   </div>
                 </section>
-             </div>
+
+                {/* Face Detection Toggle */}
+                <section className="bg-surface-variant rounded-xl border border-white/5 overflow-hidden shadow-2xl">
+                   <div className="p-8 border-b border-white/5 bg-surface/30">
+                      <h3 className="text-xl font-bold text-white font-manrope">Face Detection</h3>
+                      <p className="text-slate-400 text-sm mt-1">Enable or disable face detection and recognition on live streams.</p>
+                   </div>
+                   <div className="p-8 space-y-8 text-center sm:text-left">
+                      <div className="bg-surface p-6 rounded-xl border border-green-500/10 flex flex-col sm:flex-row justify-between sm:items-center gap-6">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-green-500">face</span>
+                            </div>
+                            <div className="text-left font-inter">
+                               <p className="text-on-surface text-sm font-bold">Face Detection & Recognition</p>
+                               <p className="text-slate-500 text-[10px] uppercase tracking-tighter mt-1">InsightFace AI Engine &bull; Real-time Recognition</p>
+                            </div>
+                         </div>
+                         <div className="flex justify-center">
+                            <label className={`relative inline-flex items-center ${!appSettings.can_edit || aiBusy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                               <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={appSettings.face_detection_enabled}
+                                  onChange={(e) => handleFaceToggle(e.target.checked)}
+                                  disabled={!appSettings.can_edit || aiBusy}
+                               />
+                               <div className="w-14 h-7 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success shadow-inner"></div>
+                            </label>
+                         </div>
+                      </div>
+                      
+                      <div className="bg-surface-variant p-6 rounded-xl border border-white/5 max-w-lg">
+                         <h4 className="text-primary-light text-xs font-bold mb-3 flex items-center gap-2 font-manrope">
+                            <span className="material-symbols-outlined text-sm">info</span> How It Works
+                         </h4>
+                         <p className="text-xs text-slate-400 leading-relaxed font-inter">
+                            When enabled, faces detected in live streams will show green boxes (recognized users) or red boxes (unknown). 
+                            Recognition requires users to have face embeddings enrolled in the system.
+                         </p>
+                      </div>
+                   </div>
+                </section>
+
+                {/* Person Detection Toggle */}
+                <section className="bg-surface-variant rounded-xl border border-white/5 overflow-hidden shadow-2xl">
+                   <div className="p-8 border-b border-white/5 bg-surface/30">
+                      <h3 className="text-xl font-bold text-white font-manrope">Person Detection (HOG)</h3>
+                      <p className="text-slate-400 text-sm mt-1">Enable or disable person detection using HOG (Histogram of Oriented Gradients).</p>
+                   </div>
+                   <div className="p-8 space-y-8 text-center sm:text-left">
+                      <div className="bg-surface p-6 rounded-xl border border-blue-500/10 flex flex-col sm:flex-row justify-between sm:items-center gap-6">
+                         <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-blue-500">person_search</span>
+                            </div>
+                            <div className="text-left font-inter">
+                               <p className="text-on-surface text-sm font-bold">Person Detection (HOG)</p>
+                               <p className="text-slate-500 text-[10px] uppercase tracking-tighter mt-1">OpenCV HOG &bull; Body Detection</p>
+                            </div>
+                         </div>
+                         <div className="flex justify-center">
+                            <label className={`relative inline-flex items-center ${!appSettings.can_edit || aiBusy ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                               <input 
+                                  type="checkbox" 
+                                  className="sr-only peer" 
+                                  checked={appSettings.person_detection_enabled}
+                                  onChange={(e) => handlePersonToggle(e.target.checked)}
+                                  disabled={!appSettings.can_edit || aiBusy}
+                               />
+                               <div className="w-14 h-7 bg-surface-variant rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-500 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success shadow-inner"></div>
+                            </label>
+                         </div>
+                      </div>
+                      
+                      <div className="bg-surface-variant p-6 rounded-xl border border-white/5 max-w-lg">
+                         <h4 className="text-primary-light text-xs font-bold mb-3 flex items-center gap-2 font-manrope">
+                            <span className="material-symbols-outlined text-sm">info</span> How It Works
+                         </h4>
+                         <p className="text-xs text-slate-400 leading-relaxed font-inter">
+                            HOG (Histogram of Oriented Gradients) is a computer vision method for detecting human bodies in images. 
+                            When enabled, detected persons will be shown with orange boxes on live streams.
+                         </p>
+                      </div>
+                   </div>
+                </section>
+              </div>
           )}
 
           {/* TAB: Mobile App */}
@@ -770,17 +902,32 @@ export default function UnifiedSettingsPage() {
                      <h3 className="text-xl font-bold text-white font-manrope">Mobile Application</h3>
                      <p className="text-slate-400 text-sm mt-1">Upload mobile app files directly or enter download URLs. Files appear on the login page.</p>
                   </div>
-                  <div className="p-8 space-y-6">
-                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">App Version</label>
-                        <input
-                          type="text"
-                          value={mobileVersion}
-                          onChange={(e) => setMobileVersion(e.target.value)}
-                          placeholder="e.g., 1.0.0"
-                          className="w-full bg-surface border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary/40 outline-none"
-                        />
-                     </div>
+                   <div className="p-8 space-y-6">
+                      <div>
+                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">App Version</label>
+                         <input
+                           type="text"
+                           value={mobileVersion}
+                           onChange={(e) => setMobileVersion(e.target.value)}
+                           placeholder="e.g., 1.0.0"
+                           className="w-full bg-surface border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary/40 outline-none"
+                         />
+                      </div>
+
+                      {/* Public API URL */}
+                      <div>
+                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Public API URL</label>
+                         <input
+                           type="text"
+                           value={publicApiUrl}
+                           onChange={(e) => setPublicApiUrl(e.target.value)}
+                           placeholder="e.g., https://xxx.ngrok-free.dev"
+                           className="w-full bg-surface border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary/40 outline-none"
+                         />
+                         <p className="text-xs text-slate-500 mt-2">
+                           For mobile app remote access. Set this to your ngrok/tunnel URL when not on same network.
+                         </p>
+                      </div>
                      
                      {/* Android Upload */}
                      <div className="bg-surface p-6 rounded-xl border border-white/5">

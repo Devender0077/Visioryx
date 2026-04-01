@@ -94,21 +94,28 @@ _frame_lock = threading.Lock()
 _active_cameras: dict[int, dict] = {}  # camera_id -> {rtsp_url, thread, stop_event}
 
 
-def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Event):
+def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Event, quality: Optional[str] = None):
     """
     Decode RTSP via FFmpeg rawvideo pipe → numpy BGR frames.
     Avoids cv2.VideoCapture (common source of EXC_BAD_ACCESS on macOS).
+    Quality can be 480, 720, or 1080 (defaults to 720).
     """
     settings = get_settings()
     ff = settings.FFMPEG_PATH
-    w = max(320, min(settings.STREAM_DECODE_WIDTH, 1920))
-    h = max(180, min(settings.STREAM_DECODE_HEIGHT, 1080))
+    
+    # Parse quality or use defaults - match actual resolution to quality name
+    if quality == '1080':
+        w, h = 1920, 1080
+    elif quality == '480':
+        w, h = 640, 480
+    else:  # 720 or default - use actual 720p (1280x720)
+        w, h = 1280, 720
     frame_size = w * h * 3
-    retry_delay = 2
-    max_retries = 8
+    retry_delay = 1
+    max_retries = 15
     retry_count = 0
 
-    # Low-latency flags strip buffers and break many HEVC RTSP streams ("Could not find ref with POC").
+    # Ultra low latency FFmpeg settings
     base_cmd = [
         ff,
         "-hide_banner",
@@ -116,17 +123,22 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
         "error",
         "-rtsp_transport",
         "tcp",
+        # Low latency flags
+        "-fflags",
+        "nobuffer+flush_packets+discardcorrupt",
+        "-max_delay",
+        "500000",
+        "-an",
+        # Reduce buffering
+        "-buf_size",
+        "1024000",
     ]
-    if settings.STREAM_FFMPEG_LOW_LATENCY:
-        base_cmd += ["-fflags", "nobuffer", "-flags", "low_delay"]
-    else:
-        base_cmd += ["-err_detect", "ignore_err"]
     base_cmd += [
         "-i",
         rtsp_url,
         "-an",
         "-vf",
-        f"scale={w}:{h}",
+        f"scale={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2",
         "-f",
         "rawvideo",
         "-pix_fmt",
@@ -161,9 +173,9 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
 
         retry_count = 0
         count = 0
-        # Match OpenCV path: one knob for how often full InsightFace + overlay runs (lower CPU = smoother MJPEG).
-        run_ai_every = max(2, int(getattr(settings, "STREAM_ANNOTATE_EVERY_N_FRAMES", 10)))
-        jpeg_q = max(40, min(95, int(getattr(settings, "STREAM_JPEG_QUALITY", 82))))
+        # Run detection every 2 frames for faster response while still being efficient
+        run_ai_every = 2
+        jpeg_q = 80  # Higher quality for clearer image
         assert proc.stdout is not None
 
         # Drain stderr in a thread so a full PIPE cannot deadlock FFmpeg on long runs.
@@ -205,8 +217,15 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
                     camera_id=camera_id,
                     run_detection_every=run_ai_every,
                 )
+                
+                # Add quality indicator overlay (make copy to avoid readonly error)
+                import time
+                quality_label = f"{quality or '720'}p"
+                display_copy = display.copy()
+                cv2.putText(display_copy, quality_label, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                
                 _, jpeg = cv2.imencode(
-                    ".jpg", display, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_q]
+                    ".jpg", display_copy, [int(cv2.IMWRITE_JPEG_QUALITY), jpeg_q]
                 )
                 with _frame_lock:
                     _frame_buffer[camera_id] = jpeg.tobytes()
@@ -240,7 +259,8 @@ def _capture_loop_opencv(camera_id: int, rtsp_url: str, stop_event: threading.Ev
     settings = get_settings()
     max_w = getattr(settings, "STREAM_MAX_WIDTH", 1280) or 0
     jpeg_q = max(40, min(95, int(getattr(settings, "STREAM_JPEG_QUALITY", 82))))
-    annotate_every = max(1, int(getattr(settings, "STREAM_ANNOTATE_EVERY_N_FRAMES", 10)))
+    # Run AI detection on every frame for real-time face detection
+    annotate_every = 1
     retry_count = 0
     max_retries = 5
     retry_delay = 2
@@ -300,8 +320,8 @@ def _capture_loop_opencv(camera_id: int, rtsp_url: str, stop_event: threading.Ev
         _frame_buffer.pop(camera_id, None)
 
 
-def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
-    """Background thread: capture frames and update buffer."""
+def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event, quality: Optional[str] = None):
+    """Background thread: capture frames and update buffer with quality settings."""
     # Test/demo mode - no real RTSP
     if rtsp_url.startswith("test://") or rtsp_url.startswith("demo://"):
         try:
@@ -323,19 +343,19 @@ def _capture_loop(camera_id: int, rtsp_url: str, stop_event: threading.Event):
         logger.warning(f"Camera {camera_id}: using OpenCV RTSP capture (less stable on macOS)")
         _capture_loop_opencv(camera_id, rtsp_url, stop_event)
     else:
-        logger.info(f"Camera {camera_id}: using FFmpeg RTSP decode (backend=ffmpeg)")
-        _capture_loop_ffmpeg(camera_id, rtsp_url, stop_event)
+        logger.info(f"Camera {camera_id}: using FFmpeg RTSP decode (backend=ffmpeg) quality={quality}")
+        _capture_loop_ffmpeg(camera_id, rtsp_url, stop_event, quality=quality)
 
 
-def start_stream(camera_id: int, rtsp_url: str) -> bool:
-    """Start capturing from camera."""
+def start_stream(camera_id: int, rtsp_url: str, quality: Optional[str] = None) -> bool:
+    """Start capturing from camera with optional quality (480, 720, 1080)."""
     if camera_id in _active_cameras:
         return True
     stop_event = threading.Event()
-    t = threading.Thread(target=_capture_loop, args=(camera_id, rtsp_url, stop_event), daemon=True)
+    t = threading.Thread(target=_capture_loop, args=(camera_id, rtsp_url, stop_event), daemon=True, kwargs={"quality": quality})
     t.start()
-    _active_cameras[camera_id] = {"rtsp_url": rtsp_url, "thread": t, "stop_event": stop_event}
-    logger.info(f"Stream started for camera {camera_id}")
+    _active_cameras[camera_id] = {"rtsp_url": rtsp_url, "thread": t, "stop_event": stop_event, "quality": quality}
+    logger.info(f"Stream started for camera {camera_id} with quality {quality}")
     return True
 
 

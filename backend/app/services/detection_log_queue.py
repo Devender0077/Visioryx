@@ -16,8 +16,8 @@ logger = get_logger("detection_log_queue")
 _detection_queue: queue.Queue = queue.Queue()
 _last_logged_face: dict[tuple[int, Optional[int]], float] = {}
 _last_logged_object: dict[tuple[int, str], float] = {}
-LOG_THROTTLE_SEC = 5.0  # Max 1 log per (camera_id, user_id) per 5 sec
-OBJECT_THROTTLE_SEC = 10.0  # Throttle object logs per (camera_id, object_name)
+LOG_THROTTLE_SEC = 0.5  # Ultra fast - 500ms for real-time detection feed
+OBJECT_THROTTLE_SEC = 1.0  # 1 second for object detection
 
 
 def enqueue_detection(

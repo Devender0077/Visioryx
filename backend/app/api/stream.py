@@ -3,12 +3,15 @@ Visioryx - MJPEG Stream API
 Live camera feed endpoints.
 """
 import asyncio
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger("visioryx")
 
 from app.api.deps import SurveillanceUser
 from app.core.config import get_settings
@@ -78,14 +81,14 @@ async def _generate_mjpeg(camera_id: int):
             b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n"
             + frame + b"\r\n"
         )
-        # ~40 fps max; buffer usually updates slower — low sleep reduces visible lag between new frames
-        await asyncio.sleep(0.02)
+        # No delay - send frames as fast as they're available
 
 
 @router.get("/{camera_id}/mjpeg")
 async def stream_mjpeg(
     camera_id: int,
     token: Optional[str] = Query(None, description="JWT for auth (required for img src)"),
+    quality: Optional[str] = Query(None, description="Stream quality: 480, 720, 1080"),
     db: AsyncSession = Depends(get_db),
 ):
     """MJPEG stream for camera. Use <img src='/api/v1/stream/1/mjpeg?token=JWT'>."""
@@ -98,8 +101,8 @@ async def stream_mjpeg(
     if not camera.is_enabled:
         raise HTTPException(status_code=400, detail="Camera disabled")
     if not is_streaming(camera_id):
-        start_stream(camera_id, camera.rtsp_url)
-        await asyncio.sleep(1)  # Wait for first frame
+        start_stream(camera_id, camera.rtsp_url, quality=quality)
+        await asyncio.sleep(0.5)  # Short wait for first frame
     return StreamingResponse(
         _generate_mjpeg(camera_id),
         media_type="multipart/x-mixed-replace; boundary=frame",
@@ -107,7 +110,7 @@ async def stream_mjpeg(
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering if proxied
+            "X-Accel-Buffering": "no",
         },
     )
 
@@ -190,7 +193,7 @@ async def webrtc_signal(
     logger = logging.getLogger("visioryx")
     settings = get_settings()
     # MediaMTX v1.17+ uses WHEP for WebRTC reads: POST /{path}/whep with application/sdp
-    mtx_url = settings.MEDIAMTX_URL.replace("localhost", "127.0.0.1").rstrip('/')
+    mtx_url = settings.MEDIAMTX_URL.rstrip('/')
     mtx_signaling_url = f"{mtx_url}/{path_name}/whep"
     
     logger.info(f"Proxying WHEP signal for camera {camera_id} (path: {path_name}) to {mtx_signaling_url}")
@@ -220,6 +223,7 @@ async def webrtc_signal(
 @router.post("/{camera_id}/start")
 async def start_camera_stream(
     camera_id: int,
+    quality: Optional[str] = Query(None, description="Stream quality: 480, 720, 1080"),
     db: AsyncSession = Depends(get_db),
     current_user: SurveillanceUser = None,
 ):
@@ -232,43 +236,89 @@ async def start_camera_stream(
     settings = get_settings()
     path_name = _mediamtx_path_name(camera, camera_id)
     
-    # 1. Register with MediaMTX if it's a real RTSP stream
+    # Map quality to RTSP subtype - CP Plus cameras use:
+    # subtype=0: Main stream (1080p/1080p)
+    # subtype=1: Sub stream (CIF/VGA - lower quality)
+    quality_subtype_map = {
+        "1080": "0",  # Main stream - highest quality
+        "720": "0",   # Use main stream for 720p
+        "480": "1",   # Use sub stream for 480p
+    }
+    subtype = quality_subtype_map.get(quality or "720", "0")
+    
+    # Build RTSP URL with appropriate subtype for quality
+    rtsp_url = camera.rtsp_url
+    if "subtype=" in rtsp_url:
+        # Replace existing subtype with new one
+        import re
+        rtsp_url = re.sub(r'subtype=\d+', f'subtype={subtype}', rtsp_url)
+    elif "?" in rtsp_url:
+        # URL already has query params, add subtype
+        rtsp_url = f"{rtsp_url}&subtype={subtype}"
+    else:
+        # URL has no query params, add subtype as query param
+        rtsp_url = f"{rtsp_url}?subtype={subtype}"
+    
+    # 1. Register with MediaMTX for low-latency WebRTC streaming
     if camera.rtsp_url and camera.rtsp_url.startswith("rtsp://"):
         try:
-            mtx_api_base = settings.MEDIAMTX_API_URL.replace("localhost", "127.0.0.1").rstrip('/')
+            mtx_api_base = settings.MEDIAMTX_API_URL.rstrip('/')
             import httpx
             async with httpx.AsyncClient() as client:
-                # Add path to MediaMTX with sourceOnDemand so it pulls RTSP when viewers connect
+                # Configure for ultra-low latency WebRTC streaming
                 api_url = f"{mtx_api_base}/v3/config/paths/add/{path_name}"
                 path_config = {
-                    "source": camera.rtsp_url,
+                    "source": rtsp_url,
                     "sourceOnDemand": True,
-                    "sourceOnDemandStartTimeout": "10s",
-                    "sourceOnDemandCloseAfter": "10s",
+                    "sourceOnDemandStartTimeout": "2s",
+                    "sourceOnDemandCloseAfter": "2s",
+                    # Ultra low latency settings for WebRTC
+                    "webrtc": {
+                        "latency": 0,
+                    },
+                    "rtspAddress": "",
+                    "protocol": "tcp",
+                    "rtspTransport": "tcp",
+                    "maxConcurrentStreams": 10,
                 }
-                res = await client.post(api_url, json=path_config, timeout=5.0)
-                if not res.is_success and "already exists" not in res.text:
-                    # Try to update if already exists
+                res = await client.post(api_url, json=path_config, timeout=10.0)
+                if res.status_code == 409 or "already exists" in res.text:
                     api_url_update = f"{mtx_api_base}/v3/config/paths/patch/{path_name}"
-                    await client.patch(api_url_update, json=path_config, timeout=5.0)
+                    await client.patch(api_url_update, json=path_config, timeout=10.0)
+                    from app.core.logger import setup_logger
+                    setup_logger("visioryx").info(f"Updated MediaMTX path: {path_name} with quality {quality}")
+                elif not res.is_success:
+                    from app.core.logger import setup_logger
+                    setup_logger("visioryx").warning(f"Failed to create MediaMTX path {path_name}: {res.status_code} {res.text}")
+                else:
+                    from app.core.logger import setup_logger
+                    setup_logger("visioryx").info(f"Created MediaMTX path: {path_name} with quality {quality}")
         except Exception as e:
+            import traceback
             from app.core.logger import setup_logger
-            setup_logger("visioryx").warning(f"Failed to register MediaMTX path {path_name}: {e}")
+            setup_logger("visioryx").warning(f"Failed to register MediaMTX path {path_name}: {e}\n{traceback.format_exc()}")
 
-    # 2. Start AI background thread (MJPEG manager does this)
-    # Even if we use HLS/WebRTC for display, we need OpenCV to pull frames for AI logic.
-    if not is_streaming(camera_id):
-        # We start the stream manager, but it doesn't HAVE to be for proxying anymore.
-        # It's for extracting frames for face detection / YOLO.
-        start_stream(camera_id, camera.rtsp_url)
+    # 2. Start detection pipeline for face detection (runs parallel to WebRTC stream)
+    stream_quality = quality or "720"
+    rtsp_for_capture = rtsp_url
+    
+    if is_streaming(camera_id):
+        stop_stream(camera_id)
+        logger.info(f"Restarting detection pipeline for camera {camera_id} with quality {stream_quality}")
+    else:
+        logger.info(f"Starting detection pipeline for camera {camera_id} with quality {stream_quality}")
+    
+    start_stream(camera_id, rtsp_for_capture, quality=stream_quality)
     
     camera.status = "active"
     await db.commit()
 
+    # Use MediaMTX WebRTC for lowest latency streaming (direct from camera)
     return {
         "status": "started",
         "camera_id": camera_id,
-        "mode": settings.STREAM_MODE.lower(),
+        "mode": "webrtc",  # Use WebRTC via MediaMTX for lowest latency
+        "stream_type": "mediamtx",
         "path_name": path_name,
         "hls_url": f"{settings.MEDIAMTX_URL.replace(':8889', ':8888').rstrip('/')}/{path_name}/index.m3u8",
         "webrtc_url": f"{settings.MEDIAMTX_WS_URL.rstrip('/')}/{path_name}/"

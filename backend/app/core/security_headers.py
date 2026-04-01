@@ -29,8 +29,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         
-        # Content Security Policy
-        response.headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+        # Content Security Policy - allow fonts and external resources for mobile
+        response.headers["Content-Security-Policy"] = "default-src 'self'; font-src 'self' https://fonts.gstatic.com https://fonts.googleapis.com data:; img-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; connect-src 'self' https: wss:; frame-src 'self' https:;"
         
         # Referrer policy
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"

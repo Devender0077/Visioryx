@@ -37,6 +37,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra = "ignore",
     )
 
     # Application
@@ -82,6 +83,8 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000,http://127.0.0.1:3000"
     # Default base URL for enrollment links in emails (override per-tenant in Email & SMTP settings).
     PUBLIC_DASHBOARD_URL: str = "http://localhost:3000"
+    # Public API URL for mobile app remote access (e.g., ngrok tunnel URL)
+    PUBLIC_API_URL: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24  # 24 hours
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # 7 days
@@ -101,7 +104,7 @@ class Settings(BaseSettings):
     FACE_DETECTION_BACKEND: str = "auto"
     # InsightFace detector score; Haar fallback always uses 1.0. Lower = more face boxes (may add false positives).
     # InsightFace det_score floor after detection; distant faces often ~0.28–0.36.
-    FACE_DETECTION_CONFIDENCE: float = 0.28
+    FACE_DETECTION_CONFIDENCE: float = 0.25  # Lowered from 0.35 to detect faces at greater distance
     EMBEDDING_DIMENSION: int = 512
 
     # Object Detection
@@ -139,7 +142,8 @@ class Settings(BaseSettings):
     STREAM_MAX_WIDTH: int = 1280  # resize before JPEG; 0 = no resize
     STREAM_JPEG_QUALITY: int = 82  # 1-100; lower = smaller/faster
     # Run face/object overlay + detection logging every Nth captured frame (higher = smoother stream)
-    STREAM_ANNOTATE_EVERY_N_FRAMES: int = 10
+    STREAM_ANNOTATE_EVERY_N_FRAMES: int = 1
+    """How often to run AI detection on live streams. 1 = every frame (real-time), higher = less CPU but more delay."""
     # Min seconds between saving unknown-face crops per camera (reduces disk I/O when many faces)
     STREAM_UNKNOWN_SNAPSHOT_MIN_INTERVAL_SEC: float = 1.5
     # Skip OpenCV HOG person boxes when this many faces are already detected (saves CPU on crowded scenes)
@@ -151,32 +155,30 @@ class Settings(BaseSettings):
     # Fixed decode size for FFmpeg rawvideo pipe (width x height, BGR24). Higher = sharper faces, more CPU.
     STREAM_DECODE_WIDTH: int = 1280
     STREAM_DECODE_HEIGHT: int = 720
+    
     # Face/object overlay on MJPEG (drawn on server-side MJPEG frames).
     STREAM_ENABLE_AI_OVERLAY: bool = Field(default_factory=_default_stream_ai_overlay)
     # OpenCV HOG full-body person boxes — CPU-only. Default off on macOS (crash-prone); on Linux default on. Off if YOLO overlay on.
     STREAM_ENABLE_HOG_PERSONS: bool = Field(default_factory=_default_hog_persons)
     # YOLO / Ultralytics (torch) — default off on macOS; major source of SIGSEGV in dev.
     STREAM_ENABLE_YOLO_OVERLAY: bool = Field(default_factory=_default_yolo_overlay)
-    # WebRTC / MediaMTX
-    MEDIAMTX_URL: str = "http://localhost:8889"
-    MEDIAMTX_WS_URL: str = "ws://localhost:8889"
-    MEDIAMTX_API_URL: str = "http://localhost:9997"
-    MAX_CAMERAS: int = 100
-    
-    # "mjpeg", "hls", or "webrtc"
-    STREAM_MODE: str = "webrtc"
     
     # nobuffer+low_delay hurts HEVC (IP cams): ref-frame errors / frozen first frame. Enable only for low-latency H.264.
     STREAM_FFMPEG_LOW_LATENCY: bool = False
     # If true, live overlay uses OpenCV Haar only (no face embeddings) — everyone shows Unknown. Use only if InsightFace crashes on live.
     STREAM_FORCE_HAAR_LIVE: bool = False
+    
+    # MediaMTX Settings
+    MEDIAMTX_URL: str = "http://192.168.0.100:8889"
+    MEDIAMTX_WS_URL: str = "ws://192.168.0.100:8889"
+    MEDIAMTX_API_URL: str = "http://192.168.0.100:9997"
 
     # GPU (Optional)
     CUDA_VISIBLE_DEVICES: Optional[str] = None
     # InsightFace: -1 = CPU (safer on macOS), 0 = first GPU
     INSIGHTFACE_CTX_ID: int = -1
     # Detector score threshold in FaceAnalysis.prepare (not per-call). Lower = more faces at side angles / distance.
-    INSIGHTFACE_DET_THRESH: float = 0.38
+    INSIGHTFACE_DET_THRESH: float = 0.32  # Lowered from 0.38 to detect more distant faces
 
 
 @lru_cache

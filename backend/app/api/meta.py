@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.core.config import get_settings
+from app.services.runtime_app_settings import get_public_api_url
 
 router = APIRouter()
 
@@ -17,4 +18,5 @@ async def get_version():
         "mobile_app_version": settings.MOBILE_APP_VERSION,
         "mobile_app_ios_url": settings.MOBILE_APP_IOS_URL,
         "mobile_app_android_url": settings.MOBILE_APP_ANDROID_URL,
+        "public_api_url": get_public_api_url(),
     }

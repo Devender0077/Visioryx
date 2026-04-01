@@ -145,10 +145,12 @@ export function DetectionsOverlay({ detections }: { detections: any[] }) {
   );
 }
 
-export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] }: { cameraId: number; getZoom: () => number; isFullscreen?: boolean; detections?: any[] }) {
+export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [], onLatencyUpdate }: { cameraId: number; getZoom: () => number; isFullscreen?: boolean; detections?: any[]; onLatencyUpdate?: (latency: number) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const [status, setStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
+  const [latency, setLatency] = useState<number>(0);
+  const startTimeRef = useRef<number>(0);
 
   useEffect(() => {
     if (!videoRef.current) return;
@@ -159,13 +161,23 @@ export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] 
     });
     pcRef.current = pc;
 
-    // WHEP is receive-only: add a transceiver for video
+    // Configure for low latency
     pc.addTransceiver('video', { direction: 'recvonly' });
     pc.addTransceiver('audio', { direction: 'recvonly' });
 
     pc.ontrack = (event) => {
       if (videoRef.current && event.streams[0]) {
         videoRef.current.srcObject = event.streams[0];
+        // Calculate latency when video starts playing
+        const endTime = performance.now();
+        const latencyMs = Math.round(endTime - startTimeRef.current);
+        setLatency(latencyMs);
+        if (onLatencyUpdate) {
+          onLatencyUpdate(latencyMs);
+        }
+        if (videoRef.current.getVideoPlaybackQuality) {
+          videoRef.current.play().catch(() => {});
+        }
         setStatus('connected');
       }
     };
@@ -177,8 +189,13 @@ export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] 
     };
 
     const start = async () => {
+        startTimeRef.current = performance.now();
         try {
-            const offer = await pc.createOffer();
+            const offer = await pc.createOffer({
+              // Suggest low latency
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: true,
+            });
             await pc.setLocalDescription(offer);
 
             // Wait for ICE gathering to complete (WHEP needs a full offer)
@@ -191,7 +208,7 @@ export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] 
                 };
                 pc.onicegatheringstatechange = check;
                 // Safety timeout: don't wait forever
-                setTimeout(resolve, 3000);
+                setTimeout(resolve, 2000);
               });
             }
 
@@ -218,7 +235,7 @@ export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] 
       pc.close();
       pcRef.current = null;
     };
-  }, [cameraId]);
+  }, [cameraId, onLatencyUpdate]);
 
   return (
     <div className="relative w-full h-full">
@@ -228,6 +245,7 @@ export function WebRTCPlayer({ cameraId, getZoom, isFullscreen, detections = [] 
         muted
         playsInline
         className={`w-full h-full block ${isFullscreen ? 'object-contain' : 'object-cover'}`}
+        style={{ latency: '0' }}
       />
       <DetectionsOverlay detections={detections} />
       {status === 'connecting' && (
@@ -300,6 +318,8 @@ export interface LiveStreamStageProps {
   onFrameError: (cameraId: number) => void;
   detections?: any[];
   overlayToolbar?: ReactNode;
+  onLatencyUpdate?: (cameraId: number, latency: number) => void;
+  latency?: number;
 }
 
 export function LiveStreamStage({
@@ -320,6 +340,8 @@ export function LiveStreamStage({
   onFrameError,
   detections = [],
   overlayToolbar,
+  onLatencyUpdate,
+  latency = 0,
 }: LiveStreamStageProps) {
   const url = streamUrl(cam.id);
 
@@ -349,7 +371,7 @@ export function LiveStreamStage({
             </button>
           </div>
         </div>
-      ) : streaming.has(cam.id) && url && showMjpeg ? (
+      ) : streaming.has(cam.id) && url && (showMjpeg || url.includes('ws://')) ? (
         <div className="w-full h-full overflow-hidden flex items-center justify-center bg-black relative">
           <div
             className="absolute inset-0 origin-center transition-transform duration-300 flex items-center justify-center"
@@ -371,17 +393,27 @@ export function LiveStreamStage({
             ) : url.includes('m3u8') ? (
                <HLSPlayer url={url} getZoom={() => getZoom(cam.id)} isFullscreen={isFullscreen} detections={detections.filter(d => d.camera_id === cam.id)} />
             ) : (
-               <WebRTCPlayer cameraId={cam.id} getZoom={() => getZoom(cam.id)} isFullscreen={isFullscreen} detections={detections.filter(d => d.camera_id === cam.id)} />
+               <WebRTCPlayer cameraId={cam.id} getZoom={() => getZoom(cam.id)} isFullscreen={isFullscreen} detections={detections.filter(d => d.camera_id === cam.id)} onLatencyUpdate={(latency) => onLatencyUpdate?.(cam.id, latency)} />
             )}
           </div>
           {!isFullscreen && (
-            <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
+            <div className="absolute top-4 left-4 flex items-center gap-2 z-10 flex-wrap">
                <span className="px-2 py-0.5 bg-red-600 text-[10px] font-black rounded text-white flex items-center gap-1 shadow-lg shadow-red-900/50 uppercase">
                   <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span> LIVE
                </span>
                 <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md text-[10px] font-black text-slate-300 rounded uppercase tracking-widest border border-white/10 shadow-xl">
-                   {cam.camera_name}
+                    {cam.camera_name}
                 </span>
+                {latency > 0 && url?.includes('ws://') && (
+                  <span className="px-2 py-0.5 bg-blue-600/80 backdrop-blur-md text-[10px] font-black text-white rounded uppercase tracking-widest border border-blue-400/30 shadow-xl">
+                     {latency}ms
+                  </span>
+                )}
+                {latency === 0 && url?.includes('/mjpeg') && (
+                  <span className="px-2 py-0.5 bg-green-600/80 backdrop-blur-md text-[10px] font-black text-white rounded uppercase tracking-widest border border-green-400/30 shadow-xl">
+                     DIRECT
+                  </span>
+                )}
             </div>
           )}
         </div>

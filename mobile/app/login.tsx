@@ -10,6 +10,7 @@ import {
   View,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -17,9 +18,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@/contexts/AuthContext';
 import { Stitch, FontFamily } from '@/constants/stitchTheme';
-import { getApiBase } from '@/lib/config';
+import * as SecureStore from 'expo-secure-store';
 import Constants from 'expo-constants';
 import { LAN_TROUBLESHOOTING, publicApi, testApiReachable } from '@/lib/api';
+import { getApiBase, setCustomApiBase, getDashboardBase, setCustomDashboardBase, fetchPublicApiUrl } from '@/lib/config';
+
+const API_URL_KEY = 'custom_api_url';
+const MEDIAMTX_URL_KEY = 'custom_mediamtx_url';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -32,6 +37,9 @@ export default function LoginScreen() {
   const [apiVersion, setApiVersion] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showApiModal, setShowApiModal] = useState(false);
+  const [customApiUrl, setCustomApiUrl] = useState('');
+  const [mediamtxUrl, setMediamtxUrl] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -42,10 +50,52 @@ export default function LoginScreen() {
       .catch(() => {
         if (!cancelled) setApiVersion(null);
       });
+    void fetchPublicApiUrl();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const loadSecure = async () => {
+      try {
+        const url = await SecureStore.getItemAsync(API_URL_KEY);
+        if (url) {
+          setCustomApiBase(url);
+          setCustomDashboardBase(url.replace(':8000', ':3000').replace('/api/v1', ''));
+          setCustomApiUrl(url);
+        }
+      } catch {}
+      try {
+        const mtxUrl = await SecureStore.getItemAsync(MEDIAMTX_URL_KEY);
+        if (mtxUrl) {
+          setMediamtxUrl(mtxUrl);
+        }
+      } catch {}
+    };
+    loadSecure();
+  }, []);
+
+  const saveCustomApiUrl = async () => {
+    const url = customApiUrl.trim();
+    const mtx = mediamtxUrl.trim();
+    if (url) {
+      await SecureStore.setItemAsync(API_URL_KEY, url);
+      setCustomApiBase(url);
+      setCustomDashboardBase(url.replace(':8000', ':3000').replace('/api/v1', ''));
+    } else {
+      await SecureStore.deleteItemAsync(API_URL_KEY);
+      setCustomApiBase(null);
+      setCustomDashboardBase(null);
+    }
+    if (mtx) {
+      await SecureStore.setItemAsync(MEDIAMTX_URL_KEY, mtx);
+    } else {
+      await SecureStore.deleteItemAsync(MEDIAMTX_URL_KEY);
+    }
+    Alert.alert('Saved', 'URLs updated. Please restart the app for full effect.');
+    setShowApiModal(false);
+  };
 
   const runConnectionTest = async () => {
     setTestingApi(true);
@@ -245,6 +295,12 @@ export default function LoginScreen() {
               <Text style={styles.testLinkText}>Test API connection</Text>
             )}
           </Pressable>
+          <Pressable
+            style={styles.testLink}
+            onPress={() => setShowApiModal(true)}
+          >
+            <Text style={styles.testLinkText}>Configure API URL</Text>
+          </Pressable>
           <Text style={styles.versionLine} selectable>
             App v{Constants.expoConfig?.version ?? '1.0.0'}
             {apiVersion != null ? ` · API v${apiVersion}` : ''}
@@ -254,6 +310,57 @@ export default function LoginScreen() {
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Custom API URL Modal */}
+      <Modal visible={showApiModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Configure URLs</Text>
+            <Text style={styles.modalSubtitle}>
+              Enter your backend and MediaMTX URLs. Use public URLs (ngrok, tunnel) when not on the same network.
+            </Text>
+            
+            <Text style={[styles.inputLabel, { color: Stitch.primary, marginBottom: 4 }]}>Backend API URL</Text>
+            <TextInput
+              style={styles.apiInput}
+              value={customApiUrl}
+              onChangeText={setCustomApiUrl}
+              placeholder="http://192.168.1.100:8000"
+              placeholderTextColor="#666"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            
+            <Text style={[styles.inputLabel, { color: Stitch.primary, marginBottom: 4 }]}>MediaMTX URL (for live streams)</Text>
+            <TextInput
+              style={styles.apiInput}
+              value={mediamtxUrl}
+              onChangeText={setMediamtxUrl}
+              placeholder="http://192.168.1.100:8889"
+              placeholderTextColor="#666"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+            />
+            
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, { backgroundColor: '#333' }]}
+                onPress={() => setShowApiModal(false)}
+              >
+                <Text style={styles.modalBtnText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, { backgroundColor: Stitch.primary }]}
+                onPress={saveCustomApiUrl}
+              >
+                <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -529,5 +636,63 @@ const styles = StyleSheet.create({
     color: Stitch.onSurfaceVariant,
     opacity: 0.25,
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: Stitch.surfaceContainerHigh,
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontFamily: FontFamily.headlineBlack,
+    fontSize: 22,
+    color: Stitch.onSurface,
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontFamily: FontFamily.body,
+    fontSize: 14,
+    color: Stitch.onSurfaceVariant,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  apiInput: {
+    backgroundColor: Stitch.surfaceContainerLowest,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: Stitch.onSurface,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Stitch.outlineVariant,
+  },
+  inputLabel: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalBtnText: {
+    fontFamily: FontFamily.labelSemibold,
+    fontSize: 15,
+    color: Stitch.onSurface,
   },
 });

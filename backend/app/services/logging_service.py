@@ -6,10 +6,13 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from app.core.logger import get_logger
 from app.core.websocket_manager import ws_manager
 from app.services.webhook_notify import notify_alert_webhook
 from app.database.connection import AsyncSessionLocal
 from app.database.models import Alert, Detection, ObjectDetection
+
+logger = get_logger("logging_service")
 
 
 async def log_object_detection(
@@ -54,6 +57,7 @@ async def log_detection(
     bbox: Optional[dict] = None,
 ) -> int:
     """Log face detection to DB and broadcast. Returns detection id."""
+    logger.info(f"Logging detection: camera={camera_id}, status={status}, user_id={user_id}, bbox={bbox}")
     async with AsyncSessionLocal() as db:
         det = Detection(
             camera_id=camera_id,
