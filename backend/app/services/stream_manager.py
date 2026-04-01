@@ -129,16 +129,13 @@ def _capture_loop_ffmpeg(camera_id: int, rtsp_url: str, stop_event: threading.Ev
         "-max_delay",
         "500000",
         "-an",
-        # Reduce buffering
-        "-buf_size",
-        "1024000",
     ]
     base_cmd += [
         "-i",
         rtsp_url,
         "-an",
         "-vf",
-        f"scale={w}:h={h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2",
+        f"scale={w}:{h}",
         "-f",
         "rawvideo",
         "-pix_fmt",
