@@ -112,12 +112,15 @@ async def health_db():
             await db.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
+        # Log the actual error internally but don't expose to users
+        import logging
+        logging.getLogger("visioryx").error(f"Health check failed: {type(e).__name__}")
         return JSONResponse(
             status_code=503,
             content={
                 "status": "unhealthy",
                 "database": "disconnected",
-                "error": str(e),
+                "message": "Database connection failed",
             },
         )
 

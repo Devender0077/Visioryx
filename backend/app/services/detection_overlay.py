@@ -19,8 +19,13 @@ from app.services.runtime_app_settings import get_face_detection_enabled
 
 logger = get_logger("detection_overlay")
 
+MAX_EMBEDDINGS_CACHE = 500  # Max users to cache embeddings for
+MAX_OVERLAY_CACHE = 16    # Max camera overlay caches to keep
+MAX_USER_NAMES_CACHE = 500  # Max user names to cache
+
 _embeddings_cache: list[tuple[int, list[float]]] = []
 _user_names: dict[int, str] = {}
+_embed_queue: list[int] = []  # Track insertion order for LRU
 _embeddings_ts: float = 0
 _engine = None
 CACHE_TTL = 60.0  # Refresh embeddings every 60s
@@ -50,8 +55,15 @@ def _load_embeddings_sync() -> list[tuple[int, list[float]]]:
                 select(User.id, User.face_embedding, User.name).where(User.face_embedding.isnot(None))
             )
             rows = result.all()
-            _embeddings_cache = [(r[0], r[1]) for r in rows if r[1] is not None and len(r[1]) > 0]
+            # Limit cache size for memory efficiency
+            cached_data = [(r[0], r[1]) for r in rows if r[1] is not None and len(r[1]) > 0]
+            if len(cached_data) > MAX_EMBEDDINGS_CACHE:
+                cached_data = cached_data[:MAX_EMBEDDINGS_CACHE]
+            _embeddings_cache = cached_data
             _user_names = {r[0]: (r[2] or f"User {r[0]}") for r in rows if r[1] is not None and len(r[1]) > 0}
+            # Limit user names cache
+            if len(_user_names) > MAX_USER_NAMES_CACHE:
+                _user_names = dict(list(_user_names.items())[:MAX_USER_NAMES_CACHE])
             _embeddings_ts = now
         # Rebuild FAISS index for fast vector search
         try:
@@ -262,6 +274,12 @@ def annotate_frame(
             [dict(f) for f in faces_annotated],
             [dict(o) for o in objects],
         )
+        # Limit overlay cache size to prevent memory growth
+        if len(_last_overlay_cache) > MAX_OVERLAY_CACHE:
+            # Remove oldest entries
+            keys_to_remove = list(_last_overlay_cache.keys())[:-MAX_OVERLAY_CACHE]
+            for key in keys_to_remove:
+                del _last_overlay_cache[key]
         return _draw_detections(frame, faces_annotated, objects)
     except Exception as e:
         logger.error(f"Detection overlay error: {e}")

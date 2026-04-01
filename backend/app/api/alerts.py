@@ -73,11 +73,14 @@ async def export_alerts_csv(
     db: AsyncSession = Depends(get_db),
     current_user: SurveillanceUser = None,
     unread_only: bool = False,
-    q: Optional[str] = Query(None),
+    q: Optional[str] = Query(None, max_length=200, description="Search message or alert type"),
+    severity: Optional[str] = Query(None, description="Filter by severity"),
+    camera_id: Optional[int] = Query(None, description="Filter by camera ID"),
+    today_only: bool = Query(False, description="Filter to today's alerts only"),
     export_limit: int = Query(10000, le=50000),
 ):
     """Download alerts as CSV (same filters as list; capped rows)."""
-    where_clause = _alerts_where(unread_only, q)
+    where_clause = _alerts_where(unread_only, q, severity, camera_id, today_only)
     stmt = select(Alert).order_by(Alert.timestamp.desc()).limit(export_limit)
     if where_clause is not None:
         stmt = stmt.where(where_clause)

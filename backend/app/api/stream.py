@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger("visioryx")
 
-from app.api.deps import SurveillanceUser
+from app.api.deps import SurveillanceUser, require_surveillance_user
 from app.core.config import get_settings
 from app.core.security import Role, decode_access_token
 from app.database.connection import get_db
@@ -46,7 +46,7 @@ def _camera_stream_active(camera_id: int) -> bool:
 @router.get("/status")
 async def get_streams_status(
     db: AsyncSession = Depends(get_db),
-    current_user: SurveillanceUser = None,
+    current_user: SurveillanceUser = Depends(require_surveillance_user),
 ):
     """Which cameras are actively decoding on the server (survives leaving the Live page)."""
     result = await db.execute(select(Camera.id))
@@ -225,7 +225,7 @@ async def start_camera_stream(
     camera_id: int,
     quality: Optional[str] = Query(None, description="Stream quality: 480, 720, 1080"),
     db: AsyncSession = Depends(get_db),
-    current_user: SurveillanceUser = None,
+    current_user: SurveillanceUser = Depends(require_surveillance_user),
 ):
     """Start camera stream (MediaMTX registration & AI processing)."""
     result = await db.execute(select(Camera).where(Camera.id == camera_id))
@@ -329,7 +329,7 @@ async def start_camera_stream(
 async def stop_camera_stream(
     camera_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: SurveillanceUser = None,
+    current_user: SurveillanceUser = Depends(require_surveillance_user),
 ):
     """Stop camera stream."""
     settings = get_settings()

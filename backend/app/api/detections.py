@@ -76,7 +76,7 @@ async def list_detections(
     status_filter: Optional[str] = Query(None, alias="status"),
     from_date: Optional[datetime] = None,
     to_date: Optional[datetime] = None,
-    q: Optional[str] = Query(None, description="Search camera name, person name, or numeric id"),
+    q: Optional[str] = Query(None, max_length=200, description="Search camera name, person name, or numeric id"),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
 ):

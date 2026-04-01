@@ -302,11 +302,22 @@ async def get_user_photo(
     """
     Serve uploaded user photo.
     Uses token query param because <img> cannot send Authorization headers.
+    Requires token to belong to the requested user or have admin/operator role.
     """
     if not token:
         raise HTTPException(status_code=401, detail="Missing token")
-    if decode_access_token(token) is None:
+    
+    token_data = decode_access_token(token)
+    if token_data is None:
         raise HTTPException(status_code=401, detail="Invalid token")
+    
+    # Verify user has permission to view this photo
+    requesting_user_id = token_data.get("sub")
+    requesting_user_role = token_data.get("role", "")
+    
+    # Allow if: user is viewing their own photo, or admin/operator
+    if str(requesting_user_id) != str(user_id) and requesting_user_role not in ["admin", "operator"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view this photo")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

@@ -228,11 +228,16 @@ async def forgot_password(
             role=user_role,
             expires_delta=timedelta(hours=1)
         )
-        return {
+        response = {
             "ok": True, 
             "message": "If an account exists, a password reset link has been sent.",
-            "reset_token": reset_token  # For demo only - remove in production
         }
+        # Only include reset token in development mode
+        from app.core.config import get_settings
+        settings = get_settings()
+        if settings.DEBUG:
+            response["reset_token"] = reset_token
+        return response
     
     return {
         "ok": True, 

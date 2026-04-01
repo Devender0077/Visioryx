@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -45,7 +46,7 @@ class Camera(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     camera_name: Mapped[str] = mapped_column(String(255), nullable=False)
     rtsp_url: Mapped[str] = mapped_column(String(512), nullable=False)
-    status: Mapped[str] = mapped_column(String(50), default="inactive")  # active, inactive, error
+    status: Mapped[str] = mapped_column(String(50), default="inactive", index=True)  # active, inactive, error
     is_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -58,15 +59,21 @@ class Detection(Base):
     """Face detection events (known/unknown)."""
 
     __tablename__ = "detections"
+    __table_args__ = (
+        Index('ix_detections_timestamp', 'timestamp'),
+        Index('ix_detections_camera_id', 'camera_id'),
+        Index('ix_detections_status', 'status'),
+        Index('ix_detections_camera_timestamp', 'camera_id', 'timestamp'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    camera_id: Mapped[int] = mapped_column(Integer, ForeignKey("cameras.id"), nullable=False)
+    camera_id: Mapped[int] = mapped_column(Integer, ForeignKey("cameras.id"), nullable=False, index=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), nullable=False)  # known, unknown
+    status: Mapped[str] = mapped_column(String(50), nullable=False, index=True)  # known, unknown
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
     snapshot: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     bbox: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     camera = relationship("Camera", back_populates="detections")
     user = relationship("User", back_populates="detections")
@@ -146,10 +153,13 @@ class AuthUser(Base):
     """Authentication credentials for dashboard access."""
 
     __tablename__ = "auth_users"
+    __table_args__ = (
+        Index('ix_auth_users_role', 'role'),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(String(50), default="operator")
+    role: Mapped[str] = mapped_column(String(50), default="operator", index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
