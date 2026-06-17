@@ -14,7 +14,7 @@ export async function fetchPublicApiUrl(): Promise<void> {
   if (_customApiBase || _fetchedApiBase) return;
   try {
     const u = process.env.EXPO_PUBLIC_API_URL;
-    const base = u && u.length > 0 ? u.replace(/\/$/, '') : 'http://localhost:8000';
+    const base = u && u.length > 0 ? u.replace(/\/$/, '') : 'http://localhost:8001';
     const res = await fetch(`${base}/api/v1/meta/version`, { method: 'GET' });
     if (res.ok) {
       const data = await res.json();
@@ -26,8 +26,8 @@ export async function fetchPublicApiUrl(): Promise<void> {
 }
 
 /**
- * Backend API base (FastAPI), e.g. http://192.168.1.10:8000
- * Not the Metro bundler port (8081) — that is only for Expo to load JS in development.
+ * Backend API base (FastAPI server.py), e.g. https://<preview>.preview.emergentagent.com
+ * Routes prefixed with /api are proxied to the backend (port 8001) by the platform ingress.
  */
 export function getApiBase(): string {
   // Priority: custom URL > env var > localhost
@@ -35,7 +35,7 @@ export function getApiBase(): string {
   const u = process.env.EXPO_PUBLIC_API_URL;
   if (u && u.length > 0 && u.startsWith('http')) return u.replace(/\/$/, '');
   // Fallback to localhost for development (only if nothing else is set)
-  return 'http://localhost:8000';
+  return 'http://localhost:8001';
 }
 
 /** Next.js dashboard — open SMTP / admin pages in browser (same LAN as API). */

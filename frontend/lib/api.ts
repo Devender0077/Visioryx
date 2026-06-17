@@ -1,7 +1,37 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { getApiBase } from './config';
 
-const TOKEN_KEY = 'visioryx_token';
+const TOKEN_KEY = 'visionaryx_token';
+
+const isWeb = Platform.OS === 'web';
+
+async function webGet(key: string): Promise<string | null> {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+async function webSet(key: string, value: string): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {
+    /* noop */
+  }
+}
+async function webDel(key: string): Promise<void> {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    /* noop */
+  }
+}
 
 function networkHint(): string {
   const base = getApiBase();
@@ -122,6 +152,7 @@ function mergeAbortSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
 
 export async function getStoredToken(): Promise<string | null> {
   try {
+    if (isWeb) return webGet(TOKEN_KEY);
     return await SecureStore.getItemAsync(TOKEN_KEY);
   } catch {
     return null;
@@ -129,10 +160,12 @@ export async function getStoredToken(): Promise<string | null> {
 }
 
 export async function setStoredToken(token: string): Promise<void> {
+  if (isWeb) return webSet(TOKEN_KEY, token);
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 
 export async function clearStoredToken(): Promise<void> {
+  if (isWeb) return webDel(TOKEN_KEY);
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
