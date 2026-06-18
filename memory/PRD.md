@@ -1,111 +1,108 @@
-# VisionaryX — Product Requirements (PRD)
+# VisionaryX AI — Product Requirements (PRD)
 
 ## Original Problem Statement
-> "can you start improve the code and UI for Visionry X for both mobile and web version should be react native and MVVM arch this is the brand identiy link … its security surveillance if you understand the code you can know it more"
+> "can you start improve the code and UI for Visionry X for both mobile and web version should be react native and MVVM arch this is the brand identiy link … its security surveillance"
 
-The user uploaded an existing Visioryx codebase (FastAPI + PostgreSQL backend, Next.js web dashboard, Expo React Native mobile app) and asked to:
-1. Improve code + UI across mobile and web
-2. Use **a single React Native + React Native Web** codebase (replace Next.js)
-3. Use **MVVM** architecture
-4. Apply a **VisionaryX brand identity** (Claude design artifact — not accessible from sandbox, so a coherent identity was designed from first principles)
+User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Plex Mono/Sans, Indigo `#4F46E5 → #7C3AED` gradient, viewfinder X mark, "INTELLIGENT · SECURITY · SURVEILLANCE" voice).
 
-## Architecture (after rebuild)
+## Architecture
 
 ```
 /app/
-├── backend/                 FastAPI + MongoDB (port 8001)
-│   ├── server.py            Single-file API surface (auth, analytics, alerts,
-│   │                        cameras, detections, users, audit, enrollment stub)
-│   └── .env                 MONGO_URL, DB_NAME, JWT_SECRET, ADMIN_*
+├── backend/                 FastAPI + MongoDB (port 8001), 34/34 pytest passing
+│   └── server.py            Auth, analytics (real % deltas), cameras, alerts,
+│                            detections, users, audit, settings, WebSocket /ws,
+│                            45s demo broadcast loop, enrollment upload
 │
 └── frontend/                Single React Native + RN-Web codebase (Expo Router)
-    ├── app/                 Views (screens)
-    │   ├── login.tsx        Refactored to MVVM
-    │   ├── (tabs)/index.tsx Dashboard — MVVM
-    │   ├── (tabs)/alerts.tsx Alerts — MVVM
-    │   └── …                Live, Cameras, More, Enroll, Detections, Users…
-    │
-    ├── viewmodels/          MVVM layer
-    │   ├── models/          Plain DTOs (UserModel, AlertModel, …)
-    │   ├── repositories/    The only place that talks to backend
-    │   └── use*ViewModel.ts React hooks owning screen state + actions
+    ├── app/
+    │   ├── _layout.tsx          Root: DesktopShell wraps Stack
+    │   ├── login.tsx            MVVM
+    │   ├── index.tsx            Boot/redirect
+    │   ├── (tabs)/
+    │   │   ├── _layout.tsx      Mobile bottom-tabs (hidden on desktop)
+    │   │   ├── index.tsx        Overview — MVVM, real trend %
+    │   │   ├── live.tsx         MVVM
+    │   │   ├── cameras.tsx      MVVM
+    │   │   ├── alerts.tsx       MVVM
+    │   │   ├── enroll.tsx       Cross-platform face enrollment
+    │   │   └── more.tsx         User pill + shortcuts
+    │   ├── detections.tsx       MVVM
+    │   ├── analytics.tsx        Charts + KPIs
+    │   ├── users.tsx            MVVM, admin-only CRUD
+    │   ├── audit.tsx            Compliance feed
+    │   └── settings.tsx         SMTP config + test
     │
     ├── components/
-    │   ├── vx/              Brand primitives (VxButton, VxInput, VxCard, …)
-    │   ├── CommandBackground.tsx  SVG grid + radial glow
-    │   └── VisionaryXLogo.tsx     Bracketed-X mark + wordmark
+    │   ├── DesktopShell.tsx     260px side-nav wrapper (≥1024px, all routes)
+    │   ├── VisionaryXLogo.tsx   4 variants: app/mark/wordmark/stacked
+    │   ├── CommandBackground.tsx Grid + indigo radial glow
+    │   └── vx/                  VxButton, VxInput, VxCard, ErrorBanner, …
     │
-    ├── constants/
-    │   ├── visionTheme.ts   Source-of-truth design tokens (colors, spacing,
-    │   │                    typography, radius, motion, breakpoints)
-    │   └── stitchTheme.ts   Legacy compat shim (keeps old screens compiling)
+    ├── viewmodels/              MVVM layer
+    │   ├── repositories/        AuthRepository, DashboardRepository, AlertsRepository, CamerasRepository
+    │   ├── models/              UserModel, AlertModel, CameraModel, DashboardModel
+    │   ├── useLoginViewModel.ts
+    │   ├── useDashboardViewModel.ts
+    │   ├── useAlertsViewModel.ts
+    │   ├── useCamerasViewModel.ts
+    │   ├── useDetectionsViewModel.ts
+    │   └── useUsersViewModel.ts
     │
-    └── package.json         `yarn start` → `expo start --web --port 3000` (RN Web)
+    ├── contexts/
+    │   ├── AuthContext.tsx
+    │   └── RealtimeContext.tsx  WebSocket /api/v1/ws?token=… (auto-reconnect,
+    │                            heartbeat, AppState resume)
+    │
+    └── constants/visionTheme.ts Official brand tokens
 ```
 
-## Design System (VisionaryX)
-- **Archetype**: Command Center / Swiss High-Contrast (dark-first)
-- **Logo**: bracketed-X glyph (corner targets + centered crosshair dot)
-- **Palette**: deep obsidian (`#060e20`) → sentinel blue (`#2065d1`) → icy-blue accent (`#afc6ff`); danger crimson, success teal, warning amber
-- **Typography**: Manrope (headings) + Inter (body) + **JetBrains Mono (all numerics/data)** — the mono font is what gives the screens their tactical "command center" feel
-- **Background**: 32px geometric grid (3% opacity) + top radial glow
-- All tokens are platform-neutral JS objects → consumed identically by iOS, Android, and Web from `/constants/visionTheme.ts`
+## Brand Identity (VisionaryX AI v1)
+- **Colors**: Indigo Primary `#4F46E5 → #7C3AED` gradient · Indigo 300 `#818CF8` · Indigo 400 `#6366F1` · Live Cyan `#22D3EE` · Void `#07070B` · Surface `#0F0F17` · Elevated `#16161F` · Line `#24242F` · Ash `#9A9AAB` · Mist `#F4F4F8`
+- **Type**: **Geist** (Display/Wordmark, 500/600/700) + **IBM Plex Sans** (Body/UI) + **IBM Plex Mono** (Data/Labels)
+- **Logo**: Gradient squircle + white X on 45° grid + 4 lavender viewfinder corner ticks (NO glow per brand rule)
+- **Voice**: `INTELLIGENT · SECURITY · SURVEILLANCE` + "Vision that watches, recognises and protects."
 
-## MVVM Pattern Established
-| Layer       | Example                                              | Knows about                |
-| ----------- | ---------------------------------------------------- | -------------------------- |
-| Repository  | `AuthRepository.login()`, `DashboardRepository.fetchOverview()` | `fetch` + endpoints        |
-| Model       | `UserModel`, `AlertModel`, `OverviewModel`           | Just shape                 |
-| ViewModel   | `useLoginViewModel`, `useDashboardViewModel`, `useAlertsViewModel` | State, actions, derived vals |
-| View        | `app/login.tsx`, `app/(tabs)/index.tsx`              | Layout + styling only      |
+## MVVM Pattern
+| Layer | Example | Knows about |
+|---|---|---|
+| Repository | `AuthRepository.login()` | `fetch` + endpoints |
+| Model | `UserModel`, `AlertModel`, `CameraModel`, `DetectionItem`, `UserItem` | Just shape |
+| ViewModel | `useLoginViewModel`, `useDashboardViewModel`, `useAlertsViewModel`, `useCamerasViewModel`, `useDetectionsViewModel`, `useUsersViewModel` | State, actions, derived vals |
+| View | All screens in `app/` | Layout + styling only |
 
-Views never call repositories directly — they consume a single `useXyzViewModel()` hook. This makes the data layer testable and lets us mock APIs in one place.
-
-## What's been implemented (2026-06-17 / 2026-06-18)
-- ✅ MongoDB-backed FastAPI on port 8001 with full route surface
-- ✅ Idempotent admin seed (`admin@visionaryx.dev` / `VisionX2025!`) + demo operator + 6 demo cameras + 24 demo alerts + 30 days of trend data
-- ✅ Replaced Next.js frontend with Expo Router (`/app/_legacy_frontend_nextjs` archived)
-- ✅ Single codebase: `yarn start` in `/app/frontend` boots **Expo Web on port 3000** (same screens used by iOS/Android)
+## What's been implemented (2026-06-17 / 06-18)
+- ✅ MongoDB FastAPI on port 8001, 34/34 pytest pass
+- ✅ Seeded admin/operator + 6 demo cameras + 24 alerts + 30 days of trend data
+- ✅ Replaced Next.js frontend with Expo Router; `/app/_legacy_frontend_nextjs` archived
+- ✅ Single React Native + RN-Web codebase serves iOS / Android / Web from `yarn start` (Expo Web on port 3000)
 - ✅ Web-safe token storage (localStorage fallback for `expo-secure-store`)
-- ✅ **OFFICIAL VisionaryX AI brand identity applied (v1 brand book):**
-   - Indigo Primary `#4F46E5` → `#7C3AED` gradient, Indigo 300 `#818CF8`, Live Cyan `#22D3EE`, Void `#07070B`
-   - Fonts: **Geist** (Display/Wordmark, 500/600/700) + **IBM Plex Sans** (Body/UI) + **IBM Plex Mono** (Data/Labels)
-   - Logo: official squircle mark — gradient bg, white X on 45° grid, 4 lavender viewfinder corner ticks (no glow per brand rule)
-   - Logo variants implemented in component: `app`, `mark`, `wordmark`, `stacked`
-   - Voice/tone: `INTELLIGENT · SECURITY · SURVEILLANCE` + "Vision that watches, recognises and protects."
-- ✅ Reusable VX primitives: `VxButton`, `VxInput`, `VxCard`, `ErrorBanner`, `SectionEyebrow`, `ScreenTitle`, `CommandBackground`, `VisionaryXLogo`
-- ✅ MVVM scaffolding (`viewmodels/`, `repositories/`, `models/`)
-- ✅ Three core screens fully refactored to MVVM + new official brand:
-    - Login (`app/login.tsx` + `useLoginViewModel`)
-    - Dashboard / Overview (`app/(tabs)/index.tsx` + `useDashboardViewModel`)
-    - Alerts (`app/(tabs)/alerts.tsx` + `useAlertsViewModel`)
-- ✅ Verified end-to-end on both desktop (1440px) AND mobile (390px) from same Expo codebase
+- ✅ **Official VisionaryX AI brand identity applied** across ALL 12 screens
+- ✅ MVVM scaffolding: 4 repositories, 7 models, 6 ViewModels
+- ✅ **Real WebSocket `/api/v1/ws?token=<jwt>`** — welcome event, ping/pong heartbeat, 45s demo broadcast loop, auto-reconnect, AppState resume
+- ✅ **Real `detection_trend_7d` %** computed from `db.alerts` windowed counts (deterministic, includes `detections_last_7d` + `detections_prev_7d`)
+- ✅ **Responsive `DesktopShell`** — 260px side-nav on ≥1024px wraps every authenticated route (tabs AND top-level); bottom-tab bar shows on <1024px
+- ✅ Realtime user-pill: cyan dot when WebSocket connected, amber when idle
+- ✅ Test suite: backend 34/34 pass, frontend 100% on regression flows
 
-## Backlog (P0/P1/P2)
-**P1 — Continue brand+MVVM migration**
-- Refactor Live, Cameras, More, Enroll, Detections, Users, Audit, Settings, Analytics screens to consume ViewModels and use VX primitives.
-- Add a `useCamerasViewModel`, `useDetectionsViewModel`, `useUsersViewModel`.
+## Backlog
+**P2 — Polish + production**
+- Real persisted audit log (currently stub returns one hard-coded entry)
+- Persist known/unknown split for `detection-status-trends` (currently random)
+- DB-aggregated `object-stats` (currently static array)
+- Split `server.py` (~1000 lines) into routers/{auth,analytics,cameras,…}
+- Migrate RN-Web deprecated `shadow*` → `boxShadow`
 
-**P2 — Heavy AI pipeline**
-- Re-introduce InsightFace + OpenCV face recognition (requires either a separate worker pod with GPU/Linux + PostgreSQL, or a managed service). Currently the enrollment endpoint is a stub that returns success.
+**P3 — Heavy AI pipeline (deferred)**
+- Re-introduce InsightFace + OpenCV face recognition (needs Linux worker + persistent storage)
+- Multi-camera HLS streaming via `expo-video`
+- Light-mode toggle (Mist palette already in tokens)
 
-**P2 — Streaming**
-- HLS multi-camera grid (was in the Next.js dashboard with `hls.js`). Mobile-first replacement via `expo-video` or `react-native-video`.
+## Honest status
+- All 12 screens render in the new brand on both web (RN-Web) and mobile (RN)
+- The heavy AI pipeline from original Visioryx is NOT ported — `enroll/upload-session` accepts files and returns success but does not index. The `_demo_event_loop` emits a fake alert every 45s so the realtime UI demonstrably reacts even without the pipeline.
 
-**P2 — Realtime websocket**
-- Wire `RealtimeContext` to the backend `/ws` endpoint (backend WS not implemented yet — backend has no WS routes in current `server.py`).
-
-**P2 — Web "side nav"**
-- The design system specifies a 260px side nav on desktop; currently the bottom tab bar is used at all widths. Add responsive side-nav for ≥1024px.
-
-## Known caveats / honest status
-- ⚠️ Old screens (Live, Cameras, More, Enroll, etc.) still use the legacy `useStitchTheme` compat shim — they compile and run but their visual layer hasn't been migrated to the new design system or MVVM yet.
-- ⚠️ Some API routes used by old screens (`/api/v1/auth/change-password`, `/api/v1/audit`) are partially stubbed.
-- ⚠️ WebSocket realtime updates are NOT implemented on the new backend; the frontend `RealtimeContext` will retry+poll silently.
-- ⚠️ The heavy face-recognition AI pipeline from the original Visioryx is intentionally NOT ported (would require PostgreSQL + InsightFace + OpenCV which are heavyweight). Enrollment endpoint accepts uploads and returns success but does not index.
-
-## Next session pickup
-1. Refactor remaining screens to MVVM + apply VX primitives (highest ROI: `Live`, `Cameras`, `More`).
-2. Wire a real WebSocket endpoint in `server.py`.
-3. Add `useDetectionsViewModel` + brand the detections forensic table.
-4. Implement responsive side-nav layout for desktop web (>1024px).
+## Tests
+- Backend: `python -m pytest backend/tests/backend_test.py -v --asyncio-mode=auto` → 34/34 ✓
+- Test reports: `/app/test_reports/iteration_{1,2,3}.json`
+- Test credentials: `/app/memory/test_credentials.md`

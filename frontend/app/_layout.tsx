@@ -94,11 +94,11 @@ export default function RootLayout() {
               <Stack.Screen name="login" options={{ headerShown: false }} />
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="camera/[id]" options={{ title: 'Live view' }} />
-              <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
-              <Stack.Screen name="detections" options={{ title: 'Detections' }} />
-              <Stack.Screen name="audit" options={{ title: 'Audit log' }} />
-              <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-              <Stack.Screen name="users" options={{ title: 'User management' }} />
+              <Stack.Screen name="analytics" options={{ title: 'Analytics', headerShown: false }} />
+              <Stack.Screen name="detections" options={{ title: 'Detections', headerShown: false }} />
+              <Stack.Screen name="audit" options={{ title: 'Audit log', headerShown: false }} />
+              <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: false }} />
+              <Stack.Screen name="users" options={{ title: 'User management', headerShown: false }} />
             </Stack>
           </DesktopShell>
         </ThemeProvider>
