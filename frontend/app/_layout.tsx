@@ -23,6 +23,7 @@ import 'react-native-reanimated';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RealtimeProvider } from '@/contexts/RealtimeContext';
 import { PaletteDark, FontFamily as Fonts } from '@/constants/visionTheme';
+import { DesktopShell } from '@/components/DesktopShell';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -79,25 +80,27 @@ export default function RootLayout() {
     <AuthProvider>
       <RealtimeProvider>
         <ThemeProvider value={VxNavTheme}>
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: PaletteDark.surface },
-              headerTintColor: PaletteDark.text,
-              headerTitleStyle: { fontFamily: Fonts.heading, fontSize: 18 },
-              contentStyle: { backgroundColor: PaletteDark.bg },
-              headerBackTitle: 'Back',
-            }}
-          >
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="camera/[id]" options={{ title: 'Live view' }} />
-            <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
-            <Stack.Screen name="detections" options={{ title: 'Detections' }} />
-            <Stack.Screen name="audit" options={{ title: 'Audit log' }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-            <Stack.Screen name="users" options={{ title: 'User management' }} />
-          </Stack>
+          <DesktopShell>
+            <Stack
+              screenOptions={{
+                headerStyle: { backgroundColor: PaletteDark.surface, borderBottomWidth: 0 },
+                headerTintColor: PaletteDark.text,
+                headerTitleStyle: { fontFamily: Fonts.heading, fontSize: 18 },
+                contentStyle: { backgroundColor: PaletteDark.bg },
+                headerBackTitle: 'Back',
+              }}
+            >
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="camera/[id]" options={{ title: 'Live view' }} />
+              <Stack.Screen name="analytics" options={{ title: 'Analytics' }} />
+              <Stack.Screen name="detections" options={{ title: 'Detections' }} />
+              <Stack.Screen name="audit" options={{ title: 'Audit log' }} />
+              <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+              <Stack.Screen name="users" options={{ title: 'User management' }} />
+            </Stack>
+          </DesktopShell>
         </ThemeProvider>
       </RealtimeProvider>
     </AuthProvider>

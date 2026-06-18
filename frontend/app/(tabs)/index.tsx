@@ -96,8 +96,21 @@ export default function OverviewScreen() {
             icon="account-group"
             footer={
               <View style={styles.kpiFooterRow}>
-                <MaterialCommunityIcons name="trending-up" size={12} color={C.success} />
-                <Text style={[styles.kpiFooter, { color: C.success }]}>+12% week-over-week</Text>
+                <MaterialCommunityIcons
+                  name={(vm.overview?.detection_trend_7d ?? 0) >= 0 ? 'trending-up' : 'trending-down'}
+                  size={12}
+                  color={(vm.overview?.detection_trend_7d ?? 0) >= 0 ? C.success : C.danger}
+                />
+                <Text
+                  style={[
+                    styles.kpiFooter,
+                    { color: (vm.overview?.detection_trend_7d ?? 0) >= 0 ? C.success : C.danger },
+                  ]}
+                >
+                  {vm.overview?.detection_trend_7d != null
+                    ? `${vm.overview.detection_trend_7d > 0 ? '+' : ''}${vm.overview.detection_trend_7d}% week-over-week`
+                    : '—'}
+                </Text>
               </View>
             }
           />

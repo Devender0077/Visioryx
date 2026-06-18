@@ -423,13 +423,31 @@ async def analytics_overview(_: dict[str, Any] = Depends(current_user)) -> dict[
     unknown_today = await db.alerts.count_documents(
         {"timestamp": {"$gte": today_start}, "alert_type": "Unrecognized entry"}
     )
+
+    # Real 7-day trend % delta: last 7 days vs prior 7 days (from db.alerts).
+    now = datetime.now(timezone.utc)
+    last7_start = now - timedelta(days=7)
+    prev14_start = now - timedelta(days=14)
+    last7 = await db.alerts.count_documents({"timestamp": {"$gte": last7_start}})
+    prev7 = await db.alerts.count_documents(
+        {"timestamp": {"$gte": prev14_start, "$lt": last7_start}}
+    )
+    if prev7 > 0:
+        trend_pct = round(((last7 - prev7) / prev7) * 100, 1)
+    elif last7 > 0:
+        trend_pct = 100.0
+    else:
+        trend_pct = 0.0
+
     return {
         "total_users": total_users,
         "total_cameras": total_cameras,
         "active_cameras": active_cameras,
         "detections_today": detections_today,
         "unknown_detections_today": unknown_today,
-        "detection_trend_7d": random.randint(8, 24),
+        "detection_trend_7d": trend_pct,
+        "detections_last_7d": last7,
+        "detections_prev_7d": prev7,
     }
 
 
