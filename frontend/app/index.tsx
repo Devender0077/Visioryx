@@ -13,9 +13,9 @@ export default function Index() {
       <View style={styles.root} testID="boot-screen">
         <CommandBackground />
         <View style={styles.center}>
-          <VisionaryXLogo size={56} variant="wordmark" />
+          <VisionaryXLogo size={72} variant="stacked" />
           <ActivityIndicator size="small" color={C.primaryAccent} style={{ marginTop: Space.xl }} />
-          <Text style={styles.line}>{Brand.tagline.toUpperCase()} · booting sentinel pipeline</Text>
+          <Text style={styles.line}>{Brand.tagline}</Text>
         </View>
       </View>
     );
@@ -33,6 +33,6 @@ const styles = StyleSheet.create({
     color: C.textMuted,
     marginTop: Space.md,
     fontFamily: F.mono,
-    letterSpacing: 1,
+    letterSpacing: 1.4,
   },
 });

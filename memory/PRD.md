@@ -61,20 +61,25 @@ The user uploaded an existing Visioryx codebase (FastAPI + PostgreSQL backend, N
 
 Views never call repositories directly — they consume a single `useXyzViewModel()` hook. This makes the data layer testable and lets us mock APIs in one place.
 
-## What's been implemented (2026-06-17)
+## What's been implemented (2026-06-17 / 2026-06-18)
 - ✅ MongoDB-backed FastAPI on port 8001 with full route surface
 - ✅ Idempotent admin seed (`admin@visionaryx.dev` / `VisionX2025!`) + demo operator + 6 demo cameras + 24 demo alerts + 30 days of trend data
 - ✅ Replaced Next.js frontend with Expo Router (`/app/_legacy_frontend_nextjs` archived)
 - ✅ Single codebase: `yarn start` in `/app/frontend` boots **Expo Web on port 3000** (same screens used by iOS/Android)
 - ✅ Web-safe token storage (localStorage fallback for `expo-secure-store`)
-- ✅ Full VisionaryX brand identity + design tokens (`visionTheme.ts`)
+- ✅ **OFFICIAL VisionaryX AI brand identity applied (v1 brand book):**
+   - Indigo Primary `#4F46E5` → `#7C3AED` gradient, Indigo 300 `#818CF8`, Live Cyan `#22D3EE`, Void `#07070B`
+   - Fonts: **Geist** (Display/Wordmark, 500/600/700) + **IBM Plex Sans** (Body/UI) + **IBM Plex Mono** (Data/Labels)
+   - Logo: official squircle mark — gradient bg, white X on 45° grid, 4 lavender viewfinder corner ticks (no glow per brand rule)
+   - Logo variants implemented in component: `app`, `mark`, `wordmark`, `stacked`
+   - Voice/tone: `INTELLIGENT · SECURITY · SURVEILLANCE` + "Vision that watches, recognises and protects."
 - ✅ Reusable VX primitives: `VxButton`, `VxInput`, `VxCard`, `ErrorBanner`, `SectionEyebrow`, `ScreenTitle`, `CommandBackground`, `VisionaryXLogo`
 - ✅ MVVM scaffolding (`viewmodels/`, `repositories/`, `models/`)
-- ✅ Three core screens fully refactored to MVVM + new brand:
+- ✅ Three core screens fully refactored to MVVM + new official brand:
     - Login (`app/login.tsx` + `useLoginViewModel`)
     - Dashboard / Overview (`app/(tabs)/index.tsx` + `useDashboardViewModel`)
     - Alerts (`app/(tabs)/alerts.tsx` + `useAlertsViewModel`)
-- ✅ Verified end-to-end: login → dashboard renders with live KPIs, trends, recent alerts
+- ✅ Verified end-to-end on both desktop (1440px) AND mobile (390px) from same Expo codebase
 
 ## Backlog (P0/P1/P2)
 **P1 — Continue brand+MVVM migration**

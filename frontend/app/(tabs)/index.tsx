@@ -58,11 +58,11 @@ export default function OverviewScreen() {
         }
       >
         {/* Hero */}
-        <SectionEyebrow testID="hero-eyebrow">{Brand.tagline} · Live</SectionEyebrow>
+        <SectionEyebrow testID="hero-eyebrow">{Brand.tagline}</SectionEyebrow>
         <ScreenTitle testID="hero-title">All systems vigilant.</ScreenTitle>
         <ScreenSub testID="hero-sub">
-          Infrastructure monitoring active across <Text style={styles.mono}>{vm.nodes}</Text> nodes. No
-          critical breaches in the last <Text style={styles.mono}>24</Text> hours.
+          Autonomous threat detection active across <Text style={styles.mono}>{vm.nodes}</Text>{' '}
+          nodes. Vision that watches, recognises and protects.
         </ScreenSub>
 
         {/* Shortcut row */}

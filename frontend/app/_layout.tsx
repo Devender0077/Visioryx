@@ -1,17 +1,18 @@
 import {
-  Manrope_600SemiBold,
-  Manrope_700Bold,
-  Manrope_800ExtraBold,
-} from '@expo-google-fonts/manrope';
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+} from '@expo-google-fonts/geist';
 import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-} from '@expo-google-fonts/inter';
+  IBMPlexSans_400Regular,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-sans';
 import {
-  JetBrainsMono_400Regular,
-  JetBrainsMono_500Medium,
-} from '@expo-google-fonts/jetbrains-mono';
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-mono';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -31,7 +32,6 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-// VisionaryX runs dark-first (command center identity).
 const VxNavTheme = {
   ...DarkTheme,
   colors: {
@@ -47,19 +47,19 @@ const VxNavTheme = {
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    Manrope_600SemiBold,
-    Manrope_700Bold,
-    Manrope_800ExtraBold,
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    JetBrainsMono_400Regular,
-    JetBrainsMono_500Medium,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+    IBMPlexSans_400Regular,
+    IBMPlexSans_500Medium,
+    IBMPlexSans_600SemiBold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
   });
 
   useEffect(() => {
     if (error) {
-      // Don't throw — just log so web doesn't blank out.
       // eslint-disable-next-line no-console
       console.warn('Font load error', error);
     }

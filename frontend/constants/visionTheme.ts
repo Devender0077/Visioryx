@@ -1,12 +1,8 @@
 /**
- * VisionaryX Design System — Single source of truth.
+ * VisionaryX Design System — OFFICIAL brand tokens (from brand book v1).
  *
- * Generated from /app/design_guidelines.json (archetype: "Command Center /
- * Swiss High-Contrast"). Platform-neutral values (hex / numbers) so the same
- * tokens drive React Native (iOS/Android) and React Native Web.
- *
- * Always import from this module in screens & components. Never hard-code
- * colors / font sizes / spacing in StyleSheets.
+ * Color, typography and motion tokens are platform-neutral (hex / numbers)
+ * so the same values drive React Native (iOS / Android) and React Native Web.
  */
 
 // ---------------------------------------------------------------------------
@@ -14,89 +10,107 @@
 // ---------------------------------------------------------------------------
 export const Brand = {
   name: 'VisionaryX',
-  tagline: 'Digital Sentinel',
-  shortTagline: 'Vigilance, Indexed.',
-  copyright: '© VisionaryX Systems',
+  fullName: 'VisionaryX AI',
+  tagline: 'INTELLIGENT · SECURITY · SURVEILLANCE',
+  shortTagline: 'Vision that watches, recognises and protects.',
+  copyright: '© VisionaryX AI',
 } as const;
 
 // ---------------------------------------------------------------------------
-// Color tokens — dark is primary; light kept for future toggle.
+// Official color palette (from brand book).
 // ---------------------------------------------------------------------------
 export const PaletteDark = {
-  // Surfaces (deepest → highest elevation)
-  bg: '#060e20',
-  surface: '#0b1326',
-  surfaceLow: '#121d36',
-  surface2: '#172244',
-  surface3: '#1e2c4a',
+  // Surfaces (deepest → highest elevation) — official names from brand book
+  bg: '#07070B',          // VOID
+  surface: '#0F0F17',     // SURFACE
+  surfaceLow: '#0F0F17',
+  surface2: '#16161F',    // ELEVATED
+  surface3: '#1d1d28',
   // Text
-  text: '#FFFFFF',
-  textMuted: '#8C9BB3',
-  textFaint: '#4F5E7B',
+  text: '#F4F4F8',        // MIST
+  textMuted: '#9A9AAB',   // ASH
+  textFaint: '#5C5C6B',
   // Borders / dividers
-  border: '#1e2c4a',
-  borderStrong: '#2a3b5c',
-  // Brand primary (sentinel blue)
-  primary: '#2065d1',
-  primaryHover: '#3376E3',
-  primaryActive: '#afc6ff',
-  primaryAccent: '#afc6ff', // hairline accents, links
+  border: '#24242F',      // LINE
+  borderStrong: '#34344A',
+  // Brand primary — INDIGO PRIMARY gradient (4F46E5 → 7C3AED)
+  primary: '#4F46E5',
+  primaryHover: '#5b53ec',
+  primaryActive: '#7C3AED',
+  primaryAccent: '#818CF8',   // Indigo 300 (light accent on dark)
+  primaryAccent2: '#6366F1',  // Indigo 400 (mid accent)
+  primaryGradEnd: '#7C3AED',
   onPrimary: '#FFFFFF',
-  primaryFaint: 'rgba(32, 101, 209, 0.12)',
+  primaryFaint: 'rgba(79, 70, 229, 0.14)',
+  // Live cyan — used for "live" / status indicators
+  cyan: '#22D3EE',
+  cyanFaint: 'rgba(34, 211, 238, 0.14)',
   // Status
-  success: '#00C781',
-  successFaint: 'rgba(0, 199, 129, 0.14)',
-  warning: '#F5A623',
-  warningFaint: 'rgba(245, 166, 35, 0.14)',
-  danger: '#FF3B30',
-  dangerHover: '#FF5247',
-  dangerFaint: 'rgba(255, 59, 48, 0.14)',
-  info: '#afc6ff',
+  success: '#22D3EE',
+  successFaint: 'rgba(34, 211, 238, 0.14)',
+  warning: '#F59E0B',
+  warningFaint: 'rgba(245, 158, 11, 0.14)',
+  danger: '#EF4444',
+  dangerHover: '#F65555',
+  dangerFaint: 'rgba(239, 68, 68, 0.14)',
+  info: '#818CF8',
   // Overlays
   scrim: 'rgba(0, 0, 0, 0.7)',
-  glass: 'rgba(11, 19, 38, 0.7)',
+  glass: 'rgba(15, 15, 23, 0.7)',
   innerGlow: 'rgba(255, 255, 255, 0.04)',
   // Chart palette
-  chartPrimary: '#2065d1',
-  chartActive: '#afc6ff',
-  chartTrack: 'rgba(32, 101, 209, 0.16)',
+  chartPrimary: '#4F46E5',
+  chartActive: '#818CF8',
+  chartTrack: 'rgba(79, 70, 229, 0.18)',
+  chartLive: '#22D3EE',
 } as const;
 
 export const PaletteLight = {
-  bg: '#F5F7FA',
+  bg: '#F4F4F8',
   surface: '#FFFFFF',
-  surfaceLow: '#F8FAFC',
-  surface2: '#F1F5F9',
-  surface3: '#E2E8F0',
-  text: '#0B1326',
-  textMuted: '#4F5E7B',
-  textFaint: '#94A3B8',
-  border: '#E2E8F0',
-  borderStrong: '#CBD5E1',
-  primary: '#2065d1',
-  primaryHover: '#184ea6',
-  primaryActive: '#10387b',
-  primaryAccent: '#2065d1',
+  surfaceLow: '#F4F4F8',
+  surface2: '#EEEEF3',
+  surface3: '#E4E4EC',
+  text: '#0F0F17',
+  textMuted: '#5C5C6B',
+  textFaint: '#9A9AAB',
+  border: '#E4E4EC',
+  borderStrong: '#C7C7D2',
+  primary: '#4F46E5',
+  primaryHover: '#3F36C5',
+  primaryActive: '#7C3AED',
+  primaryAccent: '#4F46E5',
+  primaryAccent2: '#6366F1',
+  primaryGradEnd: '#7C3AED',
   onPrimary: '#FFFFFF',
-  primaryFaint: 'rgba(32, 101, 209, 0.08)',
-  success: '#079455',
-  successFaint: 'rgba(7, 148, 85, 0.10)',
-  warning: '#DC6803',
-  warningFaint: 'rgba(220, 104, 3, 0.10)',
-  danger: '#D92D20',
-  dangerHover: '#B42318',
-  dangerFaint: 'rgba(217, 45, 32, 0.10)',
-  info: '#2065d1',
-  scrim: 'rgba(11, 19, 38, 0.4)',
+  primaryFaint: 'rgba(79, 70, 229, 0.10)',
+  cyan: '#0891B2',
+  cyanFaint: 'rgba(8, 145, 178, 0.10)',
+  success: '#0891B2',
+  successFaint: 'rgba(8, 145, 178, 0.10)',
+  warning: '#B45309',
+  warningFaint: 'rgba(180, 83, 9, 0.10)',
+  danger: '#DC2626',
+  dangerHover: '#B91C1C',
+  dangerFaint: 'rgba(220, 38, 38, 0.10)',
+  info: '#4F46E5',
+  scrim: 'rgba(15, 15, 23, 0.4)',
   glass: 'rgba(255, 255, 255, 0.7)',
-  innerGlow: 'rgba(11, 19, 38, 0.03)',
-  chartPrimary: '#2065d1',
-  chartActive: '#10387b',
-  chartTrack: 'rgba(32, 101, 209, 0.12)',
+  innerGlow: 'rgba(15, 15, 23, 0.03)',
+  chartPrimary: '#4F46E5',
+  chartActive: '#7C3AED',
+  chartTrack: 'rgba(79, 70, 229, 0.12)',
+  chartLive: '#0891B2',
+} as const;
+
+// Brand gradient stops — for the squircle logo background and accents.
+export const BrandGradient = {
+  start: '#4F46E5',
+  end: '#7C3AED',
 } as const;
 
 // ---------------------------------------------------------------------------
-// Spacing scale (px — works for both RN points and CSS px via RN-Web).
+// Spacing & radius
 // ---------------------------------------------------------------------------
 export const Space = {
   none: 0,
@@ -112,45 +126,48 @@ export const Space = {
 
 export const Radius = {
   none: 0,
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  squircle: 28,  // for icon-app squircle
   full: 9999,
 } as const;
 
 // ---------------------------------------------------------------------------
-// Typography — Manrope (heading), Inter (body), JetBrains Mono (data).
-// Fonts are loaded in app/_layout.tsx via @expo-google-fonts.
+// Typography — Geist (display) + IBM Plex Sans (body) + IBM Plex Mono (data).
+// Loaded in app/_layout.tsx via @expo-google-fonts.
 // ---------------------------------------------------------------------------
 export const FontFamily = {
-  // Display / headings
-  display: 'Manrope_800ExtraBold',
-  heading: 'Manrope_700Bold',
-  headingMedium: 'Manrope_600SemiBold',
-  // Body
-  body: 'Inter_400Regular',
-  bodyMedium: 'Inter_500Medium',
-  bodySemibold: 'Inter_600SemiBold',
-  // Data / numeric — command-center JetBrains Mono
-  mono: 'JetBrainsMono_400Regular',
-  monoMedium: 'JetBrainsMono_500Medium',
+  // Display / headings — Geist
+  display: 'Geist_700Bold',
+  heading: 'Geist_600SemiBold',
+  headingMedium: 'Geist_500Medium',
+  // Body — IBM Plex Sans
+  body: 'IBMPlexSans_400Regular',
+  bodyMedium: 'IBMPlexSans_500Medium',
+  bodySemibold: 'IBMPlexSans_600SemiBold',
+  // Data / numeric / labels — IBM Plex Mono
+  mono: 'IBMPlexMono_400Regular',
+  monoMedium: 'IBMPlexMono_500Medium',
+  monoSemibold: 'IBMPlexMono_600SemiBold',
 } as const;
 
 export const TextStyles = {
   h1: { fontFamily: FontFamily.display, fontSize: 48, lineHeight: 56, letterSpacing: -1 },
-  h2: { fontFamily: FontFamily.heading, fontSize: 36, lineHeight: 44, letterSpacing: -0.75 },
+  h2: { fontFamily: FontFamily.display, fontSize: 36, lineHeight: 44, letterSpacing: -0.75 },
   h3: { fontFamily: FontFamily.heading, fontSize: 24, lineHeight: 32, letterSpacing: -0.5 },
-  h4: { fontFamily: FontFamily.headingMedium, fontSize: 20, lineHeight: 28, letterSpacing: -0.25 },
+  h4: { fontFamily: FontFamily.heading, fontSize: 20, lineHeight: 28, letterSpacing: -0.25 },
   bodyLarge: { fontFamily: FontFamily.body, fontSize: 18, lineHeight: 28 },
   body: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 24 },
   bodySmall: { fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20 },
   caption: { fontFamily: FontFamily.body, fontSize: 12, lineHeight: 16 },
+  // Brand voice label — IBM Plex Mono SMALL CAPS with letter-spacing
   label: {
-    fontFamily: FontFamily.bodySemibold,
+    fontFamily: FontFamily.monoMedium,
     fontSize: 11,
     lineHeight: 16,
-    letterSpacing: 1.2,
+    letterSpacing: 1.4,
     textTransform: 'uppercase' as const,
   },
   // Mono / data
@@ -166,7 +183,6 @@ export const Motion = {
   fast: 150,
   base: 250,
   slow: 400,
-  // Bezier presets (RN: just durations; web can use CSS easing strings)
   easing: {
     snappy: 'cubic-bezier(0.16, 1, 0.3, 1)',
     smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
@@ -175,7 +191,7 @@ export const Motion = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Breakpoints (used by useResponsive hook + RN-Web media queries)
+// Breakpoints
 // ---------------------------------------------------------------------------
 export const Breakpoint = {
   mobile: 360,
@@ -185,7 +201,7 @@ export const Breakpoint = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Theme container (dark default)
+// Theme container
 // ---------------------------------------------------------------------------
 export type ColorPalette = typeof PaletteDark;
 export type ThemeName = 'dark' | 'light';
@@ -220,5 +236,4 @@ export const ThemeLight: VisionTheme = {
   font: FontFamily,
 };
 
-// Default export — always dark for VisionaryX (command-center identity)
 export const Theme = ThemeDark;

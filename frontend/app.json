@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#060e20"
+      "backgroundColor": "#07070B"
     },
     "ios": {
       "bundleIdentifier": "com.visionaryx.app",
@@ -25,7 +25,7 @@
     "android": {
       "package": "com.visionaryx.app",
       "adaptiveIcon": {
-        "backgroundColor": "#060e20",
+        "backgroundColor": "#07070B",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"

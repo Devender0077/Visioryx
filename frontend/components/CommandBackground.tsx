@@ -4,7 +4,7 @@
  */
 import { memo } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import { Svg, Defs, Pattern, Path, Rect, LinearGradient as SvgGradient, Stop, RadialGradient, Circle } from 'react-native-svg';
+import { Svg, Defs, Pattern, Path, Rect, LinearGradient as SvgGradient, Stop, RadialGradient } from 'react-native-svg';
 import { PaletteDark } from '@/constants/visionTheme';
 
 interface Props {
@@ -32,19 +32,19 @@ export const CommandBackground = memo(function CommandBackground({
         preserveAspectRatio="xMidYMid slice"
       >
         <Defs>
-          <Pattern id="vxGrid" width="32" height="32" patternUnits="userSpaceOnUse">
+          <Pattern id="vxGrid" width="36" height="36" patternUnits="userSpaceOnUse">
             <Path
-              d="M 32 0 L 0 0 0 32"
+              d="M 36 0 L 0 0 0 36"
               fill="none"
               stroke={PaletteDark.primary}
-              strokeOpacity={0.06}
+              strokeOpacity={0.05}
               strokeWidth={0.5}
             />
           </Pattern>
           {glow ? (
             <RadialGradient id="vxGlow" cx="50%" cy="0%" r="55%">
-              <Stop offset="0%" stopColor={PaletteDark.primary} stopOpacity={0.18} />
-              <Stop offset="50%" stopColor={PaletteDark.primary} stopOpacity={0.04} />
+              <Stop offset="0%" stopColor={PaletteDark.primary} stopOpacity={0.22} />
+              <Stop offset="50%" stopColor={PaletteDark.primaryActive} stopOpacity={0.06} />
               <Stop offset="100%" stopColor={PaletteDark.primary} stopOpacity={0} />
             </RadialGradient>
           ) : null}

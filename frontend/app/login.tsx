@@ -1,8 +1,5 @@
 /**
- * Login screen — VisionaryX brand identity, MVVM via `useLoginViewModel`.
- *
- * The View only knows about formatting & gestures; all state, validation
- * and API calls live in the ViewModel.
+ * Login screen — official VisionaryX AI brand, MVVM via `useLoginViewModel`.
  */
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -60,25 +57,23 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Wordmark */}
           <View style={styles.brandRow} testID="login-brand-row">
-            <VisionaryXLogo variant="wordmark" size={40} />
+            <VisionaryXLogo variant="wordmark" size={44} />
           </View>
 
-          {/* Hero copy */}
           <View style={styles.hero}>
             <Text style={styles.eyebrow} testID="login-eyebrow">
               {Brand.tagline}
             </Text>
             <Text style={styles.h1} testID="login-headline">
-              Vigilance,{'\n'}indexed.
+              Vision that{'\n'}watches.
             </Text>
             <Text style={styles.sub}>
-              Sign in to monitor your perimeter, review detections and tune the Sentinel pipeline.
+              Real-time perimeter intelligence built for operators. Sign in to monitor cameras,
+              review detections and command the VisionaryX pipeline.
             </Text>
           </View>
 
-          {/* Login card */}
           <View style={styles.card}>
             <ErrorBanner message={vm.error} testID="login-error" />
 
@@ -147,7 +142,7 @@ export default function LoginScreen() {
 
               <VxButton
                 testID="login-submit-button"
-                label="Initialize protocol"
+                label="Sign in"
                 onPress={onSubmit}
                 busy={vm.busy}
                 fullWidth
@@ -158,7 +153,6 @@ export default function LoginScreen() {
             </View>
           </View>
 
-          {/* Footer status strip */}
           <View style={styles.footer} testID="login-footer">
             <View style={styles.metaCell}>
               <Text style={styles.metaLbl}>API</Text>
@@ -166,15 +160,15 @@ export default function LoginScreen() {
             </View>
             <View style={styles.metaDivider} />
             <View style={styles.metaCell}>
-              <Text style={styles.metaLbl}>Status</Text>
+              <Text style={styles.metaLbl}>System</Text>
               <View style={styles.statusRow}>
                 <View
                   style={[
                     styles.statusDot,
-                    { backgroundColor: apiVersion ? C.success : C.danger },
+                    { backgroundColor: apiVersion ? C.cyan : C.danger },
                   ]}
                 />
-                <Text style={styles.metaVal}>{apiVersion ? 'Connected' : 'Offline'}</Text>
+                <Text style={styles.metaVal}>{apiVersion ? 'Online' : 'Offline'}</Text>
               </View>
             </View>
             <View style={styles.metaDivider} />
@@ -223,7 +217,7 @@ const styles = StyleSheet.create({
     ...TextStyles.body,
     color: C.textMuted,
     marginTop: Space.md,
-    maxWidth: 420,
+    maxWidth: 460,
   },
   card: {
     marginTop: Space.xxl,
