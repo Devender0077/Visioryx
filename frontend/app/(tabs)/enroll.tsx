@@ -1,614 +1,233 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Alert, StyleSheet, Text, View, Pressable, ActivityIndicator, Dimensions } from 'react-native';
+/**
+ * Enrollment — operator-friendly face enrollment.
+ *
+ * - Web: shows guided steps (Front/Left/Right) with file upload (the actual
+ *   browser camera API is enabled per-platform; using upload keeps it
+ *   working in all browsers).
+ * - Native: would use `expo-camera` (deferred — UI shown as "Open camera"
+ *   call-to-action that we wire in a follow-up).
+ *
+ * Submits a multipart form to `/api/v1/enroll/upload-session`.
+ */
+import { useState } from 'react';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as MediaLibrary from 'expo-media-library';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as Speech from 'expo-speech';
-import { Stitch, FontFamily } from '@/constants/stitchTheme';
-import { useStitchTheme } from '@/hooks/useStitchTheme';
-import { getStoredToken, api } from '@/lib/api';
 
-type EnrollmentStep = 'intro' | 'capture' | 'uploading' | 'success' | 'error';
+import { useAuth } from '@/contexts/AuthContext';
+import { getStoredToken } from '@/lib/api';
+import { getApiBase } from '@/lib/config';
+import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
+import { CommandBackground } from '@/components/CommandBackground';
+import { VisionaryXLogo } from '@/components/VisionaryXLogo';
+import { VxButton, SectionEyebrow, ScreenTitle, ScreenSub, VxCard, ErrorBanner } from '@/components/vx';
 
-interface CapturedPhoto {
-  uri: string;
-  width: number;
-  height: number;
-}
-
-interface CaptureInstruction {
+interface Step {
+  key: 'front' | 'left' | 'right';
   label: string;
-  icon: string;
   description: string;
-  voiceText: string;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
 }
 
-const CAPTURE_STEPS: CaptureInstruction[] = [
-  { label: 'Front', icon: 'face-recognition', description: 'Look straight at the camera', voiceText: 'Look straight at the camera. Keep your face centered.' },
-  { label: 'Left', icon: 'arrow-left', description: 'Turn your face slightly left', voiceText: 'Now turn your face slightly to the left.' },
-  { label: 'Right', icon: 'arrow-right', description: 'Turn your face slightly right', voiceText: 'Now turn your face slightly to the right.' },
+const STEPS: Step[] = [
+  { key: 'front', label: 'Front pose', description: 'Look straight at the camera. Keep your face centered and well-lit.', icon: 'face-recognition' },
+  { key: 'left',  label: 'Left pose',  description: 'Turn your face ~30° to the left. Keep both eyes visible.',          icon: 'arrow-left' },
+  { key: 'right', label: 'Right pose', description: 'Turn your face ~30° to the right. Keep both eyes visible.',         icon: 'arrow-right' },
 ];
 
-const TAB_BAR_HEIGHT = 90;
-
-export default function EnrollTabScreen() {
+export default function EnrollScreen() {
   const router = useRouter();
-  const T = useStitchTheme();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [mediaPermission, requestMediaPermission] = MediaLibrary.usePermissions();
-  
-  const [step, setStep] = useState<EnrollmentStep>('intro');
-  const [currentCaptureIndex, setCurrentCaptureIndex] = useState(0);
-  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([]);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [authToken, setAuthToken] = useState<string>('');
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  
-  const cameraRef = useRef<CameraView>(null);
+  const { user } = useAuth();
+  const [captured, setCaptured] = useState<Record<string, File | { uri: string }>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    getStoredToken().then((token) => {
-      setAuthToken(token || '');
-    });
-  }, []);
+  // Web: hidden <input> file picker per step.
+  const webPick = (key: string) => {
+    if (Platform.OS !== 'web') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'user';
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files?.[0];
+      if (f) setCaptured((c) => ({ ...c, [key]: f }));
+    };
+    input.click();
+  };
 
-  useEffect(() => {
-    if (!permission?.granted) {
-      requestPermission();
+  const onCapture = (key: string) => {
+    if (Platform.OS === 'web') {
+      webPick(key);
+    } else {
+      Alert.alert(
+        'Open camera',
+        'Native camera capture for face enrollment opens here. (Implementation deferred to next iteration.)',
+      );
     }
-    if (!mediaPermission?.granted) {
-      requestMediaPermission();
-    }
-  }, []);
+  };
 
-  const speak = useCallback((text: string) => {
-    if (voiceEnabled) {
-      Speech.stop();
-      Speech.speak(text, {
-        language: 'en-US',
-        pitch: 1.0,
-        rate: 0.9,
-      });
+  const submit = async () => {
+    const missing = STEPS.filter((s) => !captured[s.key]);
+    if (missing.length > 0) {
+      setError(`Capture remaining: ${missing.map((m) => m.label).join(', ')}`);
+      return;
     }
-  }, [voiceEnabled]);
-
-  const handleCapture = async () => {
-    if (!cameraRef.current) return;
-    
-    const currentInstruction = CAPTURE_STEPS[currentCaptureIndex];
-    speak('Capturing. Please wait.');
-    
+    setBusy(true);
+    setError(null);
     try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
-        base64: false,
-      });
-      
-      if (photo) {
-        const newPhotos = [...capturedPhotos, photo];
-        setCapturedPhotos(newPhotos);
-        
-        if (currentCaptureIndex < CAPTURE_STEPS.length - 1) {
-          setCurrentCaptureIndex(currentCaptureIndex + 1);
-          setTimeout(() => {
-            const nextInstruction = CAPTURE_STEPS[currentCaptureIndex + 1];
-            speak(nextInstruction.voiceText);
-          }, 500);
+      const token = await getStoredToken();
+      const fd = new FormData();
+      Object.entries(captured).forEach(([key, val]) => {
+        if (val instanceof File) {
+          fd.append('files', val, `${key}.jpg`);
         } else {
-          await submitEnrollment(newPhotos);
+          // Native blob (deferred)
+          // @ts-ignore
+          fd.append('files', { uri: val.uri, type: 'image/jpeg', name: `${key}.jpg` });
         }
-      }
-    } catch (e) {
-      console.error('Failed to capture photo:', e);
-      Alert.alert('Error', 'Failed to capture photo. Please try again.');
-    }
-  };
-
-  const submitEnrollment = async (photos: CapturedPhoto[]) => {
-    setStep('uploading');
-    speak('Processing your photos. Please wait.');
-    setIsSubmitting(true);
-    
-    try {
-      const formData = new FormData();
-      
-      photos.forEach((photo, index) => {
-        formData.append('files', {
-          uri: photo.uri,
-          type: 'image/jpeg',
-          name: `photo_${index}.jpg`,
-        } as unknown as Blob);
       });
-      
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/api/v1/enroll/upload-session`, {
+      const res = await fetch(`${getApiBase()}/api/v1/enroll/upload-session`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${authToken}`,
-        },
-        body: formData,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: fd,
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Enrollment failed');
-      }
-      
-      speak('Enrollment complete! Your face has been enrolled successfully.');
-      setStep('success');
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      setSuccess(true);
     } catch (e) {
-      console.error('Enrollment error:', e);
-      const errorMsg = e instanceof Error ? e.message : 'Failed to enroll. Please try again.';
-      setErrorMessage(errorMsg);
-      speak('Enrollment failed. Please try again.');
-      setStep('error');
+      setError(e instanceof Error ? e.message : 'Upload failed');
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
-  const startCapture = () => {
-    setStep('capture');
-    setTimeout(() => {
-      speak(CAPTURE_STEPS[0].voiceText);
-    }, 500);
-  };
-
-  const resetEnrollment = () => {
-    setStep('intro');
-    setCurrentCaptureIndex(0);
-    setCapturedPhotos([]);
-    setErrorMessage('');
-    Speech.stop();
-  };
-
-  const renderIntro = () => (
-    <View style={styles.centerContent}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <MaterialCommunityIcons name="arrow-left" size={24} color={Stitch.onSurface} />
-      </Pressable>
-      
-      <View style={styles.voiceToggle}>
-        <Pressable style={[styles.voiceBtn, voiceEnabled && styles.voiceBtnActive]} onPress={() => setVoiceEnabled(!voiceEnabled)}>
-          <MaterialCommunityIcons name={voiceEnabled ? 'volume-high' : 'volume-off'} size={20} color={voiceEnabled ? Stitch.primary : Stitch.outline} />
-        </Pressable>
-      </View>
-      
-      <MaterialCommunityIcons name="face-recognition" size={80} color={Stitch.primary} style={{ marginTop: 16 }} />
-      <Text style={[styles.title, { color: Stitch.onSurface }]}>Face Enrollment</Text>
-      <Text style={[styles.subtitle, { color: Stitch.onSurfaceVariant }]}>
-        Set up face recognition for secure authentication. We'll capture your face from multiple angles with voice guidance.
-      </Text>
-      
-      <View style={styles.instructionsList}>
-        {CAPTURE_STEPS.map((item, index) => (
-          <View key={item.label} style={styles.instructionItem}>
-            <View style={[styles.instructionNumber, { backgroundColor: Stitch.primaryContainer }]}>
-              <Text style={[styles.instructionNumberText, { color: Stitch.onPrimaryContainer }]}>{index + 1}</Text>
-            </View>
-            <View style={styles.instructionContent}>
-              <Text style={[styles.instructionLabel, { color: Stitch.onSurface }]}>{item.label} View</Text>
-              <Text style={[styles.instructionDesc, { color: Stitch.onSurfaceVariant }]}>{item.description}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      <Pressable style={styles.startButton} onPress={startCapture}>
-        <LinearGradient
-          colors={[Stitch.primary, Stitch.primaryContainer]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.startButtonGradient}
-        >
-          <MaterialCommunityIcons name="camera" size={24} color={Stitch.onPrimary} />
-          <Text style={styles.startButtonText}>Start Enrollment</Text>
-        </LinearGradient>
-      </Pressable>
-    </View>
-  );
-
-  const renderCapture = () => {
-    const currentInstruction = CAPTURE_STEPS[currentCaptureIndex];
-    const progress = ((currentCaptureIndex + 1) / CAPTURE_STEPS.length) * 100;
-    const { height: screenHeight } = Dimensions.get('window');
-    
+  if (success) {
     return (
-      <View style={styles.captureContainer}>
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing="front"
-          mode="picture"
-        >
-          <View style={styles.cameraOverlay}>
-            <Pressable style={styles.captureCloseBtn} onPress={() => { Speech.stop(); setStep('intro'); }}>
-              <MaterialCommunityIcons name="close" size={24} color="#ffffff" />
-            </Pressable>
-            
-            <View style={[styles.faceGuide, { top: screenHeight * 0.12 }]}>
-              <View style={[styles.faceOutline, { borderColor: Stitch.primary }]} />
-            </View>
-            
-            <View style={[styles.instructionCard, { bottom: TAB_BAR_HEIGHT + 160 }]}>
-              <MaterialCommunityIcons 
-                name={currentInstruction.icon as keyof typeof MaterialCommunityIcons.glyphMap} 
-                size={32} 
-                color={Stitch.primary} 
-              />
-              <Text style={[styles.instructionTitle, { color: Stitch.onSurface }]}>
-                {currentInstruction.label} View
-              </Text>
-              <Text style={[styles.instructionText, { color: Stitch.onSurfaceVariant }]}>
-                {currentInstruction.description}
-              </Text>
-            </View>
-            
-            <View style={[styles.progressContainer, { bottom: TAB_BAR_HEIGHT + 60 }]}>
-              <View style={[styles.progressBar, { backgroundColor: 'rgba(255,255,255,0.3)' }]}>
-                <View style={[styles.progressFill, { backgroundColor: Stitch.primary, width: `${progress}%` }]} />
-              </View>
-              <Text style={[styles.progressText, { color: '#ffffff' }]}>
-                {currentCaptureIndex + 1} of {CAPTURE_STEPS.length}
-              </Text>
-            </View>
-            
-            <Pressable 
-              style={[styles.captureButton, { bottom: TAB_BAR_HEIGHT + 20 }]} 
-              onPress={handleCapture}
-              disabled={isSubmitting}
-            >
-              <View style={[styles.captureButtonOuter, { borderColor: Stitch.primary }]}>
-                <View style={[styles.captureButtonInner, { backgroundColor: Stitch.primary }]} />
-              </View>
-            </Pressable>
+      <View style={styles.root} testID="enroll-screen">
+        <CommandBackground />
+        <View style={styles.successPad}>
+          <VisionaryXLogo variant="stacked" size={64} />
+          <View style={styles.successIcon}>
+            <MaterialCommunityIcons name="check-circle" size={48} color={C.cyan} />
           </View>
-        </CameraView>
-      </View>
-    );
-  };
-
-  const renderUploading = () => (
-    <View style={styles.centerContent}>
-      <ActivityIndicator size="large" color={Stitch.primary} />
-      <Text style={[styles.title, { color: Stitch.onSurface, marginTop: 24 }]}>
-        Processing...
-      </Text>
-      <Text style={[styles.subtitle, { color: Stitch.onSurfaceVariant }]}>
-        Analyzing your facial data and creating your biometric profile.
-      </Text>
-    </View>
-  );
-
-  const renderSuccess = () => (
-    <View style={styles.centerContent}>
-      <Pressable style={styles.backButton} onPress={() => router.back()}>
-        <MaterialCommunityIcons name="arrow-left" size={24} color={Stitch.onSurface} />
-      </Pressable>
-      <View style={[styles.successIcon, { backgroundColor: '#00aa54', marginTop: 60 }]}>
-        <MaterialCommunityIcons name="check" size={48} color="#ffffff" />
-      </View>
-      <Text style={[styles.title, { color: Stitch.onSurface }]}>
-        Enrollment Complete!
-      </Text>
-      <Text style={[styles.subtitle, { color: Stitch.onSurfaceVariant }]}>
-        Your face has been enrolled successfully. You can now use face recognition for authentication.
-      </Text>
-      
-      <Pressable style={styles.doneButton} onPress={() => router.back()}>
-        <Text style={[styles.doneButtonText, { color: Stitch.primary }]}>Done</Text>
-      </Pressable>
-    </View>
-  );
-
-  const renderError = () => (
-    <View style={styles.centerContent}>
-      <Pressable style={styles.backButton} onPress={() => { Speech.stop(); setStep('intro'); }}>
-        <MaterialCommunityIcons name="arrow-left" size={24} color={Stitch.onSurface} />
-      </Pressable>
-      <View style={[styles.errorIcon, { backgroundColor: '#93000a', marginTop: 60 }]}>
-        <MaterialCommunityIcons name="alert-circle" size={48} color="#ffdad6" />
-      </View>
-      <Text style={[styles.title, { color: Stitch.onSurface }]}>
-        Enrollment Failed
-      </Text>
-      <Text style={[styles.subtitle, { color: Stitch.onSurfaceVariant }]}>
-        {errorMessage || 'An error occurred. Please try again.'}
-      </Text>
-      
-      <Pressable style={styles.retryButton} onPress={resetEnrollment}>
-        <LinearGradient
-          colors={[Stitch.primary, Stitch.primaryContainer]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.retryButtonGradient}
-        >
-          <MaterialCommunityIcons name="refresh" size={20} color={Stitch.onPrimary} />
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </LinearGradient>
-      </Pressable>
-    </View>
-  );
-
-  if (!permission?.granted) {
-    return (
-      <View style={[styles.root, styles.centerContent, { backgroundColor: Stitch.surface }]}>
-        <MaterialCommunityIcons name="camera-off" size={64} color={Stitch.outline} />
-        <Text style={[styles.title, { color: Stitch.onSurface, marginTop: 16 }]}>
-          Camera Access Required
-        </Text>
-        <Text style={[styles.subtitle, { color: Stitch.onSurfaceVariant, marginTop: 8, textAlign: 'center' }]}>
-          We need camera access to capture your face for enrollment.
-        </Text>
-        <Pressable style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.permissionButtonText}>Grant Permission</Text>
-        </Pressable>
+          <Text style={styles.successTitle}>Enrollment captured</Text>
+          <Text style={styles.successSub}>
+            Sentinel pipeline will index your face shortly. You can close this screen.
+          </Text>
+          <View style={{ marginTop: Space.xl, width: '100%', maxWidth: 320 }}>
+            <VxButton
+              label="Back to overview"
+              fullWidth
+              onPress={() => router.replace('/(tabs)')}
+              testID="enroll-done"
+            />
+          </View>
+        </View>
       </View>
     );
   }
 
+  const completedCount = Object.keys(captured).length;
+
   return (
-    <View style={[styles.root, { backgroundColor: Stitch.surface }]}>
-      {step === 'intro' && renderIntro()}
-      {step === 'capture' && renderCapture()}
-      {step === 'uploading' && renderUploading()}
-      {step === 'success' && renderSuccess()}
-      {step === 'error' && renderError()}
+    <View style={styles.root} testID="enroll-screen">
+      <CommandBackground />
+      <ScrollView contentContainerStyle={styles.pad}>
+        <SectionEyebrow>Biometric · Onboarding</SectionEyebrow>
+        <ScreenTitle>Face enrollment</ScreenTitle>
+        <ScreenSub>
+          Capture three poses so VisionaryX can recognise you across the perimeter. Photos are processed and stored encrypted on the Sentinel index.
+        </ScreenSub>
+
+        <View style={styles.progressRow} testID="enroll-progress">
+          <Text style={styles.progressLabel}>PROGRESS</Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${(completedCount / STEPS.length) * 100}%` }]} />
+          </View>
+          <Text style={styles.progressVal}>{completedCount}/{STEPS.length}</Text>
+        </View>
+
+        <ErrorBanner message={error} />
+
+        <View style={{ marginTop: Space.lg, gap: Space.md }}>
+          {STEPS.map((step, idx) => {
+            const done = !!captured[step.key];
+            return (
+              <VxCard key={step.key} style={styles.stepCard} testID={`enroll-step-${step.key}`}>
+                <View style={styles.stepHead}>
+                  <View style={[styles.stepIcon, done && { backgroundColor: C.cyanFaint }]}>
+                    {done ? (
+                      <MaterialCommunityIcons name="check" size={20} color={C.cyan} />
+                    ) : (
+                      <MaterialCommunityIcons name={step.icon} size={20} color={C.primaryAccent} />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stepIdx}>STEP {idx + 1}</Text>
+                    <Text style={styles.stepLabel}>{step.label}</Text>
+                  </View>
+                  {done ? (
+                    <Text style={styles.stepDoneText}>CAPTURED</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.stepDesc}>{step.description}</Text>
+                <View style={{ marginTop: Space.md }}>
+                  <VxButton
+                    label={done ? 'Retake' : 'Capture'}
+                    variant={done ? 'secondary' : 'primary'}
+                    onPress={() => onCapture(step.key)}
+                    icon={<MaterialCommunityIcons name="camera-outline" size={14} color={done ? C.text : '#fff'} />}
+                    testID={`enroll-capture-${step.key}`}
+                  />
+                </View>
+              </VxCard>
+            );
+          })}
+        </View>
+
+        <View style={{ marginTop: Space.xl }}>
+          <VxButton
+            label="Submit enrollment"
+            fullWidth
+            busy={busy}
+            onPress={submit}
+            disabled={completedCount < STEPS.length}
+            testID="enroll-submit"
+            trailingIcon={<MaterialCommunityIcons name="arrow-right" size={16} color="#fff" />}
+          />
+        </View>
+
+        <Text style={styles.footer}>
+          {user?.email} · Photos transit over TLS · processed by VisionaryX Neural Pipeline.
+        </Text>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    padding: 24,
-  },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: TAB_BAR_HEIGHT,
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Stitch.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  voiceToggle: {
-    position: 'absolute',
-    top: 50,
-    right: 0,
-    zIndex: 10,
-  },
-  voiceBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Stitch.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  voiceBtnActive: {
-    backgroundColor: `${Stitch.primary}22`,
-  },
-  captureCloseBtn: {
-    position: 'absolute',
-    top: 50,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10,
-  },
-  title: {
-    fontFamily: FontFamily.headlineBlack,
-    fontSize: 28,
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  instructionsList: {
-    width: '100%',
-    marginTop: 32,
-    marginBottom: 24,
-  },
-  instructionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  instructionNumber: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  instructionNumberText: {
-    fontFamily: FontFamily.labelSemibold,
-    fontSize: 14,
-  },
-  instructionContent: {
-    marginLeft: 12,
-  },
-  instructionLabel: {
-    fontFamily: FontFamily.labelSemibold,
-    fontSize: 15,
-  },
-  instructionDesc: {
-    fontFamily: FontFamily.body,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  startButton: {
-    width: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  startButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 16,
-  },
-  startButtonText: {
-    fontFamily: FontFamily.headline,
-    fontSize: 16,
-    color: Stitch.onPrimary,
-  },
-  captureContainer: {
-    flex: 1,
-    margin: -24,
-  },
-  camera: {
-    flex: 1,
-  },
-  cameraOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  faceGuide: {
-    position: 'absolute',
-    width: '70%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  faceOutline: {
-    width: 200,
-    height: 260,
-    borderWidth: 2,
-    borderRadius: 100,
-    borderStyle: 'dashed',
-    opacity: 0.6,
-  },
-  instructionCard: {
-    position: 'absolute',
-    backgroundColor: 'rgba(11, 19, 38, 0.95)',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    width: '85%',
-  },
-  instructionTitle: {
-    fontFamily: FontFamily.headline,
-    fontSize: 20,
-    marginTop: 8,
-  },
-  instructionText: {
-    fontFamily: FontFamily.body,
-    fontSize: 14,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  progressContainer: {
-    position: 'absolute',
-    width: '85%',
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '100%',
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressText: {
-    fontFamily: FontFamily.labelMedium,
-    fontSize: 12,
-    marginTop: 8,
-  },
-  captureButton: {
-    position: 'absolute',
-  },
-  captureButtonOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  captureButtonInner: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  successIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  doneButton: {
-    marginTop: 32,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-  },
-  doneButtonText: {
-    fontFamily: FontFamily.headline,
-    fontSize: 16,
-  },
-  errorIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  retryButton: {
-    marginTop: 32,
-    borderRadius: 14,
-    overflow: 'hidden',
-  },
-  retryButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-  },
-  retryButtonText: {
-    fontFamily: FontFamily.headline,
-    fontSize: 16,
-    color: Stitch.onPrimary,
-  },
-  permissionButton: {
-    marginTop: 24,
-    backgroundColor: Stitch.primary,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-  },
-  permissionButtonText: {
-    fontFamily: FontFamily.labelSemibold,
-    fontSize: 16,
-    color: Stitch.onPrimary,
-  },
+  root: { flex: 1, backgroundColor: C.bg },
+  pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 720, width: '100%', alignSelf: 'center' },
+
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, marginTop: Space.xl, marginBottom: Space.md },
+  progressLabel: { ...TextStyles.label, color: C.textFaint, fontSize: 10 },
+  progressTrack: { flex: 1, height: 4, backgroundColor: C.surface2, borderRadius: 2, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: C.primaryAccent },
+  progressVal: { ...TextStyles.dataSmall, color: C.text, fontFamily: F.monoSemibold },
+
+  stepCard: {},
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: Space.md },
+  stepIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: C.primaryFaint, alignItems: 'center', justifyContent: 'center' },
+  stepIdx: { ...TextStyles.label, color: C.textFaint, fontSize: 9 },
+  stepLabel: { ...TextStyles.bodyLarge, color: C.text, fontFamily: F.bodySemibold },
+  stepDoneText: { ...TextStyles.label, color: C.cyan, fontSize: 9 },
+  stepDesc: { ...TextStyles.bodySmall, color: C.textMuted, marginTop: Space.sm },
+
+  footer: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, marginTop: Space.xl, textAlign: 'center' },
+
+  successPad: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: Space.lg },
+  successIcon: { marginTop: Space.xxl, marginBottom: Space.md },
+  successTitle: { ...TextStyles.h2, color: C.text, fontSize: 32, textAlign: 'center' },
+  successSub: { ...TextStyles.body, color: C.textMuted, marginTop: Space.md, textAlign: 'center', maxWidth: 420 },
 });

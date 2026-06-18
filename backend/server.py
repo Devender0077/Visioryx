@@ -2,11 +2,13 @@
 
 Single-file FastAPI app that powers the React Native (web + mobile) client.
 Heavy AI/face-recognition pipeline is stubbed for now; this provides the full
-data surface (auth, analytics, cameras, alerts, detections, users, audit)
+data surface (auth, analytics, cameras, alerts, detections, users, audit, ws)
 so the UI can be exercised end-to-end.
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import random
 import secrets
@@ -21,7 +23,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # MUST run before any os.environ.get downstream
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -285,9 +287,17 @@ async def lifespan(_: FastAPI):
     await _db.alerts.create_index("timestamp")
     await _db.cameras.create_index("camera_name")
     await seed(_db)
-    yield
-    if _client is not None:
-        _client.close()
+    demo_task = asyncio.create_task(_demo_event_loop())
+    try:
+        yield
+    finally:
+        demo_task.cancel()
+        try:
+            await demo_task
+        except Exception:
+            pass
+        if _client is not None:
+            _client.close()
 
 
 app = FastAPI(
@@ -576,21 +586,25 @@ async def mark_all_alerts_read(_: dict[str, Any] = Depends(current_user)) -> dic
 # Users (admin only)
 # ---------------------------------------------------------------------------
 @app.get(f"{API_PREFIX}/users")
-async def list_users(_: dict[str, Any] = Depends(require_admin)) -> list[dict[str, Any]]:
+async def list_users(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
     db = get_db()
     docs = await db.users.find().sort("created_at", -1).to_list(None)
-    return [
+    items = [
         {
             "id": d["_id"],
             "email": d["email"],
             "role": d.get("role", "operator"),
             "name": d.get("name"),
+            "is_active": d.get("is_active", True),
+            "has_face_embedding": d.get("has_face_embedding", False),
+            "image_path": d.get("image_path"),
             "created_at": d["created_at"].isoformat()
             if isinstance(d.get("created_at"), datetime)
             else d.get("created_at"),
         }
         for d in docs
     ]
+    return {"items": items, "total": len(items)}
 
 
 @app.post(f"{API_PREFIX}/users", status_code=201)
@@ -633,37 +647,51 @@ async def delete_user(user_id: str, admin: dict[str, Any] = Depends(require_admi
 @app.get(f"{API_PREFIX}/detections")
 async def list_detections(
     limit: int = Query(50, ge=1, le=200),
+    q: str | None = None,
     _: dict[str, Any] = Depends(current_user),
 ) -> dict[str, Any]:
-    """Recent detections — we reuse the alerts collection as the events log."""
+    """Recent detections — reuses alerts collection as the events log."""
     db = get_db()
-    docs = await db.alerts.find().sort("timestamp", -1).limit(limit).to_list(limit)
+    flt: dict[str, Any] = {}
+    if q:
+        flt["$or"] = [
+            {"alert_type": {"$regex": q, "$options": "i"}},
+            {"message": {"$regex": q, "$options": "i"}},
+            {"camera_name": {"$regex": q, "$options": "i"}},
+        ]
+    docs = await db.alerts.find(flt).sort("timestamp", -1).limit(limit).to_list(limit)
     return {
         "items": [
             {
                 "id": d["_id"],
-                "kind": "face" if "Face" in d["alert_type"] or "entry" in d["alert_type"] else "object",
-                "name": "Operator" if "Face" in d["alert_type"] else "Unknown",
-                "confidence": round(random.uniform(0.72, 0.98), 2),
                 "camera_name": d.get("camera_name"),
+                "user_name": "Operator" if "Face" in d["alert_type"] else None,
+                "status": "known" if "Face" in d["alert_type"] else "unknown",
+                "confidence": round(random.uniform(0.72, 0.98), 2),
                 "timestamp": d["timestamp"].isoformat() if isinstance(d["timestamp"], datetime) else d["timestamp"],
             }
             for d in docs
         ],
-        "total": await db.alerts.count_documents({}),
+        "total": await db.alerts.count_documents(flt),
     }
 
 
 @app.get(f"{API_PREFIX}/audit")
-async def list_audit(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+async def list_audit(
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    _: dict[str, Any] = Depends(require_admin),
+) -> dict[str, Any]:
     return {
         "items": [
             {
                 "id": str(uuid.uuid4()),
-                "actor": ADMIN_EMAIL,
+                "actor_email": ADMIN_EMAIL,
                 "action": "system.start",
-                "target": "visionaryx-backend",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "resource_type": "service",
+                "resource_id": None,
+                "detail": {"node": "visionaryx-backend"},
+                "created_at": datetime.now(timezone.utc).isoformat(),
             }
         ],
         "total": 1,
@@ -688,8 +716,273 @@ async def enroll_upload(
 
 
 # ---------------------------------------------------------------------------
+# WebSocket — realtime push for alerts/detections/system events.
+# Token comes via `?token=<jwt>` query string (browsers cannot set headers
+# on WebSocket handshakes).
+# ---------------------------------------------------------------------------
+class _Broadcaster:
+    def __init__(self) -> None:
+        self.connections: set[WebSocket] = set()
+        self._lock = asyncio.Lock()
+
+    async def add(self, ws: WebSocket) -> None:
+        async with self._lock:
+            self.connections.add(ws)
+
+    async def remove(self, ws: WebSocket) -> None:
+        async with self._lock:
+            self.connections.discard(ws)
+
+    async def broadcast(self, payload: dict[str, Any]) -> None:
+        msg = json.dumps(payload, default=str)
+        dead: list[WebSocket] = []
+        async with self._lock:
+            for ws in list(self.connections):
+                try:
+                    await ws.send_text(msg)
+                except Exception:
+                    dead.append(ws)
+            for ws in dead:
+                self.connections.discard(ws)
+
+
+broadcaster = _Broadcaster()
+
+
+@app.websocket(f"{API_PREFIX}/ws")
+async def ws_endpoint(websocket: WebSocket, token: str | None = Query(None)) -> None:
+    if not token:
+        await websocket.close(code=4401)
+        return
+    try:
+        payload = decode_token(token)
+    except HTTPException:
+        await websocket.close(code=4401)
+        return
+    user = await get_db().users.find_one({"_id": payload.get("sub")})
+    if user is None:
+        await websocket.close(code=4404)
+        return
+
+    await websocket.accept()
+    await broadcaster.add(websocket)
+    try:
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "type": "system",
+                    "data": {"message": "VisionaryX realtime channel open", "role": user.get("role")},
+                }
+            )
+        )
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+                continue
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        await broadcaster.remove(websocket)
+
+
+async def _demo_event_loop() -> None:
+    """Emit a fake alert every 45s so the UI demonstrably reacts even without the AI pipeline."""
+    await asyncio.sleep(15)
+    while True:
+        try:
+            if broadcaster.connections:
+                t, sev, msg = random.choice(DEMO_ALERT_TYPES)
+                db = get_db()
+                cams = await db.cameras.aggregate([{"$sample": {"size": 1}}]).to_list(1)
+                cam = cams[0] if cams else None
+                doc = {
+                    "_id": str(uuid.uuid4()),
+                    "alert_type": t,
+                    "severity": sev,
+                    "message": msg,
+                    "is_read": False,
+                    "timestamp": datetime.now(timezone.utc),
+                    "camera_id": cam["_id"] if cam else None,
+                    "camera_name": cam["camera_name"] if cam else None,
+                }
+                await db.alerts.insert_one(doc)
+                await broadcaster.broadcast(
+                    {
+                        "type": "alert",
+                        "data": {
+                            "id": doc["_id"],
+                            "alert_type": t,
+                            "severity": sev,
+                            "camera_name": doc["camera_name"],
+                            "timestamp": doc["timestamp"].isoformat(),
+                        },
+                    }
+                )
+        except Exception:
+            pass
+        await asyncio.sleep(45)
+
+
+# ---------------------------------------------------------------------------
+# Auxiliary analytics + settings + user-mgmt routes used by legacy screens.
+# ---------------------------------------------------------------------------
+@app.get(f"{API_PREFIX}/analytics/recent-detections")
+async def analytics_recent_detections(
+    limit: int = Query(10, ge=1, le=100),
+    _: dict[str, Any] = Depends(current_user),
+) -> list[dict[str, Any]]:
+    db = get_db()
+    docs = await db.alerts.find().sort("timestamp", -1).limit(limit).to_list(limit)
+    return [
+        {
+            "id": d["_id"],
+            "camera_name": d.get("camera_name"),
+            "status": "known" if "Face" in d["alert_type"] else "unknown",
+            "confidence": round(random.uniform(0.72, 0.98), 2),
+            "timestamp": d["timestamp"].isoformat() if isinstance(d["timestamp"], datetime) else d["timestamp"],
+        }
+        for d in docs
+    ]
+
+
+@app.get(f"{API_PREFIX}/analytics/detection-status-trends")
+async def analytics_status_trends(
+    days: int = Query(14, ge=1, le=90),
+    _: dict[str, Any] = Depends(current_user),
+) -> list[dict[str, Any]]:
+    db = get_db()
+    docs = await db.detection_trends.find().sort("date", -1).to_list(days)
+    docs.reverse()
+    out = []
+    for d in docs:
+        total = d.get("count", 0)
+        known = int(total * random.uniform(0.6, 0.85))
+        out.append({"date": d["date"][:10], "known": known, "unknown": max(0, total - known)})
+    return out
+
+
+@app.get(f"{API_PREFIX}/analytics/object-stats")
+async def analytics_object_stats(
+    days: int = Query(14, ge=1, le=90),
+    _: dict[str, Any] = Depends(current_user),
+) -> list[dict[str, Any]]:
+    return [
+        {"object": "person", "count": 2410},
+        {"object": "vehicle", "count": 612},
+        {"object": "bag", "count": 188},
+        {"object": "package", "count": 74},
+        {"object": "animal", "count": 21},
+    ]
+
+
+@app.get(f"{API_PREFIX}/settings/email")
+async def settings_email(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+    db = get_db()
+    doc = await db.settings.find_one({"_id": "email"}) or {}
+    return {
+        "enabled": doc.get("enabled", False),
+        "host": doc.get("host", ""),
+        "port": doc.get("port", 587),
+        "user": doc.get("user", ""),
+        "from_email": doc.get("from_email", ""),
+        "from_name": doc.get("from_name", "VisionaryX Alerts"),
+        "use_tls": doc.get("use_tls", True),
+        "use_ssl": doc.get("use_ssl", False),
+        "public_base_url": doc.get("public_base_url", ""),
+        "password_configured": bool(doc.get("password")),
+        "public_dashboard_url_default": os.environ.get("APP_URL", ""),
+    }
+
+
+class EmailSettingsPatch(BaseModel):
+    enabled: bool | None = None
+    host: str | None = None
+    port: int | None = None
+    user: str | None = None
+    smtp_password: str | None = None
+    from_email: str | None = None
+    from_name: str | None = None
+    use_tls: bool | None = None
+    use_ssl: bool | None = None
+    public_base_url: str | None = None
+
+
+@app.patch(f"{API_PREFIX}/settings/email")
+async def settings_email_patch(
+    body: EmailSettingsPatch, _: dict[str, Any] = Depends(require_admin)
+) -> dict[str, Any]:
+    db = get_db()
+    update: dict[str, Any] = {}
+    for k, v in body.model_dump(exclude_none=True).items():
+        if k == "smtp_password":
+            update["password"] = v
+        else:
+            update[k] = v
+    update["updated_at"] = datetime.now(timezone.utc)
+    await db.settings.update_one({"_id": "email"}, {"$set": update}, upsert=True)
+    return {"ok": True}
+
+
+@app.post(f"{API_PREFIX}/settings/email/test")
+async def settings_email_test(
+    body: dict[str, str], _: dict[str, Any] = Depends(require_admin)
+) -> dict[str, Any]:
+    to = body.get("to", "")
+    if not to:
+        raise HTTPException(status_code=400, detail="Missing 'to' address")
+    return {"ok": True, "to": to, "mocked": True}
+
+
+@app.post(f"{API_PREFIX}/users/{{user_id}}/enrollment-link")
+async def users_enrollment_link(
+    user_id: str, _: dict[str, Any] = Depends(require_admin)
+) -> dict[str, Any]:
+    db = get_db()
+    user = await db.users.find_one({"_id": user_id})
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    token = secrets.token_urlsafe(24)
+    base = os.environ.get("APP_URL", "")
+    return {
+        "ok": True,
+        "sent_to": user.get("email"),
+        "enroll_url": f"{base}/enroll/{token}" if base else f"/enroll/{token}",
+    }
+
+
+class UserPatch(BaseModel):
+    role: Role | None = None
+    name: str | None = None
+
+
+@app.patch(f"{API_PREFIX}/users/{{user_id}}")
+async def patch_user(
+    user_id: str, body: UserPatch, _: dict[str, Any] = Depends(require_admin)
+) -> dict[str, Any]:
+    db = get_db()
+    update = {k: v for k, v in body.model_dump(exclude_none=True).items()}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    r = await db.users.find_one_and_update(
+        {"_id": user_id}, {"$set": update}, return_document=True
+    )
+    if r is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {
+        "id": r["_id"],
+        "email": r["email"],
+        "role": r.get("role", "operator"),
+        "name": r.get("name"),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Global error handler — make sure FastAPI 422 errors are still json
 # ---------------------------------------------------------------------------
 @app.exception_handler(HTTPException)
 async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+

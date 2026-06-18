@@ -1,16 +1,27 @@
+/**
+ * RealtimeContext — manages a single authenticated WebSocket per session.
+ *
+ * - Token comes via `?token=<jwt>` query string (`expo-secure-store` on
+ *   native, `localStorage` on web).
+ * - We expose `tick` (bumps when relevant events arrive — screens use it as
+ *   a refresh signal) and `connected` (a green/grey dot in the UI).
+ * - Automatic reconnect with exponential backoff up to 30s.
+ * - 25-second ping/pong heartbeat keeps proxies from killing the socket.
+ */
 import React, {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { getStoredToken } from '@/lib/api';
 import { getWsUrl } from '@/lib/wsUrl';
 
-/** Same triggers as frontend dashboard (src/app/(dashboard)/dashboard/page.tsx) + server `alert` broadcasts. */
 const REFRESH_TYPES = new Set([
   'face_recognized',
   'unknown_person_detected',
@@ -21,29 +32,31 @@ const REFRESH_TYPES = new Set([
 
 type WsEvent = { type: string; data?: Record<string, unknown> };
 
-type RealtimeContextValue = {
-  /** Increments when a relevant server event is received (refetch dashboard-style data). */
+interface RealtimeContextValue {
   tick: number;
   connected: boolean;
-};
+  lastEvent: WsEvent | null;
+}
 
-const RealtimeContext = createContext<RealtimeContextValue>({ tick: 0, connected: false });
+const RealtimeContext = createContext<RealtimeContextValue>({
+  tick: 0,
+  connected: false,
+  lastEvent: null,
+});
 
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, tokenReady } = useAuth();
   const [tick, setTick] = useState(0);
   const [connected, setConnected] = useState(false);
+  const [lastEvent, setLastEvent] = useState<WsEvent | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectAttempt = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const appState = useRef(AppState.currentState);
 
-  const bump = useCallback(() => {
-    setTick((t) => t + 1);
-  }, []);
-
-  const connectRef = useRef<() => void>(() => {});
+  const bump = useCallback(() => setTick((t) => t + 1), []);
 
   const clearReconnect = useCallback(() => {
     if (reconnectTimer.current) {
@@ -52,17 +65,19 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const connectRef = useRef<() => Promise<void>>(async () => undefined);
+
   const scheduleReconnect = useCallback(() => {
     if (!user) return;
     clearReconnect();
-    const delay = Math.min(30_000, 2000 * Math.pow(1.5, reconnectAttempt.current));
+    const delay = Math.min(30_000, 1000 * Math.pow(1.7, reconnectAttempt.current));
     reconnectTimer.current = setTimeout(() => {
       reconnectAttempt.current += 1;
-      connectRef.current?.();
+      void connectRef.current();
     }, delay);
   }, [user, clearReconnect]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!user) return;
     clearReconnect();
     try {
@@ -70,7 +85,10 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     } catch {
       /* noop */
     }
-    const url = getWsUrl();
+    const token = await getStoredToken();
+    if (!token) return;
+
+    const url = getWsUrl(token);
     let ws: WebSocket;
     try {
       ws = new WebSocket(url);
@@ -89,6 +107,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       if (typeof e.data === 'string' && e.data === 'pong') return;
       try {
         const msg = JSON.parse(e.data as string) as WsEvent;
+        setLastEvent(msg);
         if (typeof msg.type === 'string' && REFRESH_TYPES.has(msg.type)) {
           bump();
         }
@@ -97,9 +116,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    ws.onerror = () => {
-      setConnected(false);
-    };
+    ws.onerror = () => setConnected(false);
 
     ws.onclose = () => {
       setConnected(false);
@@ -111,7 +128,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
   connectRef.current = connect;
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !tokenReady) {
       clearReconnect();
       try {
         wsRef.current?.close();
@@ -123,7 +140,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       reconnectAttempt.current = 0;
       return;
     }
-    connect();
+    void connect();
     return () => {
       clearReconnect();
       if (pingTimer.current) {
@@ -137,10 +154,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       }
       wsRef.current = null;
     };
-  }, [user, connect, clearReconnect]);
+  }, [user, tokenReady, connect, clearReconnect]);
 
+  // Heartbeat
   useEffect(() => {
-    if (!user || !wsRef.current) return;
+    if (!connected) return;
     if (pingTimer.current) clearInterval(pingTimer.current);
     pingTimer.current = setInterval(() => {
       const ws = wsRef.current;
@@ -158,26 +176,30 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
         pingTimer.current = null;
       }
     };
-  }, [user, connected]);
+  }, [connected]);
 
+  // Reconnect on foregrounding (native).
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && next === 'active' && user) {
-        connect();
+        void connect();
       }
       appState.current = next;
     });
     return () => sub.remove();
   }, [user, connect]);
 
-  /** When WebSocket is down, poll so the app stays roughly in sync with the web dashboard. */
+  // Soft poll fallback when socket is down.
   useEffect(() => {
     if (!user || connected) return;
     const id = setInterval(() => bump(), 30_000);
     return () => clearInterval(id);
   }, [user, connected, bump]);
 
-  const value = React.useMemo(() => ({ tick, connected }), [tick, connected]);
+  const value = useMemo(
+    () => ({ tick, connected, lastEvent }),
+    [tick, connected, lastEvent],
+  );
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }
@@ -185,7 +207,9 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
 export function useRealtimeTick(): number {
   return useContext(RealtimeContext).tick;
 }
-
 export function useRealtimeConnected(): boolean {
   return useContext(RealtimeContext).connected;
+}
+export function useLastRealtimeEvent(): WsEvent | null {
+  return useContext(RealtimeContext).lastEvent;
 }

@@ -1,43 +1,39 @@
+/**
+ * Audit log — admin-only chronological action feed.
+ */
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { api } from '@/lib/api';
-import { useStitchTheme } from '@/hooks/useStitchTheme';
-import { Stitch, FontFamily } from '@/constants/stitchTheme';
-import { useRealtimeTick } from '@/contexts/RealtimeContext';
-import { stitchStyles } from '@/styles/stitchStyles';
 
-type Row = {
-  id: number;
+import { api } from '@/lib/api';
+import { useRealtimeTick } from '@/contexts/RealtimeContext';
+import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
+import { CommandBackground } from '@/components/CommandBackground';
+import { SectionEyebrow, ScreenTitle, ScreenSub } from '@/components/vx';
+
+interface Row {
+  id: string;
   actor_email: string;
   action: string;
   resource_type: string;
-  resource_id: number | null;
+  resource_id: string | number | null;
   detail: Record<string, unknown> | null;
   created_at: string;
-};
-
-type ListRes = { items: Row[]; total: number };
+}
 
 export default function AuditScreen() {
-  const realtimeTick = useRealtimeTick();
-  const router = useRouter();
-  const T = useStitchTheme();
+  const tick = useRealtimeTick();
   const [items, setItems] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    setError(null);
     setLoading(true);
     try {
-      const r = await api<ListRes>('/api/v1/audit?limit=50&offset=0');
+      const r = await api<{ items: Row[]; total: number }>('/api/v1/audit?limit=50&offset=0');
       setItems(r.items);
       setTotal(r.total);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+    } catch {
       setItems([]);
     } finally {
       setLoading(false);
@@ -46,58 +42,44 @@ export default function AuditScreen() {
 
   useEffect(() => {
     void load();
-  }, [load, realtimeTick]);
-
-  const listHeader = (
-    <View>
-      <View style={styles.hero}>
-        <Text style={[stitchStyles.screenEyebrow, { color: T.accent }]}>Compliance</Text>
-        <Text style={[stitchStyles.liveScreenTitle, { fontSize: 22, color: T.text }]}>Activity log</Text>
-        <Text style={[stitchStyles.heroSub, { color: T.textMuted, marginTop: 6 }]}>
-          Chronological record of administrative actions. {total > 0 ? `${total} entries.` : ''}
-        </Text>
-        {error ? <Text style={[styles.err, { color: Stitch.error, marginTop: 8 }]}>{error}</Text> : null}
-      </View>
-    </View>
-  );
+  }, [load, tick]);
 
   return (
-    <View style={[styles.root, { backgroundColor: T.bg }]}>
+    <View style={styles.root} testID="audit-screen">
+      <CommandBackground />
       <FlatList
         data={items}
-        keyExtractor={(item) => String(item.id)}
-        ListHeaderComponent={listHeader}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => void load()} />}
-        contentContainerStyle={[styles.listPad, { paddingBottom: 24 }]}
-        ListEmptyComponent={
-          <Text style={[styles.empty, { color: T.textMuted }]}>
-            {loading ? 'Loading…' : error ? '' : 'No audit entries.'}
-          </Text>
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={styles.pad}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.primaryAccent} />}
+        ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
+        ListHeaderComponent={
+          <View>
+            <SectionEyebrow>Compliance</SectionEyebrow>
+            <ScreenTitle>Audit log</ScreenTitle>
+            <ScreenSub>
+              Chronological record of administrative actions.{' '}
+              {total > 0 ? <Text style={styles.mono}>{total}</Text> : null}
+              {total > 0 ? ' entries.' : ''}
+            </ScreenSub>
+            <View style={{ marginTop: Space.lg }} />
+          </View>
         }
         renderItem={({ item }) => (
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: T.card,
-                borderColor: T.borderHair,
-                borderWidth: T.isDark ? 0 : StyleSheet.hairlineWidth,
-              },
-            ]}
-          >
-            <Text style={[styles.action, { color: T.text, fontFamily: T.FontFamily.labelSemibold }]}>{item.action}</Text>
-            <Text style={[styles.actor, { color: T.textMuted }]}>{item.actor_email}</Text>
-            <Text style={[styles.res, { color: T.textMuted }]}>
-              {item.resource_type}
-              {item.resource_id != null ? ` #${item.resource_id}` : ''}
-            </Text>
-            <Text style={[styles.time, { color: T.textMuted }]}>{new Date(item.created_at).toLocaleString()}</Text>
+          <View style={styles.row} testID={`audit-row-${item.id}`}>
+            <MaterialCommunityIcons name="shield-check-outline" size={18} color={C.primaryAccent} />
+            <View style={{ flex: 1, marginLeft: Space.md }}>
+              <Text style={styles.action}>{item.action}</Text>
+              <Text style={styles.meta}>
+                {item.actor_email} · {item.resource_type}
+                {item.resource_id != null ? ` #${item.resource_id}` : ''}
+              </Text>
+            </View>
+            <Text style={styles.time}>{new Date(item.created_at).toLocaleString()}</Text>
           </View>
         )}
-        ListFooterComponent={
-          total > 0 ? (
-            <Text style={[styles.footer, { color: T.textMuted }]}>{total} total</Text>
-          ) : null
+        ListEmptyComponent={
+          <Text style={styles.empty}>{loading ? 'Loading…' : 'No audit entries.'}</Text>
         }
       />
     </View>
@@ -105,28 +87,16 @@ export default function AuditScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+  root: { flex: 1, backgroundColor: C.bg },
+  pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+  mono: { fontFamily: F.mono, color: C.text },
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.surface, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: C.border, padding: Space.md,
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Stitch.surfaceContainerHigh,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hero: { marginBottom: 12 },
-  err: { fontSize: 13 },
-  listPad: { padding: 16, gap: 10 },
-  card: { borderRadius: 14, padding: 12 },
-  action: { fontSize: 15 },
-  actor: { marginTop: 4, fontSize: 13 },
-  res: { marginTop: 2, fontSize: 13 },
-  time: { marginTop: 8, fontSize: 12 },
-  empty: { textAlign: 'center', marginTop: 40 },
-  footer: { textAlign: 'center', paddingBottom: 12, fontSize: 12 },
+  action: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
+  meta: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
+  time: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono },
+  empty: { ...TextStyles.body, color: C.textMuted, padding: Space.xxl, textAlign: 'center' },
 });
