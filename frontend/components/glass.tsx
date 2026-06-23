@@ -6,6 +6,7 @@
 import { ReactNode } from 'react';
 import { Platform, StyleSheet, View, ViewProps, ViewStyle } from 'react-native';
 import { PaletteDark as C, Radius, Space, Blur } from '@/constants/visionTheme';
+import { useColors } from '@/contexts/ThemeContext';
 
 interface GlassProps extends ViewProps {
   blur?: keyof typeof Blur;
@@ -26,6 +27,7 @@ export function GlassCard({
   children,
   ...rest
 }: GlassProps) {
+  const colors = useColors();
   const webStyle =
     Platform.OS === 'web'
       ? ({
@@ -37,9 +39,9 @@ export function GlassCard({
     <View
       {...rest}
       style={[
-        styles.glass,
         {
-          backgroundColor: fill ?? C.glass,
+          borderColor: colors.glassBorder,
+          backgroundColor: fill ?? colors.glass,
           borderRadius: Radius[radius],
           padding: Space[pad],
           borderWidth: border ? 1 : 0,
@@ -93,9 +95,6 @@ export function GlowOrb({
 }
 
 const styles = StyleSheet.create({
-  glass: {
-    borderColor: C.glassBorder,
-  },
   orb: {
     position: 'absolute',
     borderRadius: 9999,

@@ -13,7 +13,7 @@ import {
   JetBrainsMono_500Medium,
   JetBrainsMono_600SemiBold,
 } from '@expo-google-fonts/jetbrains-mono';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider as NavThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,14 +22,16 @@ import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { RealtimeProvider } from '@/contexts/RealtimeContext';
-import { PaletteDark, FontFamily as Fonts } from '@/constants/visionTheme';
+import { ThemeProvider as VxThemeProvider, useColorMode } from '@/contexts/ThemeContext';
+import { PaletteDark, PaletteLight, FontFamily as Fonts } from '@/constants/visionTheme';
 import { DesktopShell } from '@/components/DesktopShell';
+import { VxThemeStyles } from '@/components/VxThemeStyles';
 
 export { ErrorBoundary } from 'expo-router';
 export const unstable_settings = { initialRouteName: 'index' };
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-const VxNavTheme = {
+const VxNavThemeDark = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
@@ -39,6 +41,20 @@ const VxNavTheme = {
     text: PaletteDark.text,
     border: PaletteDark.border,
     notification: PaletteDark.danger,
+  },
+};
+
+const VxNavThemeLight = {
+  ...DarkTheme,
+  dark: false,
+  colors: {
+    ...DarkTheme.colors,
+    primary: PaletteLight.primary,
+    background: PaletteLight.bg,
+    card: PaletteLight.surface,
+    text: PaletteLight.text,
+    border: PaletteLight.border,
+    notification: PaletteLight.danger,
   },
 };
 
@@ -68,38 +84,49 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <RealtimeProvider>
-        <ThemeProvider value={VxNavTheme}>
-          <DesktopShell>
-            <Stack
-              screenOptions={{
-                headerStyle: { backgroundColor: PaletteDark.surface, borderBottomWidth: 0 },
-                headerTintColor: PaletteDark.text,
-                headerTitleStyle: { fontFamily: Fonts.heading, fontSize: 18 },
-                contentStyle: { backgroundColor: PaletteDark.bg },
-                headerBackTitle: 'Back',
-              }}
-            >
-              <Stack.Screen name="index" options={{ headerShown: false }} />
-              <Stack.Screen name="login" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="camera/[id]" options={{ title: 'Live view' }} />
-              <Stack.Screen name="analytics" options={{ headerShown: false }} />
-              <Stack.Screen name="detections" options={{ headerShown: false }} />
-              <Stack.Screen name="audit" options={{ headerShown: false }} />
-              <Stack.Screen name="settings" options={{ headerShown: false }} />
-              <Stack.Screen name="users" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/index" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/chat" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/agents" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/automations" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/models" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/rag" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/mcp" options={{ headerShown: false }} />
-              <Stack.Screen name="ai/agents/[id]/console" options={{ headerShown: false }} />
-            </Stack>
-          </DesktopShell>
-        </ThemeProvider>
+        <VxThemeProvider>
+          <VxThemeStyles />
+          <NavStack />
+        </VxThemeProvider>
       </RealtimeProvider>
     </AuthProvider>
+  );
+}
+
+function NavStack() {
+  const { mode } = useColorMode();
+  const P = mode === 'light' ? PaletteLight : PaletteDark;
+  return (
+    <NavThemeProvider value={mode === 'light' ? VxNavThemeLight : VxNavThemeDark}>
+      <DesktopShell>
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: P.surface, borderBottomWidth: 0 },
+            headerTintColor: P.text,
+            headerTitleStyle: { fontFamily: Fonts.heading, fontSize: 18 },
+            contentStyle: { backgroundColor: P.bg },
+            headerBackTitle: 'Back',
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="camera/[id]" options={{ title: 'Live view' }} />
+          <Stack.Screen name="analytics" options={{ headerShown: false }} />
+          <Stack.Screen name="detections" options={{ headerShown: false }} />
+          <Stack.Screen name="audit" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="users" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/index" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/chat" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/agents" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/automations" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/models" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/rag" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/mcp" options={{ headerShown: false }} />
+          <Stack.Screen name="ai/agents/[id]/console" options={{ headerShown: false }} />
+        </Stack>
+      </DesktopShell>
+    </NavThemeProvider>
   );
 }

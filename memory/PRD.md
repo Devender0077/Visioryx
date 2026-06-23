@@ -100,6 +100,7 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
    • AI Studio tiles — icon top-left + arrow chip top-right, footer "OPEN MODULE" with violet dot
    • Login — gradient "Vision" word, glass card with backdrop-filter
    • Dashboard — KPI top accent line (violet, red for danger), gradient activity bars
+- ✅ **Light-mode toggle (06-23)** — Toggle in user pill (sun/moon icon, `data-testid=sidenav-theme-toggle`) AND in Settings → Appearance card (deep space dark / soft mist light radio cards). Persisted via localStorage / SecureStore. **Implementation**: foundational palette tokens (bg, surface*, text*, border*, glass*) emitted as `var(--vx-<token>, fallback)` on web; `<VxThemeStyles>` injects light + dark variable sets keyed on `[data-vx-theme]` so the entire app flips instantly without per-screen refactor. Native shows the toggle but always renders dark (light wiring deferred to per-screen pass).
 
 ## Backlog
 **P2 — Polish + production**

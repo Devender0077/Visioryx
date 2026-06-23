@@ -14,6 +14,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useRealtimeConnected } from '@/contexts/RealtimeContext';
+import { useColorMode } from '@/contexts/ThemeContext';
 import { isEnrolleeRole } from '@/lib/roles';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles, Breakpoint, Brand } from '@/constants/visionTheme';
 import { VisionaryXLogo } from '@/components/VisionaryXLogo';
@@ -189,6 +190,7 @@ function SideNav() {
             <Text style={styles.meta}>{(user.role || 'operator').toUpperCase()} · {connected ? 'LIVE' : 'IDLE'}</Text>
           </View>
         </View>
+        <ThemeToggleButton />
         <Pressable
           onPress={() => logout().then(() => router.replace('/login'))}
           style={styles.logoutBtn}
@@ -199,6 +201,25 @@ function SideNav() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+function ThemeToggleButton() {
+  const { mode, toggle } = useColorMode();
+  return (
+    <Pressable
+      onPress={toggle}
+      style={styles.logoutBtn}
+      testID="sidenav-theme-toggle"
+      hitSlop={8}
+      accessibilityLabel="Toggle light or dark theme"
+    >
+      <MaterialCommunityIcons
+        name={mode === 'dark' ? 'weather-sunny' : 'weather-night'}
+        size={16}
+        color={C.textMuted}
+      />
+    </Pressable>
   );
 }
 

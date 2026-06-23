@@ -2,11 +2,12 @@
  * Settings — admin SMTP configuration + test.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColorMode } from '@/contexts/ThemeContext';
 import { isAdminRole } from '@/lib/roles';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 import { CommandBackground } from '@/components/CommandBackground';
@@ -89,11 +90,17 @@ export default function SettingsScreen() {
     return (
       <View style={styles.root}>
         <CommandBackground />
-        <View style={styles.pad}>
-          <SectionEyebrow>Access</SectionEyebrow>
-          <ScreenTitle>Admin only</ScreenTitle>
-          <ScreenSub>Contact your administrator to configure system settings.</ScreenSub>
-        </View>
+        <ScrollView contentContainerStyle={styles.pad}>
+          <SectionEyebrow>Workspace</SectionEyebrow>
+          <ScreenTitle>Settings</ScreenTitle>
+          <ScreenSub>Adjust your personal display preferences.</ScreenSub>
+          <AppearanceCard />
+          <View style={{ marginTop: Space.xl }}>
+            <SectionEyebrow>Access</SectionEyebrow>
+          </View>
+          <ScreenTitle>SMTP — admin only</ScreenTitle>
+          <ScreenSub>Contact your administrator to configure system email.</ScreenSub>
+        </ScrollView>
       </View>
     );
   }
@@ -111,7 +118,16 @@ export default function SettingsScreen() {
     <View style={styles.root} testID="settings-screen">
       <CommandBackground />
       <ScrollView contentContainerStyle={styles.pad}>
-        <SectionEyebrow>System · SMTP</SectionEyebrow>
+        <SectionEyebrow>Workspace</SectionEyebrow>
+        <ScreenTitle>Settings</ScreenTitle>
+        <ScreenSub>Workspace appearance and notification preferences.</ScreenSub>
+
+        {/* Appearance */}
+        <AppearanceCard />
+
+        <View style={{ marginTop: Space.xl }}>
+          <SectionEyebrow>System · SMTP</SectionEyebrow>
+        </View>
         <ScreenTitle>Email configuration</ScreenTitle>
         <ScreenSub>Configure outgoing SMTP for alert notifications and operator invites.</ScreenSub>
 
@@ -190,6 +206,69 @@ export default function SettingsScreen() {
     </View>
   );
 }
+
+function AppearanceCard() {
+  const { mode, setMode } = useColorMode();
+  return (
+    <VxCard style={{ marginTop: Space.lg, gap: Space.md }} testID="appearance-card">
+      <View>
+        <Text style={appearanceStyles.title}>Appearance</Text>
+        <Text style={appearanceStyles.sub}>Choose between deep space dark or soft mist light.</Text>
+      </View>
+      <View style={appearanceStyles.row}>
+        {(['dark', 'light'] as const).map((m) => {
+          const active = mode === m;
+          return (
+            <Pressable
+              key={m}
+              onPress={() => setMode(m)}
+              style={[appearanceStyles.opt, active && appearanceStyles.optActive]}
+              testID={`appearance-${m}`}
+            >
+              <View style={[appearanceStyles.swatch, m === 'light' ? appearanceStyles.swatchLight : appearanceStyles.swatchDark]}>
+                <MaterialCommunityIcons
+                  name={m === 'dark' ? 'weather-night' : 'weather-sunny'}
+                  size={16}
+                  color={m === 'dark' ? '#E1E2EB' : '#0F0F17'}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={appearanceStyles.optLbl}>{m === 'dark' ? 'Deep space dark' : 'Soft mist light'}</Text>
+                <Text style={appearanceStyles.optDesc}>
+                  {m === 'dark'
+                    ? 'Electric violet on a void background. Best for control rooms.'
+                    : 'Violet on a paper-soft background. Best for daylight reviews.'}
+                </Text>
+              </View>
+              <View style={[appearanceStyles.check, active && appearanceStyles.checkActive]}>
+                {active ? <MaterialCommunityIcons name="check" size={12} color="#fff" /> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </VxCard>
+  );
+}
+
+const appearanceStyles = StyleSheet.create({
+  title: { ...TextStyles.h4, color: C.text },
+  sub: { ...TextStyles.caption, color: C.textMuted, marginTop: 2 },
+  row: { gap: Space.sm },
+  opt: {
+    flexDirection: 'row', alignItems: 'center', gap: Space.sm,
+    padding: Space.sm + 2, borderRadius: Radius.md,
+    borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2,
+  },
+  optActive: { borderColor: C.primary, backgroundColor: C.primaryFaint },
+  swatch: { width: 36, height: 36, borderRadius: Radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  swatchDark: { backgroundColor: '#0F0F17', borderColor: '#272A31' },
+  swatchLight: { backgroundColor: '#F4F4F8', borderColor: '#D8D6E0' },
+  optLbl: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
+  optDesc: { ...TextStyles.caption, color: C.textMuted, marginTop: 2 },
+  check: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: C.borderStrong, alignItems: 'center', justifyContent: 'center' },
+  checkActive: { borderColor: C.primary, backgroundColor: C.primary },
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },

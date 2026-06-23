@@ -3,7 +3,18 @@
  *
  * Palette pivots from indigo (v1) → **Electric Violet + Neon Cyan + Lavender on Deep Void**.
  * Surfaces use translucent glass (`rgba(255,255,255,0.04-0.06)` + 16-24px backdrop blur).
+ *
+ * NOTE (light/dark theming): On WEB, foundational surface + text tokens are
+ * emitted as CSS custom-properties (e.g. `var(--vx-bg, #07070B)`), so the
+ * entire app responds to a theme swap at the document level without needing
+ * each StyleSheet to be refactored. On NATIVE we just emit the literal
+ * fallback (dark) — light mode will be wired per-screen later for native.
  */
+import { Platform } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
+const v = (name: string, fallback: string): string =>
+  isWeb ? `var(--vx-${name}, ${fallback})` : fallback;
 
 export const Brand = {
   name: 'VisionaryX',
@@ -18,19 +29,19 @@ export const Brand = {
 // ---------------------------------------------------------------------------
 export const PaletteDark = {
   // Surfaces (deepest → highest elevation)
-  bg: '#07070B',              // deep-void
-  surface: '#10131a',         // surface
-  surfaceLow: '#0b0e14',      // space-navy / container-lowest
-  surface2: '#1d2026',        // container
-  surface3: '#272a31',        // container-high
-  surface4: '#32353c',        // container-highest
+  bg: v('bg', '#07070B'),
+  surface: v('surface', '#10131a'),
+  surfaceLow: v('surfaceLow', '#0b0e14'),
+  surface2: v('surface2', '#1d2026'),
+  surface3: v('surface3', '#272a31'),
+  surface4: v('surface4', '#32353c'),
   // Text
-  text: '#E1E2EB',            // on-surface
-  textMuted: '#CBC3D7',       // on-surface-variant
-  textFaint: '#7d758a',
+  text: v('text', '#E1E2EB'),
+  textMuted: v('textMuted', '#CBC3D7'),
+  textFaint: v('textFaint', '#7d758a'),
   // Borders
-  border: '#494454',          // outline-variant
-  borderStrong: '#958ea0',    // outline
+  border: v('border', '#494454'),
+  borderStrong: v('borderStrong', '#958ea0'),
   // Brand primary — VIOLET on dark (single primary, no lavender)
   primary: '#8B5CF6',
   primaryHover: '#7C3AED',
@@ -59,11 +70,11 @@ export const PaletteDark = {
   dangerHover: '#FF9C8E',
   dangerFaint: 'rgba(255, 180, 171, 0.16)',
   info: '#818CF8',
-  // Glass / overlays
+  // Glass / overlays — `glass` token is the dynamic surface used by GlassCard
   scrim: 'rgba(0, 0, 0, 0.7)',
-  glass: 'rgba(255, 255, 255, 0.05)',
-  glassBorder: 'rgba(255, 255, 255, 0.08)',
-  glassHi: 'rgba(255, 255, 255, 0.08)',
+  glass: v('glass', 'rgba(255, 255, 255, 0.05)'),
+  glassBorder: v('glassBorder', 'rgba(255, 255, 255, 0.08)'),
+  glassHi: v('glassHi', 'rgba(255, 255, 255, 0.08)'),
   innerGlow: 'rgba(255, 255, 255, 0.06)',
   // Chart palette
   chartPrimary: '#8B5CF6',
@@ -72,7 +83,63 @@ export const PaletteDark = {
   chartLive: '#06B6D4',
 } as const;
 
-export const PaletteLight = PaletteDark; // dark-only for v2; light pending
+export const PaletteLight = {
+  // Surfaces (light mist / paper)
+  bg: '#F4F4F8',
+  surface: '#FFFFFF',
+  surfaceLow: '#FAFAFE',
+  surface2: '#EEEEF5',
+  surface3: '#E5E5EE',
+  surface4: '#DCDCE6',
+  // Text
+  text: '#0F0F17',
+  textMuted: '#3F3D4A',
+  textFaint: '#8A8493',
+  // Borders
+  border: '#D8D6E0',
+  borderStrong: '#7D758A',
+  // Brand primary — VIOLET stays consistent across modes
+  primary: '#7C3AED',
+  primaryHover: '#6D28D9',
+  primaryActive: '#5B21B6',
+  primaryAccent: '#7C3AED',
+  primaryAccent2: '#6366F1',
+  electricViolet: '#7C3AED',
+  indigoFlare: '#6366F1',
+  primaryGradStart: '#7C3AED',
+  primaryGradEnd: '#5B21B6',
+  onPrimary: '#FFFFFF',
+  primaryFaint: 'rgba(124, 58, 237, 0.12)',
+  // Live cyan
+  cyan: '#0891B2',
+  cyanLight: '#06B6D4',
+  cyanFaint: 'rgba(8, 145, 178, 0.14)',
+  // Tertiary
+  tertiary: '#6366F1',
+  tertiaryFaint: 'rgba(99, 102, 241, 0.12)',
+  // Status
+  success: '#0891B2',
+  successFaint: 'rgba(8, 145, 178, 0.14)',
+  warning: '#D97706',
+  warningFaint: 'rgba(217, 119, 6, 0.14)',
+  danger: '#DC2626',
+  dangerHover: '#B91C1C',
+  dangerFaint: 'rgba(220, 38, 38, 0.12)',
+  info: '#4F46E5',
+  // Glass / overlays
+  scrim: 'rgba(15, 15, 23, 0.4)',
+  glass: 'rgba(255, 255, 255, 0.72)',
+  glassBorder: 'rgba(15, 15, 23, 0.08)',
+  glassHi: 'rgba(255, 255, 255, 0.86)',
+  innerGlow: 'rgba(255, 255, 255, 0.7)',
+  // Chart palette
+  chartPrimary: '#7C3AED',
+  chartActive: '#5B21B6',
+  chartTrack: 'rgba(124, 58, 237, 0.14)',
+  chartLive: '#0891B2',
+} as const;
+
+export type Palette = typeof PaletteDark;
 
 export const BrandGradient = {
   start: '#8B5CF6',
