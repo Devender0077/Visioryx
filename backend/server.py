@@ -317,6 +317,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount AI Studio routes (chat, agents, models, RAG, automations, MCP).
+from ai_studio import build_ai_router  # noqa: E402
+app.include_router(build_ai_router(API_PREFIX, current_user, require_admin, get_db))
+
 
 # ---------------------------------------------------------------------------
 # Health / meta

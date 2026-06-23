@@ -47,6 +47,16 @@ const SECONDARY: NavItem[] = [
   { href: '/settings', label: 'Settings', icon: 'cog-outline', testID: 'nav-settings', hideForEnrollee: true },
 ];
 
+const AI_NAV: NavItem[] = [
+  { href: '/ai', label: 'AI Studio', icon: 'sparkles', testID: 'nav-ai-studio', hideForEnrollee: true },
+  { href: '/ai/chat', label: 'Bot Reply', icon: 'chat-processing', testID: 'nav-ai-chat', hideForEnrollee: true },
+  { href: '/ai/agents', label: 'Agents', icon: 'robot-happy', testID: 'nav-ai-agents', hideForEnrollee: true },
+  { href: '/ai/automations', label: 'Automations', icon: 'workflow', testID: 'nav-ai-automations', hideForEnrollee: true },
+  { href: '/ai/models', label: 'Models', icon: 'shape', testID: 'nav-ai-models', hideForEnrollee: true },
+  { href: '/ai/rag', label: 'RAG', icon: 'database-search', testID: 'nav-ai-rag', hideForEnrollee: true },
+  { href: '/ai/mcp', label: 'MCP Servers', icon: 'connection', testID: 'nav-ai-mcp', hideForEnrollee: true },
+];
+
 export function DesktopShell({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const { user, loading } = useAuth();
@@ -88,6 +98,7 @@ function SideNav() {
     (n) => (!n.hideForEnrollee || !isEnrollee) && (!n.enrolleeOnly || isEnrollee),
   );
   const visibleSecondary = SECONDARY.filter((n) => !n.hideForEnrollee || !isEnrollee);
+  const visibleAi = AI_NAV.filter((n) => !n.hideForEnrollee || !isEnrollee);
 
   return (
     <View style={styles.side} testID="desk-sidenav">
@@ -123,6 +134,23 @@ function SideNav() {
           <>
             <Text style={[styles.sectionLbl, { marginTop: Space.lg }]}>OPERATIONS</Text>
             {visibleSecondary.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Pressable
+                  key={item.href}
+                  style={[styles.navRow, active && styles.navRowActive]}
+                  onPress={() => router.push(item.href as any)}
+                  testID={item.testID}
+                >
+                  {active ? <View style={styles.activeBar} /> : null}
+                  <MaterialCommunityIcons name={item.icon} size={18} color={active ? C.primaryAccent : C.textMuted} />
+                  <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
+
+            <Text style={[styles.sectionLbl, { marginTop: Space.lg }]}>AI · STUDIO</Text>
+            {visibleAi.map((item) => {
               const active = isActive(item.href);
               return (
                 <Pressable

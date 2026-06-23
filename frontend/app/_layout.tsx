@@ -99,6 +99,13 @@ export default function RootLayout() {
               <Stack.Screen name="audit" options={{ title: 'Audit log', headerShown: false }} />
               <Stack.Screen name="settings" options={{ title: 'Settings', headerShown: false }} />
               <Stack.Screen name="users" options={{ title: 'User management', headerShown: false }} />
+              <Stack.Screen name="ai/index" options={{ title: 'AI Studio', headerShown: false }} />
+              <Stack.Screen name="ai/chat" options={{ title: 'Bot Reply', headerShown: false }} />
+              <Stack.Screen name="ai/agents" options={{ title: 'Agents', headerShown: false }} />
+              <Stack.Screen name="ai/automations" options={{ title: 'Automations', headerShown: false }} />
+              <Stack.Screen name="ai/models" options={{ title: 'Models', headerShown: false }} />
+              <Stack.Screen name="ai/rag" options={{ title: 'RAG', headerShown: false }} />
+              <Stack.Screen name="ai/mcp" options={{ title: 'MCP', headerShown: false }} />
             </Stack>
           </DesktopShell>
         </ThemeProvider>

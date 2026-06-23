@@ -1,13 +1,10 @@
 /**
- * VisionaryX Design System — OFFICIAL brand tokens (from brand book v1).
+ * VisionaryX Design System v2 — Deep Space Glassmorphism (official user-supplied design).
  *
- * Color, typography and motion tokens are platform-neutral (hex / numbers)
- * so the same values drive React Native (iOS / Android) and React Native Web.
+ * Palette pivots from indigo (v1) → **Electric Violet + Neon Cyan + Lavender on Deep Void**.
+ * Surfaces use translucent glass (`rgba(255,255,255,0.04-0.06)` + 16-24px backdrop blur).
  */
 
-// ---------------------------------------------------------------------------
-// Brand
-// ---------------------------------------------------------------------------
 export const Brand = {
   name: 'VisionaryX',
   fullName: 'VisionaryX AI',
@@ -17,96 +14,72 @@ export const Brand = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Official color palette (from brand book).
+// Deep Space palette (dark-first).
 // ---------------------------------------------------------------------------
 export const PaletteDark = {
-  // Surfaces (deepest → highest elevation) — official names from brand book
-  bg: '#07070B',          // VOID
-  surface: '#0F0F17',     // SURFACE
-  surfaceLow: '#0F0F17',
-  surface2: '#16161F',    // ELEVATED
-  surface3: '#1d1d28',
+  // Surfaces (deepest → highest elevation)
+  bg: '#07070B',              // deep-void
+  surface: '#10131a',         // surface
+  surfaceLow: '#0b0e14',      // space-navy / container-lowest
+  surface2: '#1d2026',        // container
+  surface3: '#272a31',        // container-high
+  surface4: '#32353c',        // container-highest
   // Text
-  text: '#F4F4F8',        // MIST
-  textMuted: '#9A9AAB',   // ASH
-  textFaint: '#5C5C6B',
-  // Borders / dividers
-  border: '#24242F',      // LINE
-  borderStrong: '#34344A',
-  // Brand primary — INDIGO PRIMARY gradient (4F46E5 → 7C3AED)
-  primary: '#4F46E5',
-  primaryHover: '#5b53ec',
-  primaryActive: '#7C3AED',
-  primaryAccent: '#818CF8',   // Indigo 300 (light accent on dark)
-  primaryAccent2: '#6366F1',  // Indigo 400 (mid accent)
-  primaryGradEnd: '#7C3AED',
-  onPrimary: '#FFFFFF',
-  primaryFaint: 'rgba(79, 70, 229, 0.14)',
-  // Live cyan — used for "live" / status indicators
-  cyan: '#22D3EE',
-  cyanFaint: 'rgba(34, 211, 238, 0.14)',
+  text: '#E1E2EB',            // on-surface
+  textMuted: '#CBC3D7',       // on-surface-variant
+  textFaint: '#7d758a',
+  // Borders
+  border: '#494454',          // outline-variant
+  borderStrong: '#958ea0',    // outline
+  // Brand primary — lavender on dark
+  primary: '#D0BCFF',         // primary (lavender)
+  primaryHover: '#A078FF',    // primary-container
+  primaryActive: '#8B5CF6',   // electric-violet
+  primaryAccent: '#D0BCFF',
+  primaryAccent2: '#818CF8',  // indigo-flare
+  electricViolet: '#8B5CF6',
+  indigoFlare: '#818CF8',
+  primaryGradStart: '#8B5CF6',
+  primaryGradEnd: '#818CF8',
+  onPrimary: '#3C0091',
+  primaryFaint: 'rgba(139, 92, 246, 0.14)',
+  // Live cyan — secondary accent
+  cyan: '#06B6D4',            // neon-cyan
+  cyanLight: '#4CD7F6',
+  cyanFaint: 'rgba(6, 182, 212, 0.16)',
+  // Tertiary
+  tertiary: '#C3C0FF',
+  tertiaryFaint: 'rgba(195, 192, 255, 0.14)',
   // Status
-  success: '#22D3EE',
-  successFaint: 'rgba(34, 211, 238, 0.14)',
-  warning: '#F59E0B',
-  warningFaint: 'rgba(245, 158, 11, 0.14)',
-  danger: '#EF4444',
-  dangerHover: '#F65555',
-  dangerFaint: 'rgba(239, 68, 68, 0.14)',
+  success: '#06B6D4',
+  successFaint: 'rgba(6, 182, 212, 0.16)',
+  warning: '#FFB66B',
+  warningFaint: 'rgba(255, 182, 107, 0.16)',
+  danger: '#FFB4AB',          // error
+  dangerHover: '#FF9C8E',
+  dangerFaint: 'rgba(255, 180, 171, 0.16)',
   info: '#818CF8',
-  // Overlays
+  // Glass / overlays
   scrim: 'rgba(0, 0, 0, 0.7)',
-  glass: 'rgba(15, 15, 23, 0.7)',
-  innerGlow: 'rgba(255, 255, 255, 0.04)',
+  glass: 'rgba(255, 255, 255, 0.05)',
+  glassBorder: 'rgba(255, 255, 255, 0.08)',
+  glassHi: 'rgba(255, 255, 255, 0.08)',
+  innerGlow: 'rgba(255, 255, 255, 0.06)',
   // Chart palette
-  chartPrimary: '#4F46E5',
-  chartActive: '#818CF8',
-  chartTrack: 'rgba(79, 70, 229, 0.18)',
-  chartLive: '#22D3EE',
+  chartPrimary: '#8B5CF6',
+  chartActive: '#D0BCFF',
+  chartTrack: 'rgba(139, 92, 246, 0.16)',
+  chartLive: '#06B6D4',
 } as const;
 
-export const PaletteLight = {
-  bg: '#F4F4F8',
-  surface: '#FFFFFF',
-  surfaceLow: '#F4F4F8',
-  surface2: '#EEEEF3',
-  surface3: '#E4E4EC',
-  text: '#0F0F17',
-  textMuted: '#5C5C6B',
-  textFaint: '#9A9AAB',
-  border: '#E4E4EC',
-  borderStrong: '#C7C7D2',
-  primary: '#4F46E5',
-  primaryHover: '#3F36C5',
-  primaryActive: '#7C3AED',
-  primaryAccent: '#4F46E5',
-  primaryAccent2: '#6366F1',
-  primaryGradEnd: '#7C3AED',
-  onPrimary: '#FFFFFF',
-  primaryFaint: 'rgba(79, 70, 229, 0.10)',
-  cyan: '#0891B2',
-  cyanFaint: 'rgba(8, 145, 178, 0.10)',
-  success: '#0891B2',
-  successFaint: 'rgba(8, 145, 178, 0.10)',
-  warning: '#B45309',
-  warningFaint: 'rgba(180, 83, 9, 0.10)',
-  danger: '#DC2626',
-  dangerHover: '#B91C1C',
-  dangerFaint: 'rgba(220, 38, 38, 0.10)',
-  info: '#4F46E5',
-  scrim: 'rgba(15, 15, 23, 0.4)',
-  glass: 'rgba(255, 255, 255, 0.7)',
-  innerGlow: 'rgba(15, 15, 23, 0.03)',
-  chartPrimary: '#4F46E5',
-  chartActive: '#7C3AED',
-  chartTrack: 'rgba(79, 70, 229, 0.12)',
-  chartLive: '#0891B2',
-} as const;
+export const PaletteLight = PaletteDark; // dark-only for v2; light pending
 
-// Brand gradient stops — for the squircle logo background and accents.
 export const BrandGradient = {
-  start: '#4F46E5',
-  end: '#7C3AED',
+  start: '#8B5CF6',
+  end: '#818CF8',
+  primary: ['#8B5CF6', '#818CF8'],
+  cyan: ['#06B6D4', '#4CD7F6'],
+  logo: ['#8B5CF6', '#06B6D4'],
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -127,58 +100,49 @@ export const Space = {
 export const Radius = {
   none: 0,
   sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  squircle: 28,  // for icon-app squircle
+  md: 12,
+  lg: 16,
+  xl: 24,
+  squircle: 28,
   full: 9999,
 } as const;
 
 // ---------------------------------------------------------------------------
-// Typography — Geist (display) + IBM Plex Sans (body) + IBM Plex Mono (data).
-// Loaded in app/_layout.tsx via @expo-google-fonts.
+// Typography — Geist + Inter + JetBrains Mono.
 // ---------------------------------------------------------------------------
 export const FontFamily = {
-  // Display / headings — Geist
   display: 'Geist_700Bold',
   heading: 'Geist_600SemiBold',
   headingMedium: 'Geist_500Medium',
-  // Body — IBM Plex Sans
-  body: 'IBMPlexSans_400Regular',
-  bodyMedium: 'IBMPlexSans_500Medium',
-  bodySemibold: 'IBMPlexSans_600SemiBold',
-  // Data / numeric / labels — IBM Plex Mono
-  mono: 'IBMPlexMono_400Regular',
-  monoMedium: 'IBMPlexMono_500Medium',
-  monoSemibold: 'IBMPlexMono_600SemiBold',
+  body: 'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemibold: 'Inter_600SemiBold',
+  mono: 'JetBrainsMono_400Regular',
+  monoMedium: 'JetBrainsMono_500Medium',
+  monoSemibold: 'JetBrainsMono_600SemiBold',
 } as const;
 
 export const TextStyles = {
   h1: { fontFamily: FontFamily.display, fontSize: 48, lineHeight: 56, letterSpacing: -1 },
-  h2: { fontFamily: FontFamily.display, fontSize: 36, lineHeight: 44, letterSpacing: -0.75 },
-  h3: { fontFamily: FontFamily.heading, fontSize: 24, lineHeight: 32, letterSpacing: -0.5 },
-  h4: { fontFamily: FontFamily.heading, fontSize: 20, lineHeight: 28, letterSpacing: -0.25 },
+  h2: { fontFamily: FontFamily.display, fontSize: 32, lineHeight: 40, letterSpacing: -0.5 },
+  h3: { fontFamily: FontFamily.heading, fontSize: 24, lineHeight: 32, letterSpacing: -0.4 },
+  h4: { fontFamily: FontFamily.heading, fontSize: 20, lineHeight: 28, letterSpacing: -0.2 },
   bodyLarge: { fontFamily: FontFamily.body, fontSize: 18, lineHeight: 28 },
   body: { fontFamily: FontFamily.body, fontSize: 16, lineHeight: 24 },
   bodySmall: { fontFamily: FontFamily.body, fontSize: 14, lineHeight: 20 },
   caption: { fontFamily: FontFamily.body, fontSize: 12, lineHeight: 16 },
-  // Brand voice label — IBM Plex Mono SMALL CAPS with letter-spacing
   label: {
     fontFamily: FontFamily.monoMedium,
     fontSize: 11,
     lineHeight: 16,
-    letterSpacing: 1.4,
+    letterSpacing: 1.6,
     textTransform: 'uppercase' as const,
   },
-  // Mono / data
-  dataLarge: { fontFamily: FontFamily.monoMedium, fontSize: 32, lineHeight: 40, letterSpacing: -1 },
+  dataLarge: { fontFamily: FontFamily.monoMedium, fontSize: 32, lineHeight: 40, letterSpacing: -0.5 },
   dataMedium: { fontFamily: FontFamily.monoMedium, fontSize: 20, lineHeight: 28 },
   dataSmall: { fontFamily: FontFamily.mono, fontSize: 13, lineHeight: 18 },
 } as const;
 
-// ---------------------------------------------------------------------------
-// Motion
-// ---------------------------------------------------------------------------
 export const Motion = {
   fast: 150,
   base: 250,
@@ -190,9 +154,6 @@ export const Motion = {
   },
 } as const;
 
-// ---------------------------------------------------------------------------
-// Breakpoints
-// ---------------------------------------------------------------------------
 export const Breakpoint = {
   mobile: 360,
   tablet: 768,
@@ -200,9 +161,13 @@ export const Breakpoint = {
   wide: 1440,
 } as const;
 
-// ---------------------------------------------------------------------------
-// Theme container
-// ---------------------------------------------------------------------------
+// Glass blur values (only honored by RN-Web on web; native silently ignores).
+export const Blur = {
+  light: 12,
+  medium: 16,
+  strong: 24,
+} as const;
+
 export type ColorPalette = typeof PaletteDark;
 export type ThemeName = 'dark' | 'light';
 
@@ -217,23 +182,7 @@ export interface VisionTheme {
 }
 
 export const ThemeDark: VisionTheme = {
-  name: 'dark',
-  colors: PaletteDark,
-  space: Space,
-  radius: Radius,
-  text: TextStyles,
-  motion: Motion,
-  font: FontFamily,
+  name: 'dark', colors: PaletteDark, space: Space, radius: Radius, text: TextStyles, motion: Motion, font: FontFamily,
 };
-
-export const ThemeLight: VisionTheme = {
-  name: 'light',
-  colors: PaletteLight as ColorPalette,
-  space: Space,
-  radius: Radius,
-  text: TextStyles,
-  motion: Motion,
-  font: FontFamily,
-};
-
+export const ThemeLight: VisionTheme = ThemeDark;
 export const Theme = ThemeDark;
