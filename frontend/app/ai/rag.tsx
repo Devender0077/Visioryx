@@ -1,9 +1,11 @@
 /**
- * RAG — Knowledge base upload + query.
+ * RAG — Knowledge base upload + query. MongoDB-backed embeddings via Emergent key.
+ * Native upload uses expo-document-picker; web uses the browser file input.
  */
 import { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { AiRepository, type RagDocModel } from '@/viewmodels/repositories/aiRepository';
 import { CommandBackground } from '@/components/CommandBackground';
 import { GlassCard, GlowOrb } from '@/components/glass';
@@ -21,25 +23,44 @@ export default function RagScreen() {
   const load = () => AiRepository.listDocs().then(setDocs).catch((e) => setError(e.message));
   useEffect(() => { void load(); }, []);
 
-  const upload = () => {
-    if (Platform.OS !== 'web') {
-      Alert.alert('Web only (for now)', 'Document upload is wired for web in this build. Native picker pending.');
-      return;
-    }
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.txt,.md,.pdf,.json,.csv';
-    input.onchange = async (e) => {
-      const f = (e.target as HTMLInputElement).files?.[0];
-      if (!f) return;
+  const upload = async () => {
+    setError(null);
+    try {
+      if (Platform.OS === 'web') {
+        // Web: hidden file input.
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.txt,.md,.pdf,.json,.csv,.html';
+        input.onchange = async (e) => {
+          const f = (e.target as HTMLInputElement).files?.[0];
+          if (!f) return;
+          setBusy(true);
+          try { await AiRepository.uploadDoc(f, f.name); await load(); }
+          catch (err) { setError(err instanceof Error ? err.message : 'Upload failed'); }
+          finally { setBusy(false); }
+        };
+        input.click();
+        return;
+      }
+      // Native: Expo document picker.
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ['text/*', 'application/pdf', 'application/json'],
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (res.canceled || !res.assets?.[0]) return;
+      const asset = res.assets[0];
       setBusy(true);
-      try {
-        await AiRepository.uploadDoc(f, f.name);
-        await load();
-      } catch (err) { setError(err instanceof Error ? err.message : 'Upload failed'); }
-      finally { setBusy(false); }
-    };
-    input.click();
+      // Fetch the file from its native URI, build a Blob, upload via the same repo method.
+      const r = await fetch(asset.uri);
+      const blob = await r.blob();
+      await AiRepository.uploadDoc(blob, asset.name || 'document.txt');
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const run = async () => {
@@ -63,13 +84,13 @@ export default function RagScreen() {
         <SectionEyebrow>AI · RAG</SectionEyebrow>
         <ScreenTitle>Knowledge base</ScreenTitle>
         <ScreenSub>
-          Drop TXT/MD/JSON docs into the Chroma vector store. Embedding via the Emergent key, then ask anything — answers are grounded in the docs.
+          Drop TXT/MD/PDF docs. Embedded with <Text style={styles.mono}>text-embedding-3-small</Text> via Emergent key,
+          stored in MongoDB. Queries use cosine similarity + GPT-5.4-mini synthesis.
         </ScreenSub>
 
         <ErrorBanner message={error} />
 
         <View style={styles.cols}>
-          {/* Upload + docs list */}
           <GlassCard pad="lg" style={styles.colDocs}>
             <View style={styles.colHead}>
               <Text style={styles.colTitle}>Documents ({docs.length})</Text>
@@ -83,7 +104,7 @@ export default function RagScreen() {
               />
             </View>
             {docs.length === 0 ? (
-              <Text style={styles.empty}>No documents yet. Upload your first TXT or MD.</Text>
+              <Text style={styles.empty}>No documents yet. Upload your first TXT, MD, or PDF.</Text>
             ) : (
               <View style={{ marginTop: Space.md, gap: Space.sm }}>
                 {docs.map((d) => (
@@ -93,11 +114,7 @@ export default function RagScreen() {
                       <Text style={styles.docName}>{d.name}</Text>
                       <Text style={styles.docMeta}>{d.chunks} chunks · {(d.size / 1024).toFixed(1)} KB</Text>
                     </View>
-                    <Pressable
-                      onPress={() => AiRepository.deleteDoc(d.id).then(load)}
-                      hitSlop={6}
-                      testID={`rag-del-${d.id}`}
-                    >
+                    <Pressable onPress={() => AiRepository.deleteDoc(d.id).then(load)} hitSlop={6} testID={`rag-del-${d.id}`}>
                       <MaterialCommunityIcons name="trash-can-outline" size={14} color={C.danger} />
                     </Pressable>
                   </View>
@@ -106,7 +123,6 @@ export default function RagScreen() {
             )}
           </GlassCard>
 
-          {/* Query panel */}
           <GlassCard pad="lg" style={styles.colQuery}>
             <Text style={styles.colTitle}>Ask the knowledge base</Text>
             <View style={styles.queryRow}>
@@ -135,7 +151,12 @@ export default function RagScreen() {
                 {hits.map((h) => (
                   <View key={h.rank} style={styles.hit}>
                     <Text style={styles.hitRank}>#{h.rank}</Text>
-                    <Text style={styles.hitText} numberOfLines={4}>{h.text}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.hitText} numberOfLines={5}>{h.text}</Text>
+                      {h.meta?.score != null ? (
+                        <Text style={styles.hitScore}>cosine: {String(h.meta.score)}</Text>
+                      ) : null}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -150,30 +171,23 @@ export default function RagScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1280, width: '100%', alignSelf: 'center' },
+  mono: { fontFamily: F.mono, color: C.text },
   cols: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.md, marginTop: Space.lg },
   colDocs: { flexGrow: 1, flexBasis: 320, minWidth: 280 },
   colQuery: { flexGrow: 2, flexBasis: 460, minWidth: 320 },
   colHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   colTitle: { ...TextStyles.h4, color: C.text },
   empty: { ...TextStyles.bodySmall, color: C.textMuted, marginTop: Space.md },
-  docRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Space.sm,
-    backgroundColor: C.surface2, borderRadius: Radius.sm, padding: Space.sm,
-  },
+  docRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, backgroundColor: C.surface2, borderRadius: Radius.sm, padding: Space.sm },
   docName: { ...TextStyles.bodySmall, color: C.text },
   docMeta: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono },
-
   queryRow: { flexDirection: 'row', gap: Space.sm, alignItems: 'center', marginTop: Space.md },
-  queryInput: {
-    flex: 1, backgroundColor: C.surface2, color: C.text, fontFamily: F.body,
-    borderRadius: Radius.sm, paddingHorizontal: Space.md, paddingVertical: 12,
-    borderWidth: 1, borderColor: C.border, fontSize: 14,
-  },
-
+  queryInput: { flex: 1, backgroundColor: C.surface2, color: C.text, fontFamily: F.body, borderRadius: Radius.sm, paddingHorizontal: Space.md, paddingVertical: 12, borderWidth: 1, borderColor: C.border, fontSize: 14 },
   answer: { marginTop: Space.lg, padding: Space.md, backgroundColor: C.primaryFaint, borderRadius: Radius.md, borderWidth: 1, borderColor: 'rgba(208,188,255,0.25)' },
   answerLabel: { ...TextStyles.label, color: C.primary, fontSize: 10 },
   answerText: { ...TextStyles.body, color: C.text, marginTop: Space.sm, lineHeight: 22 },
   hit: { flexDirection: 'row', gap: Space.sm, padding: Space.sm, backgroundColor: C.surface2, borderRadius: Radius.sm },
   hitRank: { ...TextStyles.label, color: C.cyan, fontFamily: F.monoSemibold, width: 24 },
-  hitText: { ...TextStyles.bodySmall, color: C.textMuted, flex: 1 },
+  hitText: { ...TextStyles.bodySmall, color: C.textMuted },
+  hitScore: { ...TextStyles.caption, color: C.cyan, fontFamily: F.mono, marginTop: 4, fontSize: 10 },
 });
