@@ -127,9 +127,26 @@ export default function AgentRunConsole() {
                 ),
               };
             case 'done':
+              // Optimistically prepend this run to history so we don't need a follow-up GET.
+              setHistory((h) => [
+                {
+                  id: ev.run_id,
+                  agent_id: id!,
+                  session_id: ev.session_id,
+                  input: input.trim(),
+                  output: ev.output,
+                  tool_calls: ev.tool_calls_detail,
+                  model_id: agent?.model_id ?? '',
+                  status: 'complete',
+                  started_at: prev.startedAt ?? new Date().toISOString(),
+                  finished_at: ev.finished_at,
+                  duration_ms: ev.duration_ms,
+                },
+                ...h.filter((r) => r.id !== ev.run_id),
+              ]);
               return {
                 ...prev,
-                status: 'complete', finishedAt: new Date().toISOString(),
+                status: 'complete', finishedAt: ev.finished_at,
                 durationMs: ev.duration_ms,
               };
             case 'error':
@@ -149,9 +166,14 @@ export default function AgentRunConsole() {
       }
     } finally {
       abortRef.current = null;
-      void refreshHistory();
+      // History is now updated optimistically from the 'done' SSE event.
+      // We still refresh once on cancellation/error so the run-record (which
+      // was pre-created at stream start) is reflected.
+      if (trace.status !== 'complete') {
+        void refreshHistory();
+      }
     }
-  }, [id, input, live, refreshHistory]);
+  }, [id, input, live, refreshHistory, agent, trace.status]);
 
   const cancelRun = useCallback(() => {
     abortRef.current?.abort();

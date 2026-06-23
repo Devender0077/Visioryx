@@ -101,6 +101,8 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
    • Login — gradient "Vision" word, glass card with backdrop-filter
    • Dashboard — KPI top accent line (violet, red for danger), gradient activity bars
 - ✅ **Light-mode toggle (06-23)** — Toggle in user pill (sun/moon icon, `data-testid=sidenav-theme-toggle`) AND in Settings → Appearance card (deep space dark / soft mist light radio cards). Persisted via localStorage / SecureStore. **Implementation**: foundational palette tokens (bg, surface*, text*, border*, glass*) emitted as `var(--vx-<token>, fallback)` on web; `<VxThemeStyles>` injects light + dark variable sets keyed on `[data-vx-theme]` so the entire app flips instantly without per-screen refactor. Native shows the toggle but always renders dark (light wiring deferred to per-screen pass).
+- ✅ **Persisted audit log (06-23)** — `db.audit_logs` collection with indexes on `created_at` + `actor_email`. `write_audit()` helper wired into: `auth.login`, `auth.login.failed`, `users.create`, `users.update`, `users.delete`, `settings.email.update`, `system.start`. `GET /api/v1/audit` supports `?actor=<substr>&action=<exact>&limit&offset`.
+- ✅ **Richer Agent Run Console `done` event (06-23)** — SSE final event now includes `output`, `finished_at`, `status`, `tool_calls_detail` so the UI updates history optimistically with zero follow-up GET.
 
 ## Backlog
 **P2 — Polish + production**

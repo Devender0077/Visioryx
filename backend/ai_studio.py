@@ -438,7 +438,12 @@ def build_ai_router(api_prefix: str, current_user, require_admin, get_db) -> API
             )
             yield sse({
                 "type": "done", "run_id": run_id, "session_id": sid,
-                "duration_ms": duration_total, "tool_calls": len(tool_calls),
+                "duration_ms": duration_total,
+                "tool_calls": len(tool_calls),
+                "output": output_text,
+                "finished_at": finished_at.isoformat(),
+                "status": "complete",
+                "tool_calls_detail": tool_calls,
             })
 
         return StreamingResponse(gen(), media_type="text/event-stream",

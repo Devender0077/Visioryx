@@ -86,7 +86,7 @@ export type RunTraceEvent =
   | { type: 'delta'; text: string }
   | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown>; started_at: string }
   | { type: 'tool_result'; id: string; ok: boolean; output: string | null; error?: string | null; duration_ms: number }
-  | { type: 'done'; run_id: string; session_id: string; duration_ms: number; tool_calls: number }
+  | { type: 'done'; run_id: string; session_id: string; duration_ms: number; tool_calls: number; output: string; finished_at: string; status: string; tool_calls_detail: AgentToolCall[] }
   | { type: 'error'; message: string };
 
 export const AiRepository = {

@@ -60,6 +60,50 @@ def get_db() -> AsyncIOMotorDatabase:
 
 
 # ---------------------------------------------------------------------------
+# Audit log
+# ---------------------------------------------------------------------------
+async def write_audit(
+    *,
+    action: str,
+    actor: dict[str, Any] | None = None,
+    resource_type: str | None = None,
+    resource_id: str | None = None,
+    detail: dict[str, Any] | None = None,
+    request: Request | None = None,
+) -> None:
+    """Persist an audit event. Safe to call from any route — failures are
+    swallowed so audit issues never break the user-facing action.
+
+    `actor` is the decoded JWT payload (id + email + role). `action` follows
+    a dotted noun: `auth.login`, `users.create`, `settings.email.update`, …
+    """
+    try:
+        db = get_db()
+    except RuntimeError:
+        return
+    try:
+        ip = None
+        if request is not None:
+            xff = request.headers.get("x-forwarded-for")
+            ip = (xff.split(",")[0].strip() if xff else (request.client.host if request.client else None))
+        await db.audit_logs.insert_one({
+            "_id": str(uuid.uuid4()),
+            "actor_id": (actor or {}).get("id") or (actor or {}).get("sub"),
+            "actor_email": (actor or {}).get("email"),
+            "actor_role": (actor or {}).get("role"),
+            "action": action,
+            "resource_type": resource_type,
+            "resource_id": resource_id,
+            "detail": detail or {},
+            "ip": ip,
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception:
+        # Never let audit logging break a user action.
+        pass
+
+
+# ---------------------------------------------------------------------------
 # Security helpers
 # ---------------------------------------------------------------------------
 def hash_password(password: str) -> str:
@@ -286,7 +330,22 @@ async def lifespan(_: FastAPI):
     await _db.users.create_index("email", unique=True)
     await _db.alerts.create_index("timestamp")
     await _db.cameras.create_index("camera_name")
+    await _db.audit_logs.create_index("created_at")
+    await _db.audit_logs.create_index("actor_email")
     await seed(_db)
+    # System startup audit event.
+    try:
+        await _db.audit_logs.insert_one({
+            "_id": str(uuid.uuid4()),
+            "actor_id": None, "actor_email": None, "actor_role": "system",
+            "action": "system.start",
+            "resource_type": "service", "resource_id": APP_NAME,
+            "detail": {"version": APP_VERSION},
+            "ip": None,
+            "created_at": datetime.now(timezone.utc),
+        })
+    except Exception:
+        pass
     demo_task = asyncio.create_task(_demo_event_loop())
     try:
         yield
@@ -348,13 +407,23 @@ async def meta_version() -> dict[str, Any]:
 # Auth
 # ---------------------------------------------------------------------------
 @app.post(f"{API_PREFIX}/auth/login", response_model=TokenResponse)
-async def login(body: LoginBody) -> TokenResponse:
+async def login(body: LoginBody, request: Request) -> TokenResponse:
     db = get_db()
     user = await db.users.find_one({"email": body.email.lower()})
     if user is None or not verify_password(body.password, user["password_hash"]):
+        await write_audit(
+            action="auth.login.failed", request=request,
+            actor={"email": body.email.lower()},
+            detail={"reason": "invalid_credentials"},
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
     days = ACCESS_TOKEN_REMEMBER_DAYS if (body.expires_in_days or 0) >= 30 else ACCESS_TOKEN_DEFAULT_DAYS
     token = create_access_token(user["_id"], user["email"], user["role"], days)
+    await write_audit(
+        action="auth.login", request=request,
+        actor={"id": user["_id"], "email": user["email"], "role": user["role"]},
+        detail={"remember": days == ACCESS_TOKEN_REMEMBER_DAYS},
+    )
     return TokenResponse(access_token=token, expires_in=days * 86400)
 
 
@@ -630,7 +699,7 @@ async def list_users(_: dict[str, Any] = Depends(require_admin)) -> dict[str, An
 
 
 @app.post(f"{API_PREFIX}/users", status_code=201)
-async def create_user(body: RegisterBody, _: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+async def create_user(body: RegisterBody, request: Request, admin: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
     db = get_db()
     if await db.users.find_one({"email": body.email.lower()}) is not None:
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -643,6 +712,11 @@ async def create_user(body: RegisterBody, _: dict[str, Any] = Depends(require_ad
         "created_at": datetime.now(timezone.utc),
     }
     await db.users.insert_one(doc)
+    await write_audit(
+        action="users.create", actor=admin, request=request,
+        resource_type="user", resource_id=doc["_id"],
+        detail={"email": doc["email"], "role": doc["role"]},
+    )
     return {
         "id": doc["_id"],
         "email": doc["email"],
@@ -653,13 +727,19 @@ async def create_user(body: RegisterBody, _: dict[str, Any] = Depends(require_ad
 
 
 @app.delete(f"{API_PREFIX}/users/{{user_id}}")
-async def delete_user(user_id: str, admin: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+async def delete_user(user_id: str, request: Request, admin: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
     if user_id == admin["id"]:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
     db = get_db()
+    target = await db.users.find_one({"_id": user_id})
     r = await db.users.delete_one({"_id": user_id})
     if r.deleted_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    await write_audit(
+        action="users.delete", actor=admin, request=request,
+        resource_type="user", resource_id=user_id,
+        detail={"email": (target or {}).get("email")},
+    )
     return {"ok": True}
 
 
@@ -702,21 +782,34 @@ async def list_detections(
 async def list_audit(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    actor: str | None = Query(None, description="Filter by actor email substring"),
+    action: str | None = Query(None, description="Exact action match (e.g. 'auth.login')"),
     _: dict[str, Any] = Depends(require_admin),
 ) -> dict[str, Any]:
+    db = get_db()
+    flt: dict[str, Any] = {}
+    if actor:
+        flt["actor_email"] = {"$regex": actor, "$options": "i"}
+    if action:
+        flt["action"] = action
+    cursor = db.audit_logs.find(flt).sort("created_at", -1).skip(offset).limit(limit)
+    docs = await cursor.to_list(limit)
     return {
         "items": [
             {
-                "id": str(uuid.uuid4()),
-                "actor_email": ADMIN_EMAIL,
-                "action": "system.start",
-                "resource_type": "service",
-                "resource_id": None,
-                "detail": {"node": "visionaryx-backend"},
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "id": d["_id"],
+                "actor_email": d.get("actor_email"),
+                "actor_id": d.get("actor_id"),
+                "action": d.get("action"),
+                "resource_type": d.get("resource_type"),
+                "resource_id": d.get("resource_id"),
+                "detail": d.get("detail") or {},
+                "ip": d.get("ip"),
+                "created_at": d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at"),
             }
+            for d in docs
         ],
-        "total": 1,
+        "total": await db.audit_logs.count_documents(flt),
     }
 
 
@@ -934,17 +1027,25 @@ class EmailSettingsPatch(BaseModel):
 
 @app.patch(f"{API_PREFIX}/settings/email")
 async def settings_email_patch(
-    body: EmailSettingsPatch, _: dict[str, Any] = Depends(require_admin)
+    body: EmailSettingsPatch, request: Request, admin: dict[str, Any] = Depends(require_admin)
 ) -> dict[str, Any]:
     db = get_db()
     update: dict[str, Any] = {}
+    changed: list[str] = []
     for k, v in body.model_dump(exclude_none=True).items():
         if k == "smtp_password":
             update["password"] = v
+            changed.append("password")
         else:
             update[k] = v
+            changed.append(k)
     update["updated_at"] = datetime.now(timezone.utc)
     await db.settings.update_one({"_id": "email"}, {"$set": update}, upsert=True)
+    await write_audit(
+        action="settings.email.update", actor=admin, request=request,
+        resource_type="settings", resource_id="email",
+        detail={"fields": changed},
+    )
     return {"ok": True}
 
 
@@ -982,7 +1083,7 @@ class UserPatch(BaseModel):
 
 @app.patch(f"{API_PREFIX}/users/{{user_id}}")
 async def patch_user(
-    user_id: str, body: UserPatch, _: dict[str, Any] = Depends(require_admin)
+    user_id: str, body: UserPatch, request: Request, admin: dict[str, Any] = Depends(require_admin)
 ) -> dict[str, Any]:
     db = get_db()
     update = {k: v for k, v in body.model_dump(exclude_none=True).items()}
@@ -993,6 +1094,11 @@ async def patch_user(
     )
     if r is None:
         raise HTTPException(status_code=404, detail="User not found")
+    await write_audit(
+        action="users.update", actor=admin, request=request,
+        resource_type="user", resource_id=user_id,
+        detail={"fields": list(update.keys()), "email": r.get("email")},
+    )
     return {
         "id": r["_id"],
         "email": r["email"],
