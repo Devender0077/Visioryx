@@ -77,7 +77,27 @@ export default function LoginScreen() {
           <View style={styles.card}>
             <ErrorBanner message={vm.error} testID="login-error" />
 
-            <View style={{ gap: Space.md, marginTop: vm.error ? Space.md : 0 }}>
+            {/* Demo credentials hint — one-tap autofill for testing. */}
+            <Pressable
+              onPress={() => {
+                vm.setEmail('admin@visionaryx.dev');
+                vm.setPassword('VisionX2025!');
+              }}
+              style={styles.demoHint}
+              testID="login-demo-hint"
+            >
+              <View style={styles.demoHintIcon}>
+                <MaterialCommunityIcons name="flask-outline" size={14} color={C.primaryAccent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.demoHintLabel}>DEMO · TAP TO AUTOFILL</Text>
+                <Text style={styles.demoHintCreds}>admin@visionaryx.dev · VisionX2025!</Text>
+                <Text style={styles.demoHintAlt}>operator@visionaryx.dev · Operator2025!</Text>
+              </View>
+              <MaterialCommunityIcons name="cursor-default-click-outline" size={14} color={C.textFaint} />
+            </Pressable>
+
+            <View style={{ gap: Space.md, marginTop: Space.md }}>
               <VxInput
                 testID="login-email-input"
                 label="Operator email"
@@ -272,4 +292,25 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: F.body,
   },
+
+  // Demo-credentials hint
+  demoHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space.sm,
+    backgroundColor: C.primaryFaint,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(208, 188, 255, 0.25)',
+    paddingVertical: Space.sm + 2,
+    paddingHorizontal: Space.md,
+  },
+  demoHintIcon: {
+    width: 28, height: 28, borderRadius: 8,
+    backgroundColor: C.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  demoHintLabel: { ...TextStyles.label, color: C.primaryAccent, fontSize: 9 },
+  demoHintCreds: { ...TextStyles.caption, color: C.text, fontFamily: F.mono, marginTop: 2 },
+  demoHintAlt: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono, fontSize: 11, marginTop: 1 },
 });
