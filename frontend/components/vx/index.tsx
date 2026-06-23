@@ -1,8 +1,10 @@
 /**
  * Reusable VisionaryX primitives — Buttons, Cards, Inputs, Section labels.
  *
- * Built on top of /constants/visionTheme tokens. All elements expose
- * data-testid for testing automation.
+ * Theme-aware: on web the static palette tokens resolve to CSS variables
+ * automatically; on native we additionally read `useColors()` at render
+ * time and override the StyleSheet-baked colors inline, so light mode
+ * works on both platforms for components that go through these primitives.
  */
 import { ReactNode, forwardRef } from 'react';
 import {
@@ -14,32 +16,35 @@ import {
   Text,
   TextInput,
   TextInputProps,
-  TextProps,
   View,
   ViewStyle,
 } from 'react-native';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
+import { useColors } from '@/contexts/ThemeContext';
 
 // ---------- Section eyebrow + heading ----------
 export function SectionEyebrow({ children, testID }: { children: ReactNode; testID?: string }) {
+  const c = useColors();
   return (
-    <Text testID={testID} style={styles.eyebrow}>
+    <Text testID={testID} style={[styles.eyebrow, { color: c.primaryAccent }]}>
       {children}
     </Text>
   );
 }
 
 export function ScreenTitle({ children, testID }: { children: ReactNode; testID?: string }) {
+  const c = useColors();
   return (
-    <Text testID={testID} style={styles.screenTitle}>
+    <Text testID={testID} style={[styles.screenTitle, { color: c.text }]}>
       {children}
     </Text>
   );
 }
 
 export function ScreenSub({ children, testID }: { children: ReactNode; testID?: string }) {
+  const c = useColors();
   return (
-    <Text testID={testID} style={styles.screenSub}>
+    <Text testID={testID} style={[styles.screenSub, { color: c.textMuted }]}>
       {children}
     </Text>
   );
@@ -57,8 +62,16 @@ export function VxCard({
   pad?: keyof typeof Space;
   testID?: string;
 }) {
+  const c = useColors();
   return (
-    <View testID={testID} style={[styles.card, { padding: Space[pad] }, style]}>
+    <View
+      testID={testID}
+      style={[
+        styles.card,
+        { padding: Space[pad], backgroundColor: c.surface, borderColor: c.border },
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -82,19 +95,20 @@ export const VxButton = forwardRef<View, VxButtonProps>(function VxButton(
   { label, variant = 'primary', busy, fullWidth, icon, trailingIcon, size = 'lg', testID, disabled, ...rest },
   ref,
 ) {
+  const c = useColors();
   const isPrimary = variant === 'primary';
   const isDanger = variant === 'danger';
   const isGhost = variant === 'ghost';
 
   const baseStyle: ViewStyle = {
     backgroundColor: isPrimary
-      ? C.primary
+      ? c.primary
       : isDanger
-        ? C.danger
+        ? c.danger
         : isGhost
           ? 'transparent'
-          : C.surface2,
-    borderColor: variant === 'secondary' ? C.borderStrong : 'transparent',
+          : c.surface2,
+    borderColor: variant === 'secondary' ? c.borderStrong : 'transparent',
     borderWidth: variant === 'secondary' ? 1 : 0,
     paddingVertical: size === 'lg' ? 14 : 10,
     paddingHorizontal: size === 'lg' ? 24 : 18,
@@ -108,7 +122,7 @@ export const VxButton = forwardRef<View, VxButtonProps>(function VxButton(
   };
 
   const textColor =
-    isPrimary || isDanger ? '#FFFFFF' : isGhost ? C.primaryAccent : C.text;
+    isPrimary || isDanger ? '#FFFFFF' : isGhost ? c.primaryAccent : c.text;
 
   return (
     <Pressable
@@ -147,22 +161,23 @@ export const VxInput = forwardRef<TextInput, VxInputProps>(function VxInput(
   { label, trailing, leading, style, testID, ...rest },
   ref,
 ) {
+  const c = useColors();
   return (
     <View style={{ width: '100%' }}>
       {label ? (
-        <Text style={styles.label} testID={testID ? `${testID}-label` : undefined}>
+        <Text style={[styles.label, { color: c.textMuted }]} testID={testID ? `${testID}-label` : undefined}>
           {label}
         </Text>
       ) : null}
-      <View style={styles.inputWrap}>
+      <View style={[styles.inputWrap, { backgroundColor: c.bg, borderColor: c.border }]}>
         {leading ? <View style={styles.inputAdorn}>{leading}</View> : null}
         <TextInput
           ref={ref}
           testID={testID}
-          placeholderTextColor={C.textFaint}
+          placeholderTextColor={c.textFaint}
           style={[
             styles.input,
-            { paddingLeft: leading ? 0 : Space.md, paddingRight: trailing ? 0 : Space.md },
+            { color: c.text, paddingLeft: leading ? 0 : Space.md, paddingRight: trailing ? 0 : Space.md },
             style,
           ]}
           {...rest}
@@ -175,64 +190,55 @@ export const VxInput = forwardRef<TextInput, VxInputProps>(function VxInput(
 
 // ---------- Inline error / status ----------
 export function ErrorBanner({ message, testID }: { message: string | null; testID?: string }) {
+  const c = useColors();
   if (!message) return null;
   return (
-    <View style={styles.errorBanner} testID={testID ?? 'error-banner'}>
-      <View style={styles.errorDot} />
-      <Text style={styles.errorText} numberOfLines={2}>
+    <View style={[styles.errorBanner, { backgroundColor: c.dangerFaint, borderColor: c.danger }]} testID={testID ?? 'error-banner'}>
+      <View style={[styles.errorDot, { backgroundColor: c.danger }]} />
+      <Text style={[styles.errorText, { color: c.danger }]} numberOfLines={2}>
         {message}
       </Text>
     </View>
   );
 }
 
-// ---------- Style sheet ----------
+// ---------- Style sheet (geometry only — colors come from useColors) ----------
 const styles = StyleSheet.create({
   eyebrow: {
     ...TextStyles.label,
-    color: C.primaryAccent,
     fontFamily: F.bodySemibold,
   },
   screenTitle: {
     ...TextStyles.h2,
-    color: C.text,
     marginTop: Space.xs,
   },
   screenSub: {
     ...TextStyles.body,
-    color: C.textMuted,
     marginTop: Space.sm,
     maxWidth: 560,
   },
   card: {
-    backgroundColor: C.surface,
     borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: C.border,
   },
   btnText: {
     ...TextStyles.label,
     fontSize: 12,
     letterSpacing: 1.2,
-    color: '#FFFFFF',
   },
   label: {
     ...TextStyles.label,
-    color: C.textMuted,
     marginBottom: Space.sm,
   },
   inputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: C.bg,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: C.border,
     minHeight: 52,
   },
   input: {
     flex: 1,
-    color: C.text,
     fontFamily: F.body,
     fontSize: 15,
     paddingVertical: 14,
@@ -247,17 +253,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Space.sm,
-    backgroundColor: C.dangerFaint,
-    borderColor: C.danger,
     borderWidth: 1,
     borderRadius: Radius.sm,
     paddingHorizontal: Space.md,
     paddingVertical: Space.sm + 2,
   },
-  errorDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.danger },
+  errorDot: { width: 6, height: 6, borderRadius: 3 },
   errorText: {
     ...TextStyles.bodySmall,
-    color: C.danger,
     flex: 1,
   },
 });
+
+// Re-export the static palette for keys that don't change between themes
+// (primary, cyan, etc) and components that already access them directly.
+export { C };

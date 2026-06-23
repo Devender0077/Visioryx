@@ -327,6 +327,9 @@ async def lifespan(_: FastAPI):
     global _client, _db
     _client = AsyncIOMotorClient(MONGO_URL)
     _db = _client[DB_NAME]
+    # Share the DB handle with the deps module so routers can use it.
+    from deps import set_db
+    set_db(_db)
     await _db.users.create_index("email", unique=True)
     await _db.alerts.create_index("timestamp")
     await _db.cameras.create_index("camera_name")
@@ -380,6 +383,12 @@ app.add_middleware(
 from ai_studio import build_ai_router  # noqa: E402
 app.include_router(build_ai_router(API_PREFIX, current_user, require_admin, get_db))
 
+# Mount domain routers (auth, users) — extracted from this file for cleanliness.
+from routers.auth import router as auth_router  # noqa: E402
+from routers.users import router as users_router  # noqa: E402
+app.include_router(auth_router, prefix=API_PREFIX)
+app.include_router(users_router, prefix=API_PREFIX)
+
 
 # ---------------------------------------------------------------------------
 # Health / meta
@@ -404,82 +413,8 @@ async def meta_version() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Auth
+# Auth, Users — extracted to routers/auth.py and routers/users.py.
 # ---------------------------------------------------------------------------
-@app.post(f"{API_PREFIX}/auth/login", response_model=TokenResponse)
-async def login(body: LoginBody, request: Request) -> TokenResponse:
-    db = get_db()
-    user = await db.users.find_one({"email": body.email.lower()})
-    if user is None or not verify_password(body.password, user["password_hash"]):
-        await write_audit(
-            action="auth.login.failed", request=request,
-            actor={"email": body.email.lower()},
-            detail={"reason": "invalid_credentials"},
-        )
-        raise HTTPException(status_code=401, detail="Invalid email or password")
-    days = ACCESS_TOKEN_REMEMBER_DAYS if (body.expires_in_days or 0) >= 30 else ACCESS_TOKEN_DEFAULT_DAYS
-    token = create_access_token(user["_id"], user["email"], user["role"], days)
-    await write_audit(
-        action="auth.login", request=request,
-        actor={"id": user["_id"], "email": user["email"], "role": user["role"]},
-        detail={"remember": days == ACCESS_TOKEN_REMEMBER_DAYS},
-    )
-    return TokenResponse(access_token=token, expires_in=days * 86400)
-
-
-@app.post(f"{API_PREFIX}/auth/register", response_model=TokenResponse, status_code=201)
-async def register(body: RegisterBody) -> TokenResponse:
-    db = get_db()
-    if await db.users.find_one({"email": body.email.lower()}) is not None:
-        raise HTTPException(status_code=409, detail="Email already registered")
-    user_doc = {
-        "_id": str(uuid.uuid4()),
-        "email": body.email.lower(),
-        "password_hash": hash_password(body.password),
-        "name": body.name,
-        "role": body.role,
-        "created_at": datetime.now(timezone.utc),
-    }
-    await db.users.insert_one(user_doc)
-    token = create_access_token(user_doc["_id"], user_doc["email"], user_doc["role"], ACCESS_TOKEN_DEFAULT_DAYS)
-    return TokenResponse(access_token=token, expires_in=ACCESS_TOKEN_DEFAULT_DAYS * 86400)
-
-
-@app.post(f"{API_PREFIX}/auth/forgot-password")
-async def forgot_password(body: ForgotPasswordBody) -> dict[str, Any]:
-    # We don't reveal whether the email exists — always return success.
-    db = get_db()
-    user = await db.users.find_one({"email": body.email.lower()})
-    if user is not None:
-        token = secrets.token_urlsafe(32)
-        await db.password_resets.insert_one(
-            {
-                "_id": str(uuid.uuid4()),
-                "user_id": user["_id"],
-                "token": token,
-                "expires_at": datetime.now(timezone.utc) + timedelta(hours=1),
-                "used": False,
-            }
-        )
-    return {"ok": True, "message": "If that email exists, a reset link has been sent."}
-
-
-@app.post(f"{API_PREFIX}/auth/change-password")
-async def change_password(body: ChangePasswordBody, user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    db = get_db()
-    full = await db.users.find_one({"_id": user["id"]})
-    if full is None or not verify_password(body.current_password, full["password_hash"]):
-        raise HTTPException(status_code=400, detail="Current password is incorrect")
-    await db.users.update_one(
-        {"_id": user["id"]},
-        {"$set": {"password_hash": hash_password(body.new_password)}},
-    )
-    return {"ok": True}
-
-
-@app.get(f"{API_PREFIX}/auth/me", response_model=UserPublic)
-async def me(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    return user
 
 
 # ---------------------------------------------------------------------------
@@ -676,71 +611,9 @@ async def mark_all_alerts_read(_: dict[str, Any] = Depends(current_user)) -> dic
 # ---------------------------------------------------------------------------
 # Users (admin only)
 # ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/users")
-async def list_users(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    db = get_db()
-    docs = await db.users.find().sort("created_at", -1).to_list(None)
-    items = [
-        {
-            "id": d["_id"],
-            "email": d["email"],
-            "role": d.get("role", "operator"),
-            "name": d.get("name"),
-            "is_active": d.get("is_active", True),
-            "has_face_embedding": d.get("has_face_embedding", False),
-            "image_path": d.get("image_path"),
-            "created_at": d["created_at"].isoformat()
-            if isinstance(d.get("created_at"), datetime)
-            else d.get("created_at"),
-        }
-        for d in docs
-    ]
-    return {"items": items, "total": len(items)}
-
-
-@app.post(f"{API_PREFIX}/users", status_code=201)
-async def create_user(body: RegisterBody, request: Request, admin: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    db = get_db()
-    if await db.users.find_one({"email": body.email.lower()}) is not None:
-        raise HTTPException(status_code=409, detail="Email already registered")
-    doc = {
-        "_id": str(uuid.uuid4()),
-        "email": body.email.lower(),
-        "password_hash": hash_password(body.password),
-        "name": body.name,
-        "role": body.role,
-        "created_at": datetime.now(timezone.utc),
-    }
-    await db.users.insert_one(doc)
-    await write_audit(
-        action="users.create", actor=admin, request=request,
-        resource_type="user", resource_id=doc["_id"],
-        detail={"email": doc["email"], "role": doc["role"]},
-    )
-    return {
-        "id": doc["_id"],
-        "email": doc["email"],
-        "role": doc["role"],
-        "name": doc["name"],
-        "created_at": doc["created_at"].isoformat(),
-    }
-
-
-@app.delete(f"{API_PREFIX}/users/{{user_id}}")
-async def delete_user(user_id: str, request: Request, admin: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    if user_id == admin["id"]:
-        raise HTTPException(status_code=400, detail="Cannot delete yourself")
-    db = get_db()
-    target = await db.users.find_one({"_id": user_id})
-    r = await db.users.delete_one({"_id": user_id})
-    if r.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="User not found")
-    await write_audit(
-        action="users.delete", actor=admin, request=request,
-        resource_type="user", resource_id=user_id,
-        detail={"email": (target or {}).get("email")},
-    )
-    return {"ok": True}
+# ---------------------------------------------------------------------------
+# Users endpoints — extracted to routers/users.py.
+# ---------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------
@@ -1059,52 +932,7 @@ async def settings_email_test(
     return {"ok": True, "to": to, "mocked": True}
 
 
-@app.post(f"{API_PREFIX}/users/{{user_id}}/enrollment-link")
-async def users_enrollment_link(
-    user_id: str, _: dict[str, Any] = Depends(require_admin)
-) -> dict[str, Any]:
-    db = get_db()
-    user = await db.users.find_one({"_id": user_id})
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    token = secrets.token_urlsafe(24)
-    base = os.environ.get("APP_URL", "")
-    return {
-        "ok": True,
-        "sent_to": user.get("email"),
-        "enroll_url": f"{base}/enroll/{token}" if base else f"/enroll/{token}",
-    }
-
-
-class UserPatch(BaseModel):
-    role: Role | None = None
-    name: str | None = None
-
-
-@app.patch(f"{API_PREFIX}/users/{{user_id}}")
-async def patch_user(
-    user_id: str, body: UserPatch, request: Request, admin: dict[str, Any] = Depends(require_admin)
-) -> dict[str, Any]:
-    db = get_db()
-    update = {k: v for k, v in body.model_dump(exclude_none=True).items()}
-    if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    r = await db.users.find_one_and_update(
-        {"_id": user_id}, {"$set": update}, return_document=True
-    )
-    if r is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    await write_audit(
-        action="users.update", actor=admin, request=request,
-        resource_type="user", resource_id=user_id,
-        detail={"fields": list(update.keys()), "email": r.get("email")},
-    )
-    return {
-        "id": r["_id"],
-        "email": r["email"],
-        "role": r.get("role", "operator"),
-        "name": r.get("name"),
-    }
+# enrollment-link, patch_user, UserPatch — extracted to routers/users.py
 
 
 # ---------------------------------------------------------------------------
