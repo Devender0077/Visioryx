@@ -120,11 +120,13 @@ function SideNav() {
               testID={item.testID}
             >
               {active ? <View style={styles.activeBar} /> : null}
-              <MaterialCommunityIcons
-                name={(active && item.iconActive) || item.icon}
-                size={18}
-                color={active ? C.primaryAccent : C.textMuted}
-              />
+              <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
+                <MaterialCommunityIcons
+                  name={(active && item.iconActive) || item.icon}
+                  size={16}
+                  color={active ? C.primaryAccent : C.textMuted}
+                />
+              </View>
               <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
             </Pressable>
           );
@@ -132,7 +134,8 @@ function SideNav() {
 
         {!isEnrollee && visibleSecondary.length > 0 ? (
           <>
-            <Text style={[styles.sectionLbl, { marginTop: Space.lg }]}>OPERATIONS</Text>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionLbl}>OPERATIONS</Text>
             {visibleSecondary.map((item) => {
               const active = isActive(item.href);
               return (
@@ -143,13 +146,16 @@ function SideNav() {
                   testID={item.testID}
                 >
                   {active ? <View style={styles.activeBar} /> : null}
-                  <MaterialCommunityIcons name={item.icon} size={18} color={active ? C.primaryAccent : C.textMuted} />
+                  <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
+                    <MaterialCommunityIcons name={item.icon} size={16} color={active ? C.primaryAccent : C.textMuted} />
+                  </View>
                   <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
                 </Pressable>
               );
             })}
 
-            <Text style={[styles.sectionLbl, { marginTop: Space.lg }]}>AI · STUDIO</Text>
+            <View style={styles.sectionDivider} />
+            <Text style={styles.sectionLbl}>AI · STUDIO</Text>
             {visibleAi.map((item) => {
               const active = isActive(item.href);
               return (
@@ -160,7 +166,9 @@ function SideNav() {
                   testID={item.testID}
                 >
                   {active ? <View style={styles.activeBar} /> : null}
-                  <MaterialCommunityIcons name={item.icon} size={18} color={active ? C.primaryAccent : C.textMuted} />
+                  <View style={[styles.navIconBox, active && styles.navIconBoxActive]}>
+                    <MaterialCommunityIcons name={item.icon} size={16} color={active ? C.primaryAccent : C.textMuted} />
+                  </View>
                   <Text style={[styles.navText, active && styles.navTextActive]}>{item.label}</Text>
                 </Pressable>
               );
@@ -216,14 +224,23 @@ const styles = StyleSheet.create({
     marginBottom: Space.xl,
   },
   sectionLbl: { ...TextStyles.label, color: C.textFaint, fontSize: 9, paddingHorizontal: Space.sm, marginBottom: Space.sm, marginTop: Space.xs },
+  sectionDivider: { height: 1, backgroundColor: C.border, marginVertical: Space.md, marginHorizontal: Space.sm, opacity: 0.6 },
   navRow: {
     flexDirection: 'row', alignItems: 'center', gap: Space.sm,
-    paddingHorizontal: Space.sm, paddingVertical: 10,
+    paddingHorizontal: Space.sm, paddingVertical: 8,
     borderRadius: Radius.sm, marginBottom: 2, position: 'relative',
   },
   navRowActive: { backgroundColor: C.primaryFaint },
   activeBar: { position: 'absolute', left: -Space.md, top: 6, bottom: 6, width: 3, backgroundColor: C.primaryAccent, borderTopRightRadius: 2, borderBottomRightRadius: 2 },
-  navText: { ...TextStyles.bodySmall, color: C.textMuted, fontFamily: F.bodyMedium },
+  navIconBox: {
+    width: 28, height: 28, borderRadius: Radius.sm,
+    backgroundColor: 'transparent',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navIconBoxActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.16)',
+  },
+  navText: { ...TextStyles.bodySmall, color: C.textMuted, fontFamily: F.bodyMedium, fontSize: 13 },
   navTextActive: { color: C.text },
 
   userPill: {

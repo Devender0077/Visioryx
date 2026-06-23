@@ -56,6 +56,39 @@ export interface RagDocModel {
   created_at: string;
 }
 
+export interface AgentToolCall {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+  output: string | null;
+  error?: string | null;
+  ok?: boolean;
+  duration_ms: number;
+  started_at?: string;
+}
+
+export interface AgentRun {
+  id: string;
+  agent_id: string;
+  session_id: string;
+  input: string;
+  output: string;
+  tool_calls: AgentToolCall[];
+  model_id: string;
+  status: 'running' | 'complete' | 'error';
+  started_at: string;
+  finished_at: string | null;
+  duration_ms: number | null;
+}
+
+export type RunTraceEvent =
+  | { type: 'meta'; run_id: string; session_id: string; agent: { id: string; name: string; model_id: string }; tools_available: Array<{ key: string; server: string; tool: string; description: string }>; started_at: string }
+  | { type: 'delta'; text: string }
+  | { type: 'tool_call'; id: string; name: string; args: Record<string, unknown>; started_at: string }
+  | { type: 'tool_result'; id: string; ok: boolean; output: string | null; error?: string | null; duration_ms: number }
+  | { type: 'done'; run_id: string; session_id: string; duration_ms: number; tool_calls: number }
+  | { type: 'error'; message: string };
+
 export const AiRepository = {
   // Models
   listModels: () => api<ModelInfo[]>('/api/v1/ai/models'),
@@ -138,6 +171,54 @@ export const AiRepository = {
         try {
           const payload = JSON.parse(m[1]);
           if (payload.type === 'delta') onDelta(payload.text as string);
+        } catch {/* ignore */}
+      }
+    }
+  },
+
+  // ----- Agent Run Console -----
+  listAgentRuns: (agentId: string) =>
+    api<AgentRun[]>(`/api/v1/ai/agents/${agentId}/runs`),
+  getAgentRun: (runId: string) =>
+    api<AgentRun>(`/api/v1/ai/agent-runs/${runId}`),
+
+  /**
+   * Streams a structured agent trace: text deltas, tool_call events, tool_result events.
+   * Returns the abort controller so the caller can cancel mid-stream.
+   */
+  async streamAgentTrace(
+    agentId: string,
+    input: string,
+    onEvent: (ev: RunTraceEvent) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    const token = await getStoredToken();
+    const res = await fetch(`${getApiBase()}/api/v1/ai/agents/${agentId}/run-trace`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ input }),
+      signal,
+    });
+    if (!res.ok) throw new Error(`Run failed (${res.status})`);
+    if (!res.body) throw new Error('No stream');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const m = line.match(/^data: (.+)$/m);
+        if (!m) continue;
+        try {
+          onEvent(JSON.parse(m[1]) as RunTraceEvent);
         } catch {/* ignore */}
       }
     }

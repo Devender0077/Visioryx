@@ -95,6 +95,7 @@ export default function RootLayout() {
               <Stack.Screen name="ai/models" options={{ headerShown: false }} />
               <Stack.Screen name="ai/rag" options={{ headerShown: false }} />
               <Stack.Screen name="ai/mcp" options={{ headerShown: false }} />
+              <Stack.Screen name="ai/agents/[id]/console" options={{ headerShown: false }} />
             </Stack>
           </DesktopShell>
         </ThemeProvider>

@@ -66,7 +66,7 @@ export default function LoginScreen() {
               {Brand.tagline}
             </Text>
             <Text style={styles.h1} testID="login-headline">
-              Vision that{'\n'}watches.
+              <Text style={styles.h1Grad}>Vision</Text> that{'\n'}watches.
             </Text>
             <Text style={styles.sub}>
               Real-time perimeter intelligence built for operators. Sign in to monitor cameras,
@@ -233,6 +233,13 @@ const styles = StyleSheet.create({
     letterSpacing: -1.5,
     marginTop: Space.md,
   },
+  h1Grad: Platform.OS === 'web' ? ({
+    backgroundImage: 'linear-gradient(120deg, #8B5CF6 0%, #06B6D4 100%)',
+    WebkitBackgroundClip: 'text',
+    backgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    color: 'transparent',
+  } as any) : { color: C.electricViolet },
   sub: {
     ...TextStyles.body,
     color: C.textMuted,
@@ -242,10 +249,14 @@ const styles = StyleSheet.create({
   card: {
     marginTop: Space.xxl,
     padding: Space.lg,
-    backgroundColor: C.surface,
+    backgroundColor: 'rgba(15, 15, 23, 0.78)',
     borderRadius: Radius.lg,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: 'rgba(255,255,255,0.08)',
+    ...(Platform.OS === 'web' ? ({
+      backdropFilter: 'blur(18px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+    } as any) : {}),
   },
   rowBetween: {
     flexDirection: 'row',

@@ -174,18 +174,25 @@ export default function OverviewScreen() {
             </View>
 
             <View style={styles.bars}>
-              {vm.bars.map((h, i) => (
-                <View key={i} style={styles.barCol}>
-                  <View style={[styles.barTrack]}>
-                    <View
-                      style={[
-                        styles.barFill,
-                        { height: `${Math.round(h * 100)}%`, backgroundColor: h > 0.8 ? C.primaryAccent : C.primary },
-                      ]}
-                    />
+              {vm.bars.map((h, i) => {
+                const hot = h > 0.75;
+                return (
+                  <View key={i} style={styles.barCol}>
+                    <View style={styles.barTrack}>
+                      <View
+                        style={[
+                          styles.barFill,
+                          {
+                            height: `${Math.max(4, Math.round(h * 100))}%`,
+                            backgroundColor: hot ? C.primaryAccent : C.primary,
+                            opacity: hot ? 1 : 0.85,
+                          },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             <View style={styles.barAxis}>
@@ -279,6 +286,7 @@ interface KpiProps {
 function Kpi({ label, value, icon, footer, danger, testID }: KpiProps) {
   return (
     <View style={[styles.kpiCard, danger && { borderColor: C.dangerFaint }]} testID={testID}>
+      <View style={[styles.kpiAccent, danger && { backgroundColor: C.danger }]} />
       <View style={styles.kpiHead}>
         <Text style={styles.kpiLabel}>{label}</Text>
         <MaterialCommunityIcons name={icon} size={16} color={danger ? C.danger : C.textMuted} />
@@ -334,6 +342,12 @@ const styles = StyleSheet.create({
     minWidth: 150,
     flexGrow: 1,
     flexBasis: 180,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  kpiAccent: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+    backgroundColor: C.primaryAccent, opacity: 0.7,
   },
   kpiHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   kpiLabel: { ...TextStyles.label, color: C.textMuted, fontSize: 10 },
@@ -380,8 +394,9 @@ const styles = StyleSheet.create({
     backgroundColor: C.chartTrack,
     overflow: 'hidden',
     justifyContent: 'flex-end',
+    borderRadius: 3,
   },
-  barFill: { width: '100%' },
+  barFill: { width: '100%', borderRadius: 3 },
   barAxis: { flexDirection: 'row', justifyContent: 'space-between', marginTop: Space.sm },
   barAxisLbl: { ...TextStyles.label, color: C.textFaint, fontFamily: F.mono, fontSize: 10 },
 

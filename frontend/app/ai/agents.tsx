@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { Alert, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AiRepository, type AgentModel, type McpServerModel, type ModelInfo } from '@/viewmodels/repositories/aiRepository';
 import { CommandBackground } from '@/components/CommandBackground';
@@ -11,6 +12,7 @@ import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner 
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 
 export default function AgentsScreen() {
+  const router = useRouter();
   const [agents, setAgents] = useState<AgentModel[]>([]);
   const [mcpList, setMcpList] = useState<McpServerModel[]>([]);
   const [models, setModels] = useState<ModelInfo[]>([]);
@@ -112,6 +114,16 @@ export default function AgentsScreen() {
                   </Text>
                 </View>
               ) : null}
+              <View style={{ flex: 1 }} />
+              <Pressable
+                onPress={() => router.push(`/ai/agents/${item.id}/console` as any)}
+                style={styles.consoleBtn}
+                testID={`agent-console-${item.id}`}
+              >
+                <MaterialCommunityIcons name="console" size={12} color={C.electricViolet} />
+                <Text style={styles.consoleBtnText}>RUN CONSOLE</Text>
+                <MaterialCommunityIcons name="arrow-right" size={11} color={C.electricViolet} />
+              </Pressable>
             </View>
           </GlassCard>
         )}
@@ -222,4 +234,13 @@ const styles = StyleSheet.create({
   mcpName: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
   mcpUrl: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
+
+  consoleBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: Radius.full,
+    borderWidth: 1, borderColor: C.electricViolet,
+    backgroundColor: C.primaryFaint,
+  },
+  consoleBtnText: { ...TextStyles.label, color: C.electricViolet, fontSize: 9, letterSpacing: 1.4 },
 });
