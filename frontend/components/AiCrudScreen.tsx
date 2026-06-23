@@ -94,7 +94,7 @@ export function AiCrudScreen<T extends { id: string }>(props: {
         )}
         ListEmptyComponent={
           <GlassCard pad="lg" style={{ alignItems: 'center' }}>
-            <MaterialCommunityIcons name="sparkles-outline" size={32} color={C.primary} />
+            <MaterialCommunityIcons name="auto-fix" size={32} color={C.primary} />
             <Text style={styles.emptyTitle}>Nothing here yet</Text>
             <Text style={styles.emptySub}>Press “{props.emptyCta}” to create your first one.</Text>
           </GlassCard>

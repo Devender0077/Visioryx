@@ -31,7 +31,7 @@ export default function AutomationsScreen() {
         <View>
           <View style={crudStyles.rowHead}>
             <View style={[crudStyles.rowIcon, { backgroundColor: C.cyanFaint }]}>
-              <MaterialCommunityIcons name="workflow" size={18} color={C.cyan} />
+              <MaterialCommunityIcons name="sitemap" size={18} color={C.cyan} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={crudStyles.rowTitle}>{item.name}</Text>

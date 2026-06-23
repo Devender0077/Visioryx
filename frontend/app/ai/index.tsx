@@ -13,7 +13,7 @@ type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 const MODULES: { href: string; label: string; desc: string; icon: IconName; testID: string }[] = [
   { href: '/ai/chat', label: 'Bot Reply', desc: 'Multi-model chat. Pick GPT-5, Claude or Gemini.', icon: 'chat-processing', testID: 'ai-mod-chat' },
   { href: '/ai/agents', label: 'AI Agents', desc: 'Build agents with system prompts and tools.', icon: 'robot-happy', testID: 'ai-mod-agents' },
-  { href: '/ai/automations', label: 'Automations', desc: 'Triggered, multi-step agentic workflows.', icon: 'workflow', testID: 'ai-mod-automations' },
+  { href: '/ai/automations', label: 'Automations', desc: 'Triggered, multi-step agentic workflows.', icon: 'sitemap', testID: 'ai-mod-automations' },
   { href: '/ai/models', label: 'Models', desc: 'Catalog of LLMs reachable via Emergent key.', icon: 'shape', testID: 'ai-mod-models' },
   { href: '/ai/rag', label: 'RAG · Knowledge', desc: 'Upload docs, embed with Chroma, query.', icon: 'database-search', testID: 'ai-mod-rag' },
   { href: '/ai/mcp', label: 'MCP Servers', desc: 'Connect MCP tools from mcpmarket.com.', icon: 'connection', testID: 'ai-mod-mcp' },

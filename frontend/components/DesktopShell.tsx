@@ -48,10 +48,10 @@ const SECONDARY: NavItem[] = [
 ];
 
 const AI_NAV: NavItem[] = [
-  { href: '/ai', label: 'AI Studio', icon: 'sparkles', testID: 'nav-ai-studio', hideForEnrollee: true },
+  { href: '/ai', label: 'AI Studio', icon: 'auto-fix', testID: 'nav-ai-studio', hideForEnrollee: true },
   { href: '/ai/chat', label: 'Bot Reply', icon: 'chat-processing', testID: 'nav-ai-chat', hideForEnrollee: true },
   { href: '/ai/agents', label: 'Agents', icon: 'robot-happy', testID: 'nav-ai-agents', hideForEnrollee: true },
-  { href: '/ai/automations', label: 'Automations', icon: 'workflow', testID: 'nav-ai-automations', hideForEnrollee: true },
+  { href: '/ai/automations', label: 'Automations', icon: 'sitemap', testID: 'nav-ai-automations', hideForEnrollee: true },
   { href: '/ai/models', label: 'Models', icon: 'shape', testID: 'nav-ai-models', hideForEnrollee: true },
   { href: '/ai/rag', label: 'RAG', icon: 'database-search', testID: 'nav-ai-rag', hideForEnrollee: true },
   { href: '/ai/mcp', label: 'MCP Servers', icon: 'connection', testID: 'nav-ai-mcp', hideForEnrollee: true },

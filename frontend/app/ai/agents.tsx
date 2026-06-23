@@ -120,7 +120,7 @@ export default function AgentsScreen() {
                 style={styles.consoleBtn}
                 testID={`agent-console-${item.id}`}
               >
-                <MaterialCommunityIcons name="console" size={12} color={C.electricViolet} />
+                <MaterialCommunityIcons name="console-line" size={12} color={C.electricViolet} />
                 <Text style={styles.consoleBtnText}>RUN CONSOLE</Text>
                 <MaterialCommunityIcons name="arrow-right" size={11} color={C.electricViolet} />
               </Pressable>
