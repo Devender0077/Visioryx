@@ -386,8 +386,19 @@ app.include_router(build_ai_router(API_PREFIX, current_user, require_admin, get_
 # Mount domain routers (auth, users) — extracted from this file for cleanliness.
 from routers.auth import router as auth_router  # noqa: E402
 from routers.users import router as users_router  # noqa: E402
+from routers.analytics import router as analytics_router  # noqa: E402
+from routers.cameras import router as cameras_router  # noqa: E402
+from routers.alerts import router as alerts_router  # noqa: E402
+from routers.detections import router as detections_router  # noqa: E402
+from routers.settings import router as settings_router  # noqa: E402
+
 app.include_router(auth_router, prefix=API_PREFIX)
 app.include_router(users_router, prefix=API_PREFIX)
+app.include_router(analytics_router, prefix=API_PREFIX)
+app.include_router(cameras_router, prefix=API_PREFIX)
+app.include_router(alerts_router, prefix=API_PREFIX)
+app.include_router(detections_router, prefix=API_PREFIX)
+app.include_router(settings_router, prefix=API_PREFIX)
 
 
 # ---------------------------------------------------------------------------
@@ -418,194 +429,18 @@ async def meta_version() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Analytics
+# Analytics — extracted to routers/analytics.py.
 # ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/analytics/overview")
-async def analytics_overview(_: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    db = get_db()
-    total_users = await db.users.count_documents({})
-    total_cameras = await db.cameras.count_documents({})
-    active_cameras = await db.cameras.count_documents({"is_enabled": True, "status": "active"})
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    detections_today = await db.alerts.count_documents({"timestamp": {"$gte": today_start}})
-    unknown_today = await db.alerts.count_documents(
-        {"timestamp": {"$gte": today_start}, "alert_type": "Unrecognized entry"}
-    )
-
-    # Real 7-day trend % delta: last 7 days vs prior 7 days (from db.alerts).
-    now = datetime.now(timezone.utc)
-    last7_start = now - timedelta(days=7)
-    prev14_start = now - timedelta(days=14)
-    last7 = await db.alerts.count_documents({"timestamp": {"$gte": last7_start}})
-    prev7 = await db.alerts.count_documents(
-        {"timestamp": {"$gte": prev14_start, "$lt": last7_start}}
-    )
-    if prev7 > 0:
-        trend_pct = round(((last7 - prev7) / prev7) * 100, 1)
-    elif last7 > 0:
-        trend_pct = 100.0
-    else:
-        trend_pct = 0.0
-
-    return {
-        "total_users": total_users,
-        "total_cameras": total_cameras,
-        "active_cameras": active_cameras,
-        "detections_today": detections_today,
-        "unknown_detections_today": unknown_today,
-        "detection_trend_7d": trend_pct,
-        "detections_last_7d": last7,
-        "detections_prev_7d": prev7,
-    }
-
-
-@app.get(f"{API_PREFIX}/analytics/detection-trends")
-async def detection_trends(
-    days: int = Query(7, ge=1, le=90),
-    _: dict[str, Any] = Depends(current_user),
-) -> list[dict[str, Any]]:
-    db = get_db()
-    docs = await db.detection_trends.find().sort("date", -1).to_list(days)
-    docs.reverse()
-    return [{"date": d["date"], "count": d["count"]} for d in docs]
 
 
 # ---------------------------------------------------------------------------
-# Cameras
+# Cameras + Stream — extracted to routers/cameras.py.
 # ---------------------------------------------------------------------------
-def _camera_public(doc: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "id": doc["_id"],
-        "camera_name": doc["camera_name"],
-        "rtsp_url": doc["rtsp_url"],
-        "is_enabled": doc.get("is_enabled", True),
-        "status": doc.get("status", "active"),
-    }
-
-
-@app.get(f"{API_PREFIX}/cameras")
-async def list_cameras(_: dict[str, Any] = Depends(current_user)) -> list[dict[str, Any]]:
-    db = get_db()
-    docs = await db.cameras.find().to_list(None)
-    return [_camera_public(d) for d in docs]
-
-
-@app.post(f"{API_PREFIX}/cameras", status_code=201)
-async def create_camera(body: CameraIn, _: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    db = get_db()
-    doc = {
-        "_id": str(uuid.uuid4()),
-        "camera_name": body.camera_name,
-        "rtsp_url": body.rtsp_url,
-        "is_enabled": body.is_enabled,
-        "status": "active" if body.is_enabled else "offline",
-        "created_at": datetime.now(timezone.utc),
-    }
-    await db.cameras.insert_one(doc)
-    return _camera_public(doc)
-
-
-@app.patch(f"{API_PREFIX}/cameras/{{camera_id}}")
-async def patch_camera(
-    camera_id: str, body: CameraPatch, _: dict[str, Any] = Depends(require_admin)
-) -> dict[str, Any]:
-    db = get_db()
-    update = {k: v for k, v in body.model_dump(exclude_none=True).items()}
-    if not update:
-        raise HTTPException(status_code=400, detail="No fields to update")
-    if "is_enabled" in update:
-        update["status"] = "active" if update["is_enabled"] else "offline"
-    result = await db.cameras.find_one_and_update(
-        {"_id": camera_id}, {"$set": update}, return_document=True
-    )
-    if result is None:
-        raise HTTPException(status_code=404, detail="Camera not found")
-    return _camera_public(result)
-
-
-@app.delete(f"{API_PREFIX}/cameras/{{camera_id}}")
-async def delete_camera(camera_id: str, _: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    db = get_db()
-    r = await db.cameras.delete_one({"_id": camera_id})
-    if r.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Camera not found")
-    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
-# Stream (stub)
+# Alerts — extracted to routers/alerts.py.
 # ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/stream/status")
-async def stream_status(_: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    db = get_db()
-    docs = await db.cameras.find({"is_enabled": True, "status": "active"}).to_list(None)
-    return {"active_camera_ids": [d["_id"] for d in docs]}
-
-
-# ---------------------------------------------------------------------------
-# Alerts
-# ---------------------------------------------------------------------------
-def _alert_public(doc: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "id": doc["_id"],
-        "alert_type": doc["alert_type"],
-        "severity": doc.get("severity", "info"),
-        "message": doc.get("message", ""),
-        "is_read": doc.get("is_read", False),
-        "timestamp": doc["timestamp"].isoformat() if isinstance(doc["timestamp"], datetime) else doc["timestamp"],
-        "camera_id": doc.get("camera_id"),
-        "camera_name": doc.get("camera_name"),
-    }
-
-
-@app.get(f"{API_PREFIX}/alerts")
-async def list_alerts(
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-    q: str | None = None,
-    severity: str | None = None,
-    camera_id: str | None = None,
-    today_only: bool = False,
-    _: dict[str, Any] = Depends(current_user),
-) -> dict[str, Any]:
-    db = get_db()
-    flt: dict[str, Any] = {}
-    if q:
-        flt["$or"] = [
-            {"alert_type": {"$regex": q, "$options": "i"}},
-            {"message": {"$regex": q, "$options": "i"}},
-        ]
-    if severity and severity.lower() != "all":
-        flt["severity"] = severity.lower()
-    if camera_id:
-        flt["camera_id"] = camera_id
-    if today_only:
-        flt["timestamp"] = {
-            "$gte": datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        }
-    total = await db.alerts.count_documents(flt)
-    items = (
-        await db.alerts.find(flt).sort("timestamp", -1).skip(offset).limit(limit).to_list(limit)
-    )
-    return {"items": [_alert_public(i) for i in items], "total": total}
-
-
-@app.patch(f"{API_PREFIX}/alerts/{{alert_id}}/read")
-async def mark_alert_read(alert_id: str, _: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    db = get_db()
-    r = await db.alerts.find_one_and_update(
-        {"_id": alert_id}, {"$set": {"is_read": True}}, return_document=True
-    )
-    if r is None:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    return _alert_public(r)
-
-
-@app.post(f"{API_PREFIX}/alerts/mark-all-read")
-async def mark_all_alerts_read(_: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
-    db = get_db()
-    r = await db.alerts.update_many({"is_read": False}, {"$set": {"is_read": True}})
-    return {"modified": r.modified_count}
 
 
 # ---------------------------------------------------------------------------
@@ -617,73 +452,8 @@ async def mark_all_alerts_read(_: dict[str, Any] = Depends(current_user)) -> dic
 
 
 # ---------------------------------------------------------------------------
-# Detections / audit (stubbed lists)
+# Detections + Audit — extracted to routers/detections.py.
 # ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/detections")
-async def list_detections(
-    limit: int = Query(50, ge=1, le=200),
-    q: str | None = None,
-    _: dict[str, Any] = Depends(current_user),
-) -> dict[str, Any]:
-    """Recent detections — reuses alerts collection as the events log."""
-    db = get_db()
-    flt: dict[str, Any] = {}
-    if q:
-        flt["$or"] = [
-            {"alert_type": {"$regex": q, "$options": "i"}},
-            {"message": {"$regex": q, "$options": "i"}},
-            {"camera_name": {"$regex": q, "$options": "i"}},
-        ]
-    docs = await db.alerts.find(flt).sort("timestamp", -1).limit(limit).to_list(limit)
-    return {
-        "items": [
-            {
-                "id": d["_id"],
-                "camera_name": d.get("camera_name"),
-                "user_name": "Operator" if "Face" in d["alert_type"] else None,
-                "status": "known" if "Face" in d["alert_type"] else "unknown",
-                "confidence": round(random.uniform(0.72, 0.98), 2),
-                "timestamp": d["timestamp"].isoformat() if isinstance(d["timestamp"], datetime) else d["timestamp"],
-            }
-            for d in docs
-        ],
-        "total": await db.alerts.count_documents(flt),
-    }
-
-
-@app.get(f"{API_PREFIX}/audit")
-async def list_audit(
-    limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),
-    actor: str | None = Query(None, description="Filter by actor email substring"),
-    action: str | None = Query(None, description="Exact action match (e.g. 'auth.login')"),
-    _: dict[str, Any] = Depends(require_admin),
-) -> dict[str, Any]:
-    db = get_db()
-    flt: dict[str, Any] = {}
-    if actor:
-        flt["actor_email"] = {"$regex": actor, "$options": "i"}
-    if action:
-        flt["action"] = action
-    cursor = db.audit_logs.find(flt).sort("created_at", -1).skip(offset).limit(limit)
-    docs = await cursor.to_list(limit)
-    return {
-        "items": [
-            {
-                "id": d["_id"],
-                "actor_email": d.get("actor_email"),
-                "actor_id": d.get("actor_id"),
-                "action": d.get("action"),
-                "resource_type": d.get("resource_type"),
-                "resource_id": d.get("resource_id"),
-                "detail": d.get("detail") or {},
-                "ip": d.get("ip"),
-                "created_at": d["created_at"].isoformat() if isinstance(d.get("created_at"), datetime) else d.get("created_at"),
-            }
-            for d in docs
-        ],
-        "total": await db.audit_logs.count_documents(flt),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -815,121 +585,8 @@ async def _demo_event_loop() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Auxiliary analytics + settings + user-mgmt routes used by legacy screens.
+# Analytics extras + Settings — extracted to routers/{analytics,settings}.py
 # ---------------------------------------------------------------------------
-@app.get(f"{API_PREFIX}/analytics/recent-detections")
-async def analytics_recent_detections(
-    limit: int = Query(10, ge=1, le=100),
-    _: dict[str, Any] = Depends(current_user),
-) -> list[dict[str, Any]]:
-    db = get_db()
-    docs = await db.alerts.find().sort("timestamp", -1).limit(limit).to_list(limit)
-    return [
-        {
-            "id": d["_id"],
-            "camera_name": d.get("camera_name"),
-            "status": "known" if "Face" in d["alert_type"] else "unknown",
-            "confidence": round(random.uniform(0.72, 0.98), 2),
-            "timestamp": d["timestamp"].isoformat() if isinstance(d["timestamp"], datetime) else d["timestamp"],
-        }
-        for d in docs
-    ]
-
-
-@app.get(f"{API_PREFIX}/analytics/detection-status-trends")
-async def analytics_status_trends(
-    days: int = Query(14, ge=1, le=90),
-    _: dict[str, Any] = Depends(current_user),
-) -> list[dict[str, Any]]:
-    db = get_db()
-    docs = await db.detection_trends.find().sort("date", -1).to_list(days)
-    docs.reverse()
-    out = []
-    for d in docs:
-        total = d.get("count", 0)
-        known = int(total * random.uniform(0.6, 0.85))
-        out.append({"date": d["date"][:10], "known": known, "unknown": max(0, total - known)})
-    return out
-
-
-@app.get(f"{API_PREFIX}/analytics/object-stats")
-async def analytics_object_stats(
-    days: int = Query(14, ge=1, le=90),
-    _: dict[str, Any] = Depends(current_user),
-) -> list[dict[str, Any]]:
-    return [
-        {"object": "person", "count": 2410},
-        {"object": "vehicle", "count": 612},
-        {"object": "bag", "count": 188},
-        {"object": "package", "count": 74},
-        {"object": "animal", "count": 21},
-    ]
-
-
-@app.get(f"{API_PREFIX}/settings/email")
-async def settings_email(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
-    db = get_db()
-    doc = await db.settings.find_one({"_id": "email"}) or {}
-    return {
-        "enabled": doc.get("enabled", False),
-        "host": doc.get("host", ""),
-        "port": doc.get("port", 587),
-        "user": doc.get("user", ""),
-        "from_email": doc.get("from_email", ""),
-        "from_name": doc.get("from_name", "VisionaryX Alerts"),
-        "use_tls": doc.get("use_tls", True),
-        "use_ssl": doc.get("use_ssl", False),
-        "public_base_url": doc.get("public_base_url", ""),
-        "password_configured": bool(doc.get("password")),
-        "public_dashboard_url_default": os.environ.get("APP_URL", ""),
-    }
-
-
-class EmailSettingsPatch(BaseModel):
-    enabled: bool | None = None
-    host: str | None = None
-    port: int | None = None
-    user: str | None = None
-    smtp_password: str | None = None
-    from_email: str | None = None
-    from_name: str | None = None
-    use_tls: bool | None = None
-    use_ssl: bool | None = None
-    public_base_url: str | None = None
-
-
-@app.patch(f"{API_PREFIX}/settings/email")
-async def settings_email_patch(
-    body: EmailSettingsPatch, request: Request, admin: dict[str, Any] = Depends(require_admin)
-) -> dict[str, Any]:
-    db = get_db()
-    update: dict[str, Any] = {}
-    changed: list[str] = []
-    for k, v in body.model_dump(exclude_none=True).items():
-        if k == "smtp_password":
-            update["password"] = v
-            changed.append("password")
-        else:
-            update[k] = v
-            changed.append(k)
-    update["updated_at"] = datetime.now(timezone.utc)
-    await db.settings.update_one({"_id": "email"}, {"$set": update}, upsert=True)
-    await write_audit(
-        action="settings.email.update", actor=admin, request=request,
-        resource_type="settings", resource_id="email",
-        detail={"fields": changed},
-    )
-    return {"ok": True}
-
-
-@app.post(f"{API_PREFIX}/settings/email/test")
-async def settings_email_test(
-    body: dict[str, str], _: dict[str, Any] = Depends(require_admin)
-) -> dict[str, Any]:
-    to = body.get("to", "")
-    if not to:
-        raise HTTPException(status_code=400, detail="Missing 'to' address")
-    return {"ok": True, "to": to, "mocked": True}
 
 
 # enrollment-link, patch_user, UserPatch — extracted to routers/users.py

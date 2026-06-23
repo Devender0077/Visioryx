@@ -10,6 +10,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useColors } from '@/contexts/ThemeContext';
 import { isEnrolleeRole } from '@/lib/roles';
 import { PaletteDark as C, FontFamily as F, Breakpoint } from '@/constants/visionTheme';
 
@@ -20,6 +21,7 @@ export default function TabLayout() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= Breakpoint.desktop;
   const isEnrollee = isEnrolleeRole(user?.role);
+  const c = useColors();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -29,8 +31,8 @@ export default function TabLayout() {
 
   if (loading || !user) {
     return (
-      <View style={styles.boot} testID="tabs-boot">
-        <ActivityIndicator size="large" color={C.primaryAccent} />
+      <View style={[styles.boot, { backgroundColor: c.bg }]} testID="tabs-boot">
+        <ActivityIndicator size="large" color={c.primaryAccent} />
       </View>
     );
   }
@@ -38,13 +40,13 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: C.primaryAccent,
-        tabBarInactiveTintColor: C.textMuted,
+        tabBarActiveTintColor: c.primaryAccent,
+        tabBarInactiveTintColor: c.textMuted,
         tabBarStyle: isDesktop
           ? { display: 'none' }
           : {
-              backgroundColor: C.surface,
-              borderTopColor: C.border,
+              backgroundColor: c.surface,
+              borderTopColor: c.border,
               borderTopWidth: 1,
               height: 60 + Math.max(insets.bottom, 8),
               paddingBottom: Math.max(insets.bottom, 8),
