@@ -115,7 +115,7 @@ export default function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 720, width: '100%', alignSelf: 'center' },
 
   pillCard: {

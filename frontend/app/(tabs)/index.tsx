@@ -9,6 +9,7 @@ import { useDashboardViewModel } from '@/viewmodels';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles, Brand } from '@/constants/visionTheme';
 import { CommandBackground } from '@/components/CommandBackground';
 import { VxButton, VxCard, ScreenTitle, ScreenSub, SectionEyebrow, ErrorBanner } from '@/components/vx';
+import { ActivityStream } from '@/components/ActivityStream';
 
 function fmt(n: number | undefined | null): string {
   if (n == null || Number.isNaN(n)) return '—';
@@ -241,6 +242,11 @@ export default function OverviewScreen() {
           </VxCard>
         </View>
 
+        {/* Unified activity stream */}
+        <View style={{ marginTop: Space.lg }}>
+          <ActivityStream limit={12} />
+        </View>
+
         {/* Neural analysis status */}
         <View style={styles.neuralCard} testID="neural-card">
           <View style={{ flex: 1 }}>
@@ -299,7 +305,7 @@ function Kpi({ label, value, icon, footer, danger, testID }: KpiProps) {
 
 // ---------------------------------------------------------------------------
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: {
     padding: Space.lg,
     paddingBottom: 120,

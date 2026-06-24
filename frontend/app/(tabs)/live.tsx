@@ -110,7 +110,7 @@ function Pill({ icon, color, label }: { icon: keyof typeof MaterialCommunityIcon
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 80, maxWidth: 1600, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
   statRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.lg, marginBottom: Space.lg, flexWrap: 'wrap' },

@@ -188,7 +188,7 @@ function Kpi({ label, value, icon, color = C.text }: { label: string; value: str
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1280, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
 

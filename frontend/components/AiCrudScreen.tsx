@@ -143,7 +143,7 @@ export const crudStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, marginTop: Space.lg },
   emptyTitle: { ...TextStyles.h4, color: C.text, marginTop: Space.md },

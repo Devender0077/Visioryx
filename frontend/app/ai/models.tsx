@@ -74,7 +74,7 @@ export default function ModelsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1280, width: '100%', alignSelf: 'center' },
   groupHead: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, marginBottom: Space.md },
   providerDot: { width: 8, height: 8, borderRadius: 4 },

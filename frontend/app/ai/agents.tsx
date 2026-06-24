@@ -205,7 +205,7 @@ export default function AgentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   rowHead: { flexDirection: 'row', alignItems: 'center', gap: Space.md },
   rowIcon: { width: 36, height: 36, borderRadius: Radius.md, backgroundColor: C.primaryFaint, alignItems: 'center', justifyContent: 'center' },

@@ -147,7 +147,7 @@ export default function CamerasScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
   searchRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.lg, marginBottom: Space.md, alignItems: 'center' },

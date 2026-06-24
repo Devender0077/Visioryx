@@ -125,7 +125,7 @@ function providerColor(p: string): string {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   header: { padding: Space.lg, paddingBottom: 0, maxWidth: 1024, width: '100%', alignSelf: 'center' },
   modelRow: { gap: Space.sm, paddingVertical: Space.md, paddingRight: Space.lg },
   modelChip: {

@@ -457,7 +457,7 @@ function fmtTime(iso: string): string {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   shell: { flex: 1, flexDirection: 'row' },
   shellStack: { flexDirection: 'column' },
 

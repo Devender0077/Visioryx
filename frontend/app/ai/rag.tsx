@@ -169,7 +169,7 @@ export default function RagScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1280, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
   cols: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.md, marginTop: Space.lg },

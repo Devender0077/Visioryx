@@ -164,7 +164,7 @@ function AlertRow({ item, onRead }: { item: AlertModel; onRead: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: 'transparent' },
   list: { padding: Space.lg, paddingBottom: 120, maxWidth: 1200, width: '100%', alignSelf: 'center' },
 
   statRow: { flexDirection: 'row', alignItems: 'center', gap: Space.lg, marginTop: Space.lg },
