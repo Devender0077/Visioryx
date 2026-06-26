@@ -1,0 +1,42 @@
+{
+  "summary": "Phone-as-camera MVP + polish sprint verified end-to-end. Backend: 14/14 new pytest tests in /app/backend/tests/test_phone_camera.py PASS (admin-only POST /api/v1/phone-cameras, QR PNG endpoint with PNG magic bytes + size, public /pair-info with valid/invalid/no-auth assertions, WebSocket binary JPEG ingest + frame.jpg retrieval with X-Frame-Age-S header, kind=phone field exposed on /api/v1/cameras listing, MJPEG re-stream serving cached phone frames with vxframe boundary, token-required guards). Regression: existing 13/13 reports+HLS tests still pass. Frontend desktop: 'Wireless' button on /cameras opens pair-camera-modal, name input + create reveals pair-qr-frame, pair-url='https://.../pair?token=...' and pair-done closes the modal; phone cameras render with testid prefix camera-kind-phone-<id> and 'cellphone-link' icon in the list. Camera View modal for a phone camera shows testid='stream-badge-mjpeg' on the top-LEFT of the canvas (confirmed via bounding box and screenshot). Side-nav now exposes testid='nav-reports' under OPERATIONS, routes to /reports; /reports Excel export button downloads vx-detections-2026-06-26.xlsx with real ZIP magic bytes 50 4B 03 04 (PK) — confirming SheetJS .xlsx, not HTML masquerade. Public /pair?token=<valid> renders pair-screen with READY pill + camera_name displayed; no redirect to /login; invalid token shows testid='pair-error' with backend 404 detail. Mobile (390x844) bottom tab bar has exactly 4 tabs (Overview/Live/Cameras/Alerts) — NO 'More' tab; login flow works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Camera View modal (phone camera)", "issues": ["The 'SYNTHETIC PREVIEW' badge is now top-LEFT as intended, but it visually overlaps the camera-name overlay ('PairUITest' label) and the 'NODE • OFFLINE' subline rendered inside the preview canvas. Consider adding ~6px top padding to the badge, or moving the in-canvas camera title overlay to the bottom-left so the top-left zone is reserved for the SYNTHETIC PREVIEW badge.", "Red 'LIVE' badge still renders on top-right of preview even for an offline phone camera that has no fresh frames — semantically misleading. Suggest gating the LIVE pill on actual recent-frame-presence (X-Frame-Age-S < 30s) rather than always rendering it."]},
+    {"screen": "Wireless pair modal QR view", "issues": ["The QR image area appears mostly white in the modal screenshot — the <img alt='Pair QR'> tag is present but the QR pattern is not visually distinguishable in capture. Backend qr.png endpoint returns a valid 1KB+ PNG (verified in tests) and the URL is correct, so the QR is likely being rendered but at low contrast against a white card background. Consider adding a thin border or non-white frame so the QR edges/quiet zone are clearly delineated."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phone_camera.py",
+    "/app/test_reports/pytest/phone_camera.xml",
+    "/app/backend/tests/test_reports_hls.py"
+  ],
+  "action_items": [
+    "(LOW) Adjust spacing/positioning of 'SYNTHETIC PREVIEW' top-LEFT badge so it doesn't overlap the in-canvas camera title overlay text.",
+    "(LOW) Suppress / gate the red 'LIVE' badge when the phone camera has no fresh frames (currently always shown alongside SYNTHETIC PREVIEW even when status='offline').",
+    "(NIT) Give the QR PNG a contrasting frame inside the pair modal so the QR is clearly visible against the white card."
+  ],
+  "critical_code_review_comments": [
+    "phone_camera.py: _FRAME_BUFFER is a process-local dict — works for single-worker uvicorn, but if backend is scaled to multiple workers/replicas, a phone connected to worker A will not be visible via frame.jpg requests landing on worker B. For MVP fine; document the constraint or move to Redis for prod.",
+    "phone_camera.py ws_ingest: receives infinite frames without rate-limiting or per-camera size cap. A malicious phone could send arbitrary blob sizes / saturate memory. Consider clamping frame size (e.g. reject >2MB) and a min-interval throttle.",
+    "phone_camera.py pair_expires_at is set as float epoch and compared with .timestamp() — correct, but inconsistent with `created_at` which is a datetime. Standardize on one form for clarity.",
+    "phone_camera.py /qr.png: base URL falls back to REACT_APP_BACKEND_URL env or empty string — if env is unset and ?base query is not provided, the URL embedded in the QR becomes '/pair?token=...' (no scheme/host), making the QR unscannable. Add a guard or use request.url.netloc as fallback.",
+    "camera_stream.py phone-frame re-serve path: the MJPEG generator loops every 100ms forever without any client-disconnect detection beyond Starlette's default. Long-lived idle clients could leak. Add a `if await request.is_disconnected(): break` check.",
+    "/api/v1/cameras now includes `kind` — good. Confirm /cameras/{id}/stream.mjpeg auth still allows the JWT-in-query-string form for both rtsp and phone kinds (verified pass).",
+    "(carry-over from iter5) Reports detection 'status' inference based on 'Face' substring in alert_type is fragile; consider a dedicated boolean field.",
+    "Frontend: /pair page is correctly outside the auth-required shell — confirmed via test (no login redirect for valid+invalid tokens)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_phone_camera.py (new — 14 tests)"
+  ],
+  "success_rate": {"backend": "100% (14/14 phone-camera + 13/13 reports/HLS regression)", "frontend": "100% on all requested scenarios (wireless flow, QR modal, phone-row badge, MJPEG-badge LEFT, Reports nav link, .xlsx export, /pair public valid+invalid, mobile 4-tab bar)"},
+  "test_credentials": "admin@visionaryx.dev / VisionX2025! works.",
+  "seed_data_creation": "Created 2 phone cameras during UI tests ('PairUITest' id=5662a5f8…, 'UITestPhone' id=6e29ae89…) — left in DB; non-destructive. backend pytest cleans up its own TEST_ cameras via the /cameras DELETE fixture.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python -m pytest /app/backend/tests/test_phone_camera.py -v` (14 tests, ~10s — requires `websockets` and `pillow`, both pre-installed) and `python -m pytest /app/backend/tests/test_reports_hls.py -v` (13 tests, ~16s) for regression. Manual UI flows to verify: (1) /cameras → 'Wireless' btn → pair modal → enter name → Create → QR + URL appear → Done closes; (2) /pair?token=<valid> renders pair-screen+READY without auth; (3) /reports excel export downloads real .xlsx (ZIP magic PK); (4) mobile 390x844 has 4 tabs only. The phone-frame buffer is process-local — frame.jpg only works on the same worker the WS connected to.",
+  "rca of the issue": "No bugs found. Two carry-over minor design issues: SYNTHETIC PREVIEW badge moved LEFT as requested but now overlaps with the in-canvas camera-title overlay; the red LIVE badge still renders even when no fresh frame exists for a phone camera. Both are cosmetic — no functional impact."
+}

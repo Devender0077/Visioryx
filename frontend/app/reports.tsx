@@ -72,26 +72,24 @@ export default function ReportsScreen() {
 
   useEffect(() => { void load(); }, [load]);
 
-  const exportExcel = useCallback(() => {
+  const exportExcel = useCallback(async () => {
     if (Platform.OS !== 'web' || items.length === 0) return;
-    const rows: string[][] = [
-      ['timestamp', 'alert_type', 'severity', 'status', 'camera_name', 'confidence', 'message'],
-      ...items.map((i) => [
-        i.timestamp, i.alert_type, i.severity, i.status,
-        i.camera_name ?? '', i.confidence != null ? String(i.confidence) : '',
-        i.message,
-      ]),
-    ];
-    const csv = '\uFEFF' + rows.map((r) =>
-      r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')
-    ).join('\n');
-    const blob = new Blob([csv], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vx-detections-${new Date().toISOString().slice(0, 10)}.xls`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const XLSX = await import('xlsx');
+    const rows = items.map((i) => ({
+      timestamp: i.timestamp,
+      alert_type: i.alert_type,
+      severity: i.severity,
+      status: i.status,
+      camera_name: i.camera_name ?? '',
+      confidence: i.confidence ?? '',
+      message: i.message,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 22 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 10 }, { wch: 60 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Detections');
+    const fname = `vx-detections-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fname);
   }, [items]);
 
   return (
@@ -246,7 +244,7 @@ function Kpi({ label, value, color }: { label: string; value: number | string; c
   return (
     <View style={[styles.kpi, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={[styles.kpiAccent, { backgroundColor: color, opacity: 0.6 }]} />
-      <Text style={[styles.kpiLbl, { color: colors.textFaint }]}>{label}</Text>
+      <Text style={[styles.kpiLbl, { color: colors.textMuted, opacity: 0.95 }]}>{label}</Text>
       <Text style={[styles.kpiVal, { color }]}>{value}</Text>
     </View>
   );

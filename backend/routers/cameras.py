@@ -20,6 +20,7 @@ def _camera_public(doc: dict[str, Any]) -> dict[str, Any]:
         "rtsp_url": doc["rtsp_url"],
         "is_enabled": doc.get("is_enabled", True),
         "status": doc.get("status", "active"),
+        "kind": doc.get("kind", "rtsp"),
     }
 
 

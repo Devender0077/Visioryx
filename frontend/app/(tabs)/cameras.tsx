@@ -26,6 +26,9 @@ export default function CamerasScreen() {
   const isAdmin = isAdminRole(user?.role);
 
   const [addOpen, setAddOpen] = useState(false);
+  const [pairOpen, setPairOpen] = useState(false);
+  const [pairInfo, setPairInfo] = useState<{ id: string; camera_name: string; pair_url: string } | null>(null);
+  const [pairName, setPairName] = useState('');
   const [viewing, setViewing] = useState<CameraModel | null>(null);
   const [editing, setEditing] = useState<CameraModel | null>(null);
 
@@ -51,6 +54,12 @@ export default function CamerasScreen() {
       if (!active) return;
       const tokenQp = encodeURIComponent(token ?? '');
       const base = getApiBase();
+      // Phone camera → skip HLS, go straight to the cached-frame MJPEG re-stream.
+      if (viewing.kind === 'phone') {
+        setStreamMode('mjpeg');
+        setStreamSrc(`${base}/api/v1/cameras/${viewing.id}/stream.mjpeg?token=${tokenQp}`);
+        return;
+      }
       // 1. Probe the HLS playlist endpoint. 200 = ffmpeg up & camera reachable.
       try {
         const probe = await fetch(`${base}/api/v1/cameras/${viewing.id}/hls/index.m3u8?token=${tokenQp}`, {
@@ -123,6 +132,42 @@ export default function CamerasScreen() {
     ]);
   };
 
+  const onPairCreate = async () => {
+    if (!pairName.trim()) return;
+    setBusy(true);
+    try {
+      const token = await getStoredToken();
+      const base = getApiBase();
+      const r = await fetch(`${base}/api/v1/phone-cameras`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ camera_name: pairName.trim() }),
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+      const data = await r.json();
+      const origin = (typeof window !== 'undefined' && window.location?.origin) || base;
+      setPairInfo({
+        id: data.id,
+        camera_name: data.camera_name,
+        pair_url: `${origin}${data.pair_url_path}`,
+      });
+      void vm.refresh();
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to create wireless camera');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const closePairModal = () => {
+    setPairOpen(false);
+    setPairInfo(null);
+    setPairName('');
+  };
+
   return (
     <View style={styles.root} testID="cameras-screen">
       <CommandBackground />
@@ -155,12 +200,21 @@ export default function CamerasScreen() {
                 />
               </View>
               {isAdmin ? (
-                <VxButton
-                  label="Add camera"
-                  icon={<MaterialCommunityIcons name="plus" size={14} color="#fff" />}
-                  onPress={() => setAddOpen(true)}
-                  testID="add-camera-btn"
-                />
+                <>
+                  <VxButton
+                    label="Add camera"
+                    icon={<MaterialCommunityIcons name="plus" size={14} color="#fff" />}
+                    onPress={() => setAddOpen(true)}
+                    testID="add-camera-btn"
+                  />
+                  <VxButton
+                    label="Wireless"
+                    variant="secondary"
+                    icon={<MaterialCommunityIcons name="cellphone-link" size={14} color={colors.text} />}
+                    onPress={() => setPairOpen(true)}
+                    testID="add-wireless-camera-btn"
+                  />
+                </>
               ) : null}
             </View>
 
@@ -177,10 +231,21 @@ export default function CamerasScreen() {
             >
               <View style={[styles.statusBlock, { backgroundColor: live ? colors.success : colors.warning }]} />
               <View style={[styles.iconWrap, { backgroundColor: colors.primaryFaint }]}>
-                <MaterialCommunityIcons name="cctv" size={18} color={colors.primaryAccent} />
+                <MaterialCommunityIcons
+                  name={item.kind === 'phone' ? 'cellphone-link' : 'cctv'}
+                  size={18}
+                  color={colors.primaryAccent}
+                />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.camera_name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.camera_name}</Text>
+                  {item.kind === 'phone' ? (
+                    <View style={[styles.kindChip, { borderColor: colors.cyan, backgroundColor: colors.cyanFaint }]} testID={`camera-kind-phone-${item.id}`}>
+                      <Text style={[styles.kindChipText, { color: colors.cyan }]}>WIRELESS</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={[styles.rowUrl, { color: colors.textMuted }]} numberOfLines={1}>{item.rtsp_url}</Text>
               </View>
 
@@ -277,11 +342,11 @@ export default function CamerasScreen() {
                     </View>
                   )}
                   {streamMode === 'mjpeg' ? (
-                    <View style={styles.streamModeBadge}>
+                    <View style={[styles.streamModeBadge, styles.streamModeBadgeLeft]} testID="stream-badge-mjpeg">
                       <Text style={styles.streamModeBadgeText}>SYNTHETIC PREVIEW</Text>
                     </View>
                   ) : streamMode === 'hls' ? (
-                    <View style={[styles.streamModeBadge, { backgroundColor: 'rgba(6,182,212,0.18)' }]}>
+                    <View style={[styles.streamModeBadge, { backgroundColor: 'rgba(6,182,212,0.18)' }]} testID="stream-badge-hls">
                       <Text style={[styles.streamModeBadgeText, { color: '#06B6D4' }]}>● LIVE HLS</Text>
                     </View>
                   ) : null}
@@ -352,6 +417,67 @@ export default function CamerasScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Pair / wireless camera modal */}
+      <Modal visible={pairOpen} transparent animationType="fade" onRequestClose={closePairModal}>
+        <View style={styles.scrim} testID="pair-camera-modal">
+          <View style={[styles.modal, { backgroundColor: colors.surface, borderColor: colors.border, maxWidth: 480 }]}>
+            <SectionEyebrow>Wireless camera</SectionEyebrow>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {pairInfo ? 'Scan to pair' : 'Add a phone / tablet camera'}
+            </Text>
+            {!pairInfo ? (
+              <>
+                <Text style={[styles.pairBlurb, { color: colors.textMuted }]}>
+                  Turn any phone, tablet or laptop into a VisionaryX camera. We&apos;ll mint a QR code — scan it on the device, allow camera access, and frames stream straight into the platform over WebSocket.
+                </Text>
+                <View style={{ gap: Space.md, marginTop: Space.lg }}>
+                  <VxInput
+                    label="Camera name"
+                    placeholder="e.g. Lobby iPhone"
+                    value={pairName}
+                    onChangeText={setPairName}
+                    testID="pair-camera-name"
+                  />
+                </View>
+                <View style={styles.modalActions}>
+                  <VxButton label="Cancel" variant="secondary" onPress={closePairModal} testID="pair-camera-cancel" />
+                  <VxButton label="Create + show QR" onPress={onPairCreate} busy={busy} testID="pair-camera-create" />
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={[styles.pairBlurb, { color: colors.textMuted }]}>
+                  Open the camera app on <Text style={{ color: colors.text, fontFamily: F.bodySemibold }}>{pairInfo.camera_name}</Text> and scan this QR. The device will load the pairing page — tap <Text style={{ color: colors.text }}>Start camera</Text> to go live.
+                </Text>
+                <View style={styles.qrFrame} testID="pair-qr-frame">
+                  {Platform.OS === 'web' ? (
+                    // @ts-expect-error — DOM img
+                    <img
+                      src={`${getApiBase()}/api/v1/phone-cameras/${pairInfo.id}/qr.png?base=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+                      alt="Pair QR"
+                      style={{ width: 220, height: 220, display: 'block' }}
+                    />
+                  ) : null}
+                </View>
+                <Text selectable style={[styles.pairUrl, { color: colors.textMuted, borderColor: colors.border }]} testID="pair-url">
+                  {pairInfo.pair_url}
+                </Text>
+                <View style={styles.modalActions}>
+                  <VxButton
+                    label="Copy URL"
+                    variant="secondary"
+                    onPress={() => { if (typeof navigator !== 'undefined' && navigator.clipboard) void navigator.clipboard.writeText(pairInfo.pair_url); }}
+                    icon={<MaterialCommunityIcons name="content-copy" size={14} color={colors.text} />}
+                    testID="pair-copy-url"
+                  />
+                  <VxButton label="Done" onPress={closePairModal} testID="pair-done" />
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -409,17 +535,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3,
     borderRadius: Radius.full,
     backgroundColor: 'rgba(255,182,107,0.18)',
+    zIndex: 2,
   },
+  streamModeBadgeLeft: { right: undefined, left: 10, backgroundColor: 'rgba(255,182,107,0.22)' },
   streamModeBadgeText: { ...TextStyles.label, color: '#FFB66B', fontSize: 9, letterSpacing: 1.2 },
-  scanLine: {
-    position: 'absolute',
-    left: 0, right: 0, top: '50%',
-    height: 1.5,
-    backgroundColor: 'rgba(139, 92, 246, 0.45)',
-    ...(Platform.OS === 'web' ? ({
-      animation: 'vxScan 4s ease-in-out infinite',
-    } as any) : {}),
-  },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.md, marginTop: Space.lg },
   metaCell: { flexBasis: 140, flexGrow: 1 },
   metaLbl: { ...TextStyles.label, fontSize: 9 },
@@ -428,5 +547,17 @@ const styles = StyleSheet.create({
   editToggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingVertical: Space.sm,
+  },
+  kindChip: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.full, borderWidth: 1 },
+  kindChipText: { ...TextStyles.label, fontSize: 8, letterSpacing: 1 },
+  pairBlurb: { ...TextStyles.body, fontSize: 13, marginTop: Space.sm, lineHeight: 19 },
+  qrFrame: {
+    alignSelf: 'center', marginTop: Space.lg, padding: Space.sm,
+    backgroundColor: '#fff', borderRadius: Radius.md,
+  },
+  pairUrl: {
+    ...TextStyles.caption, fontFamily: F.mono, fontSize: 11,
+    marginTop: Space.md, padding: Space.sm,
+    borderWidth: 1, borderRadius: Radius.sm,
   },
 });
