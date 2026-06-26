@@ -12,6 +12,8 @@ from fastapi.responses import StreamingResponse
 
 from deps import get_db
 
+logger = logging.getLogger("visioryx")
+
 # ---------------------------------------------------------------------------
 # Lazy imports for face detection (graceful if models not installed)
 # ---------------------------------------------------------------------------
@@ -34,8 +36,6 @@ if _AI_ENABLED:
         logger.info("Face detection overlay ENABLED")
     except Exception as exc:
         logger.warning("Face detection modules not available: %s", exc)
-
-logger = logging.getLogger("visioryx")
 
 router = APIRouter(tags=["stream"])
 
