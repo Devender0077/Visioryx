@@ -53,57 +53,7 @@ _FFMPEG_CMD = [
 ]
 
 
-async def _generate_mjpeg(rtsp_url: str):
-    """Yield MJPEG frames from ffmpeg. Falls back to placeholder on error."""
-    import subprocess
 
-    placeholder = _placeholder_jpeg()
-    cmd = [w if w != "__RTSP_URL__" else rtsp_url for w in _FFMPEG_CMD]
-    buf = b""
-    boundary = "frame"
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    try:
-        while True:
-            chunk = await process.stdout.read(65536)
-            if not chunk:
-                stderr = await process.communicate()
-                logger.error("ffmpeg exited code=%s stderr=%s", process.returncode, stderr[1].decode(errors="replace")[:500])
-                break
-            buf += chunk
-            while True:
-                start = buf.find(b"\xff\xd8")
-                if start == -1:
-                    break
-                end = buf.find(b"\xff\xd9", start + 2)
-                if end == -1:
-                    break
-                frame = buf[start:end + 2]
-                buf = buf[end + 2:]
-                yield (
-                    b"--" + boundary.encode() + b"\r\n"
-                    b"Content-Type: image/jpeg\r\n"
-                    b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n"
-                    + frame + b"\r\n"
-                )
-    except Exception:
-        logger.exception("MJPEG stream error")
-    finally:
-        if process.returncode is None:
-            process.kill()
-            await process.wait()
-        while True:
-            frame = placeholder
-            yield (
-                b"--" + boundary.encode() + b"\r\n"
-                b"Content-Type: image/jpeg\r\n"
-                b"Content-Length: " + str(len(frame)).encode() + b"\r\n\r\n"
-                + frame + b"\r\n"
-            )
-            await asyncio.sleep(2)
 
 
 def _placeholder_jpeg() -> bytes:
