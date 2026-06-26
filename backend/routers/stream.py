@@ -72,7 +72,8 @@ _FFMPEG_MJPEG = [
     "-analyzeduration", "0", "-probesize", "32",
     "-flush_packets", "1",
     "-i", "__RTSP_URL__",
-    "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "10", "-",
+    "-an",
+    "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "15", "-r", "15", "-vsync", "0", "-",
 ]
 
 _FFMPEG_H264 = [
@@ -81,7 +82,7 @@ _FFMPEG_H264 = [
     "-analyzeduration", "0", "-probesize", "32",
     "-flush_packets", "1",
     "-i", "__RTSP_URL__",
-    "-c", "copy",
+    "-an", "-c:v", "copy",
     "-f", "mpegts",
     "-",
 ]
