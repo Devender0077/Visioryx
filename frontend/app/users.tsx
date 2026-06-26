@@ -150,25 +150,30 @@ export default function UsersScreen() {
               <MaterialCommunityIcons name="dots-vertical" size={18} color={C.textMuted} />
             </Pressable>
 
+            {/* menu rendered at root via modal to avoid FlatList clipping */}
             {menuFor === item.id ? (
-              <View style={styles.menu} testID={`user-menu-open-${item.id}`}>
-                <Pressable style={styles.menuItem} onPress={() => onSendLink(item)}>
-                  <MaterialCommunityIcons name="email-outline" size={16} color={C.primaryAccent} />
-                  <Text style={styles.menuLabel}>Send enrollment link</Text>
+              <Modal visible transparent animationType="none" onRequestClose={() => setMenuFor(null)}>
+                <Pressable style={styles.menuScrim} onPress={() => setMenuFor(null)}>
+                  <View style={styles.menu} testID={`user-menu-open-${item.id}`}>
+                    <Pressable style={styles.menuItem} onPress={() => onSendLink(item)}>
+                      <MaterialCommunityIcons name="email-outline" size={16} color={C.primaryAccent} />
+                      <Text style={styles.menuLabel}>Send enrollment link</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.menuItem}
+                      onPress={() => { setMenuFor(null); setRoleFor(item); }}
+                    >
+                      <MaterialCommunityIcons name="account-cog" size={16} color={C.primaryAccent} />
+                      <Text style={styles.menuLabel}>Change role</Text>
+                    </Pressable>
+                    <View style={styles.menuDivider} />
+                    <Pressable style={styles.menuItem} onPress={() => onDelete(item)}>
+                      <MaterialCommunityIcons name="trash-can-outline" size={16} color={C.danger} />
+                      <Text style={[styles.menuLabel, { color: C.danger }]}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </Pressable>
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={() => { setMenuFor(null); setRoleFor(item); }}
-                >
-                  <MaterialCommunityIcons name="account-cog" size={16} color={C.primaryAccent} />
-                  <Text style={styles.menuLabel}>Change role</Text>
-                </Pressable>
-                <View style={styles.menuDivider} />
-                <Pressable style={styles.menuItem} onPress={() => onDelete(item)}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={16} color={C.danger} />
-                  <Text style={[styles.menuLabel, { color: C.danger }]}>Delete</Text>
-                </Pressable>
-              </View>
+              </Modal>
             ) : null}
           </View>
         )}
@@ -291,11 +296,14 @@ const styles = StyleSheet.create({
   rolePill: { backgroundColor: C.primaryFaint, paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm },
   roleText: { ...TextStyles.label, color: C.primaryAccent, fontSize: 9, letterSpacing: 1.2 },
   menuBtn: { padding: 6 },
+  menuScrim: {
+    flex: 1, justifyContent: 'flex-start', alignItems: 'flex-end',
+    paddingTop: 180, paddingRight: 24,
+  },
   menu: {
-    position: 'absolute', right: 12, top: 56,
     backgroundColor: C.surface2, borderRadius: Radius.md,
     borderWidth: 1, borderColor: C.border,
-    padding: 6, minWidth: 220, zIndex: 10,
+    padding: 6, minWidth: 220,
   },
   menuItem: { flexDirection: 'row', alignItems: 'center', gap: Space.sm, padding: Space.sm, borderRadius: Radius.sm },
   menuLabel: { ...TextStyles.bodySmall, color: C.text },
