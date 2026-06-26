@@ -137,6 +137,10 @@ async def phone_camera_qr(
     if not cam:
         raise HTTPException(status_code=404, detail="Phone camera not found")
     resolved_base = base or _public_base_url(request)
+    # Defense-in-depth: only allow http/https scheme to prevent QR-embedded
+    # `javascript:`/`data:` payloads (admin-only endpoint, but free hardening).
+    if not (resolved_base.startswith("https://") or resolved_base.startswith("http://")):
+        raise HTTPException(status_code=400, detail="base must be http(s) URL")
     pair_url = f"{resolved_base.rstrip('/')}/pair?token={cam['pair_token']}"
     qr = qrcode.QRCode(box_size=8, border=2)
     qr.add_data(pair_url)
@@ -171,6 +175,10 @@ async def ws_ingest(ws: WebSocket, token: str = Query(...)):
     """Phone-side WebSocket. Receives binary JPEG frames at up to 10 fps."""
     db = get_db()
     cam = await db.cameras.find_one({"pair_token": token, "kind": "phone"})
+    # Accept the handshake FIRST so we can deliver a real close-code on the wire.
+    # Pre-accept close in Starlette becomes an HTTP 403 handshake-fail, which
+    # mobile clients can't discriminate from a generic network error.
+    await ws.accept()
     if not cam:
         await ws.close(code=4004)
         return
@@ -179,7 +187,6 @@ async def ws_ingest(ws: WebSocket, token: str = Query(...)):
         return
 
     camera_id = cam["_id"]
-    await ws.accept()
     await db.cameras.update_one({"_id": camera_id}, {"$set": {"status": "active"}})
     last_persisted = 0.0  # epoch seconds of last frame we actually stored
     try:

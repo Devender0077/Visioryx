@@ -140,22 +140,29 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
   - Activity Stream: confirmed already shipping 15s auto-poll + inline ACK + RE-RUN.
   - **Phone-as-camera MVP**: new `routers/phone_camera.py` (pair-token mint, QR PNG, public `/pair-info`, WS `/ws/ingest` with 2MB frame cap, MJPEG re-stream from in-memory buffer). New public `app/pair.tsx` (getUserMedia + WS frame push @ ~6fps). `cameras.tsx` got a "Wireless" button + QR pair modal + WIRELESS badge + skip-HLS-probe for `kind='phone'`. Reports added to desktop side-nav (`testID='nav-reports'`).
   - **Tests**: 14 new tests in `backend/tests/test_phone_camera.py` (100% pass) + 13 reports/HLS regression (100% pass). Frontend testing agent verified 100% on all flows (`/app/test_reports/iteration_6.json`).
+- ✅ **Phone-as-camera prod hardening + Mobile drawer (06-26)** — third pass:
+  - Frame buffer moved from process-local dict → MongoDB `phone_frames` collection (multi-worker safe across uvicorn workers / horizontal scale).
+  - WS ingest rate-limited to ≤10 fps per camera (server-side min frame interval 100ms).
+  - MJPEG generator polls `request.is_disconnected()` every 500ms — idle clients release resources cleanly.
+  - QR endpoint fallback chain: `?base` → `REACT_APP_BACKEND_URL` env → `request.base_url`. URL-scheme allowlist (http/https only) prevents `javascript:`/`data:` embed in QR.
+  - WS pre-accept close → accept-then-close so phone clients see real 4010 / 4004 close codes on the wire (not a generic 403 handshake-fail).
+  - New `components/MobileNavDrawer.tsx`: floating hamburger FAB (top-left) on screens <1024px, slide-in drawer with OPERATIONS (Detections/Analytics/Reports/Users/Audit/Settings) + AI·STUDIO (AI Studio/Bot Reply/Agents/Automations/Models/RAG/MCP Servers) sections. Auto-hides on desktop, on `/pair`, and when unauthenticated.
+  - **Tests**: 23 passed + 1 skipped (`pyzbar` optional QR decode) — `test_phone_camera.py` (14) + `test_phone_camera_hardening.py` (4) + `test_phone_camera_iter7_extras.py` (5). 13/13 reports regression still green. Frontend mobile-drawer E2E verified 100% (`/app/test_reports/iteration_7.json`).
 
 ## Backlog
-**P1 — UI polish (remaining)**
-- (carry) Migrate `props.pointerEvents` → `style.pointerEvents` for RN-Web compat.
+**P1 — Audit + security (next on user's list)**
+- AI-infrastructure audit pass: inventory existing Automations / MCP Servers / LLM Models / RAG Docs / Agents / Bot Replies / Plugins / Connectors / AI Skills / MCP Tools / GenAI Runs across `ai_studio.py` + frontend `/ai/*` screens. Dependency CVE scan (`pip-audit`, `yarn audit`). Open-source enhancement recommendations (scraping + agent frameworks).
 
-**P2 — Phone-as-camera prod hardening**
-- Move `_FRAME_BUFFER` from process-local dict to Redis so phone WS + frame.jpg can land on different workers.
-- Per-camera rate-limit on WS ingest (min frame interval ≥ 100ms).
-- Add `request.is_disconnected()` poll inside long-lived MJPEG generator so idle phone-camera clients release resources.
-- QR endpoint: fall back to `request.url` scheme/host when env not set.
+**P1 — UI polish (carry)**
+- Migrate `props.pointerEvents` → `style.pointerEvents` for RN-Web compat.
 
 **P2 — Activity Stream**
 - Revert action for `audit` rows (out-of-scope inverse-operation; needs per-action handler map).
 
-**P3 — Mobile navigation**
-- Mobile users currently can't reach /reports, /audit, /users, /settings, /detections (no "More" tab + no side-nav). Add a slide-out drawer or move missing entries into the bottom tab bar.
+**P3 — Phone-as-camera v2**
+- Switch from MJPEG re-stream to WebRTC SFU once we have STUN/TURN infra → sub-200ms latency.
+- TTL index on `phone_frames` collection so stale docs auto-evict after 60s (currently they're overwritten in place but never deleted on disconnect).
+- Per-camera rate-limit also enforced as a `MinFrameInterval` config in the Pair modal so admins can choose 2/5/10/15 fps.
 
 ## Honest status
 - All 12 screens render in the new brand on both web (RN-Web) and mobile (RN)
