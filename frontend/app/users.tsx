@@ -183,20 +183,20 @@ export default function UsersScreen() {
                   <MaterialCommunityIcons name="email-outline" size={16} color={C.primaryAccent} />
                   <Text style={styles.menuLabel}>Send enrollment link</Text>
                 </Pressable>
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={() => { setMenuFor(null); setEnrollFor(item); }}
-                  testID={`user-enroll-face-${item.id}`}
-                >
-                  <MaterialCommunityIcons name="face-recognition" size={16} color={C.electricViolet} />
-                  <Text style={styles.menuLabel}>
-                    {item.has_face_embedding ? 'Re-enroll face' : 'Enroll face'}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  style={styles.menuItem}
-                  onPress={() => { setMenuFor(null); setRoleFor(item); }}
-                >
+                {(() => {
+                  const u = vm.filtered.find(i => i.id === menuFor);
+                  if (!u) return null;
+                  return (
+                    <Pressable style={styles.menuItem} onPress={() => {
+                      setMenuFor(null); setMenuPos(null); setEnrollFor(u);
+                    }} testID={`user-enroll-face-${menuFor}`}>
+                      <MaterialCommunityIcons name="face-recognition" size={16} color={C.electricViolet} />
+                      <Text style={styles.menuLabel}>
+                        {u.has_face_embedding ? 'Re-enroll face' : 'Enroll face'}
+                      </Text>
+                    </Pressable>
+                  );
+                })()}
                 <Pressable style={styles.menuItem} onPress={() => {
                   const u = vm.filtered.find((i) => i.id === menuFor);
                   if (u) { setMenuFor(null); setMenuPos(null); setRoleFor(u); }
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   roleText: { ...TextStyles.label, color: C.primaryAccent, fontSize: 9, letterSpacing: 1.2 },
   menuBtn: { padding: 6 },
   menuOverlayScrim: {
-    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
     zIndex: 999,
   },

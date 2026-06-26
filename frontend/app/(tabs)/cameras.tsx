@@ -31,10 +31,9 @@ export default function CamerasScreen() {
   const [viewing, setViewing] = useState<CameraModel | null>(null);
   const [editing, setEditing] = useState<CameraModel | null>(null);
 
-  const [editCam, setEditCam] = useState<CameraModel | null>(null);
+  const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
-  const [busy, setBusy] = useState(false);
 
   const [editName, setEditName] = useState('');
   const [editUrl, setEditUrl] = useState('');
@@ -108,29 +107,9 @@ export default function CamerasScreen() {
       setEditing(null);
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save changes');
-  const onEdit = async () => {
-    if (!editCam || !name.trim() || !url.trim()) return;
-    setBusy(true);
-    try {
-      await vm.update(editCam.id, { camera_name: name.trim(), rtsp_url: url.trim() });
-      closeEdit();
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update camera');
     } finally {
       setBusy(false);
     }
-  };
-
-  const openEdit = (cam: CameraModel) => {
-    setEditCam(cam);
-    setName(cam.camera_name);
-    setUrl(cam.rtsp_url);
-  };
-
-  const closeEdit = () => {
-    setEditCam(null);
-    setName('');
-    setUrl('');
   };
 
   const onRemove = (cam: CameraModel) => {
@@ -192,41 +171,6 @@ export default function CamerasScreen() {
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
-        renderItem={({ item }) => {
-          const live = item.is_enabled && item.status === 'active';
-          return (
-            <View
-              style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              testID={`camera-row-${item.id}`}
-            >
-              <View style={[styles.statusBlock, { backgroundColor: live ? colors.success : colors.warning }]} />
-              <View style={[styles.iconWrap, { backgroundColor: colors.primaryFaint }]}>
-                <MaterialCommunityIcons name="cctv" size={18} color={colors.primaryAccent} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.camera_name}</Text>
-                <Text style={[styles.rowUrl, { color: colors.textMuted }]} numberOfLines={1}>{item.rtsp_url}</Text>
-              </View>
-
-              {/* Action cluster: View / Edit / Toggle / Delete */}
-              <Pressable
-                onPress={() => setViewing(item)}
-                style={[styles.iconBtn, { borderColor: colors.border }]}
-                hitSlop={6}
-                testID={`camera-view-${item.id}`}
-                accessibilityLabel="View camera"
-              >
-                <MaterialCommunityIcons name="eye-outline" size={15} color={colors.primaryAccent} />
-              </Pressable>
-              {isAdmin ? (
-                <Pressable
-                  onPress={() => openEdit(item)}
-                  style={[styles.iconBtn, { borderColor: colors.border }]}
-                  hitSlop={6}
-                  testID={`camera-edit-${item.id}`}
-                  accessibilityLabel="Edit camera"
-                >
-                  <MaterialCommunityIcons name="pencil-outline" size={15} color={colors.cyan} />
         renderItem={({ item }) => (
           <View style={styles.row} testID={`camera-row-${item.id}`}>
             <View style={[styles.statusBlock, { backgroundColor: item.is_enabled && item.status === 'active' ? C.success : C.warning }]} />
@@ -257,17 +201,17 @@ export default function CamerasScreen() {
               {isAdmin ? (
                 <Pressable
                   onPress={() => onRemove(item)}
-                  style={[styles.iconBtn, { borderColor: colors.border }]}
+                  style={[styles.iconBtn, { borderColor: C.border }]}
                   hitSlop={6}
                   testID={`camera-del-${item.id}`}
                   accessibilityLabel="Delete camera"
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={15} color={colors.danger} />
+                  <MaterialCommunityIcons name="trash-can-outline" size={15} color={C.danger} />
                 </Pressable>
               ) : null}
             </View>
           </View>
-        )}}
+        )}
         ListEmptyComponent={
           <Text style={[styles.empty, { color: colors.textMuted }]}>
             {vm.loading ? 'Loading…' : 'No cameras configured.'}
@@ -389,19 +333,6 @@ export default function CamerasScreen() {
             <View style={styles.modalActions}>
               <VxButton label="Cancel" variant="secondary" onPress={() => setEditing(null)} testID="edit-camera-cancel" />
               <VxButton label="Save changes" onPress={onSaveEdit} busy={busy} testID="edit-camera-save" />
-      {/* Edit modal */}
-      <Modal visible={editCam !== null} transparent animationType="fade" onRequestClose={closeEdit}>
-        <View style={styles.scrim} testID="edit-camera-modal">
-          <View style={styles.modal}>
-            <SectionEyebrow>Edit node</SectionEyebrow>
-            <Text style={styles.modalTitle}>Edit camera</Text>
-            <View style={{ gap: Space.md, marginTop: Space.lg }}>
-              <VxInput label="Camera name" placeholder="Front Gate" value={name} onChangeText={setName} testID="edit-camera-name" />
-              <VxInput label="RTSP / HLS URL" placeholder="rtsp://…" value={url} onChangeText={setUrl} autoCapitalize="none" testID="edit-camera-url" />
-            </View>
-            <View style={styles.modalActions}>
-              <VxButton label="Cancel" variant="secondary" onPress={closeEdit} testID="edit-camera-cancel" />
-              <VxButton label="Save" onPress={onEdit} busy={busy} testID="edit-camera-confirm" />
             </View>
           </View>
         </View>
@@ -413,10 +344,6 @@ export default function CamerasScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
-  mono: { fontFamily: F.mono },
-  searchRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.lg, marginBottom: Space.md, alignItems: 'center', flexWrap: 'wrap' },
-  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Space.xs, borderRadius: Radius.sm, borderWidth: 1, paddingLeft: Space.sm, minWidth: 200 },
-  searchInput: { paddingLeft: Space.sm, backgroundColor: 'transparent', borderWidth: 0 },
   mono: { fontFamily: F.mono, color: C.text },
   searchRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.lg, marginBottom: Space.md, alignItems: 'center', flexWrap: 'wrap' },
   searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Space.xs, minWidth: 200 },
@@ -432,19 +359,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   statusBlock: { width: 3, alignSelf: 'stretch', borderRadius: 2 },
-  iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  rowName: { ...TextStyles.bodySmall, fontFamily: F.bodySemibold },
-  rowUrl: { ...TextStyles.caption, fontFamily: F.mono, marginTop: 2 },
+  iconWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: C.primaryFaint, alignItems: 'center', justifyContent: 'center' },
+  rowName: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
+  rowUrl: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   iconBtn: {
     width: 30, height: 30,
     borderRadius: Radius.sm,
     borderWidth: 1,
+    borderColor: C.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  empty: { ...TextStyles.body, padding: Space.xxl, textAlign: 'center' },
-  iconWrap: { width: 32, height: 32, borderRadius: 8, backgroundColor: C.primaryFaint, alignItems: 'center', justifyContent: 'center' },
-  rowName: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
-  rowUrl: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono, marginTop: 2 },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionBtn: { padding: 6 },
   empty: { ...TextStyles.body, color: C.textMuted, padding: Space.xxl, textAlign: 'center' },
