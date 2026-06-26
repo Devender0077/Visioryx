@@ -350,14 +350,17 @@ async def lifespan(_: FastAPI):
     except Exception:
         pass
     demo_task = asyncio.create_task(_demo_event_loop())
+    health_task = asyncio.create_task(_camera_health_loop())
     try:
         yield
     finally:
         demo_task.cancel()
-        try:
-            await demo_task
-        except Exception:
-            pass
+        health_task.cancel()
+        for t in (demo_task, health_task):
+            try:
+                await t
+            except Exception:
+                pass
         if _client is not None:
             _client.close()
 
@@ -395,6 +398,8 @@ from routers.activity import router as activity_router  # noqa: E402
 from routers.face import router as face_router  # noqa: E402
 from routers.camera_stream import router as camera_stream_router  # noqa: E402
 from routers.hls_gateway import router as hls_router  # noqa: E402
+from routers.reports import router as reports_router  # noqa: E402
+from routers.phone_camera import router as phone_camera_router  # noqa: E402
 from routers.stream import router as stream_router  # noqa: E402
 
 app.include_router(auth_router, prefix=API_PREFIX)
@@ -408,6 +413,8 @@ app.include_router(activity_router, prefix=API_PREFIX)
 app.include_router(face_router, prefix=API_PREFIX)
 app.include_router(camera_stream_router, prefix=API_PREFIX)
 app.include_router(hls_router, prefix=API_PREFIX)
+app.include_router(reports_router, prefix=API_PREFIX)
+app.include_router(phone_camera_router, prefix=API_PREFIX)
 app.include_router(stream_router, prefix=API_PREFIX)
 
 
@@ -554,6 +561,72 @@ async def ws_endpoint(websocket: WebSocket, token: str | None = Query(None)) -> 
         pass
     finally:
         await broadcaster.remove(websocket)
+
+
+async def _camera_health_loop() -> None:
+    """Periodically TCP-ping each camera's RTSP host:port to flip status.
+
+    Runs every 60s. For each enabled camera, opens a TCP connection to the
+    camera's host:port with a 3s timeout. Success → status 'active', failure
+    → status 'offline'. Emits a 'Camera offline' alert on each transition
+    from active → offline.
+    """
+    import urllib.parse
+    await asyncio.sleep(20)
+    while True:
+        try:
+            db = get_db()
+            cams = await db.cameras.find({"is_enabled": True}).to_list(None)
+            for cam in cams:
+                url = cam.get("rtsp_url", "")
+                if not url:
+                    continue
+                try:
+                    parsed = urllib.parse.urlparse(url)
+                    host = parsed.hostname
+                    port = parsed.port or (443 if parsed.scheme.endswith("s") else
+                                            80 if parsed.scheme.startswith("http") else 554)
+                except Exception:
+                    host, port = None, None
+                if not host:
+                    continue
+                ok = False
+                try:
+                    reader, writer = await asyncio.wait_for(
+                        asyncio.open_connection(host, port), timeout=3.0,
+                    )
+                    writer.close()
+                    try:
+                        await writer.wait_closed()
+                    except Exception:
+                        pass
+                    ok = True
+                except Exception:
+                    ok = False
+                target_status = "active" if ok else "offline"
+                previous = cam.get("status")
+                if previous != target_status:
+                    await db.cameras.update_one(
+                        {"_id": cam["_id"]},
+                        {"$set": {"status": target_status,
+                                  "last_health_check": datetime.now(timezone.utc)}},
+                    )
+                    if target_status == "offline":
+                        await db.alerts.insert_one({
+                            "_id": str(uuid.uuid4()),
+                            "alert_type": "Camera offline",
+                            "severity": "medium",
+                            "message": f"{cam.get('camera_name', 'Camera')} stopped responding at {host}:{port}",
+                            "is_read": False,
+                            "timestamp": datetime.now(timezone.utc),
+                            "camera_id": cam["_id"],
+                            "camera_name": cam.get("camera_name"),
+                        })
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
+        await asyncio.sleep(60)
 
 
 async def _demo_event_loop() -> None:

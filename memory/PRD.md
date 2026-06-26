@@ -73,7 +73,8 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
 
 ## What's been implemented (2026-06-17 / 06-18 / 06-23 / 06-24 / 06-26)
 - ✅ **Camera View modal — real live MJPEG (06-26 evening)** — `routers/camera_stream.py` generates synthetic CCTV-styled JPEG frames per camera (Pillow + numpy, no GPU). Two endpoints: `GET /api/v1/cameras/{id}/preview.jpg` (single frame, ~20KB) and `GET /api/v1/cameras/{id}/stream.mjpeg` (10fps multipart/x-mixed-replace). JWT via `?token=` query param so `<img>` tags can authenticate. Frame shows camera name + status dot + LIVE pill + moving violet scan-line + grid + corner brackets + live timestamp + cycling channel #. View modal in `/cameras` now embeds this stream — confirmed rendering live with timestamp ticking.
-- ✅ **RTSP → HLS gateway (06-26 evening v2)** — `routers/hls_gateway.py` spawns `ffmpeg -rtsp_transport tcp -i {rtsp} -c:v copy -f hls` per camera on demand, writes HLS segments to `/tmp/vx-hls/{camera_id}/`, serves `/api/v1/cameras/{id}/hls/index.m3u8` + `.ts` segments. Idle-reaper kills ffmpeg after 60s of no fetches. **URL-safety**: auto-encodes `@` in passwords (common bug with Dahua/Hikvision creds). View modal probes HLS first and auto-falls-back to synthetic MJPEG with a colored stream-mode badge (`● LIVE HLS` cyan, `SYNTHETIC PREVIEW` amber). Frontend uses `hls.js` for non-Safari browsers + native HLS on Safari/iOS. Requires backend to have network reachability to the camera (LAN cameras on `192.168.x.x` only work when backend runs on the same network or via VPN).
+- ✅ **Unknown-face auto-alert (06-26 night)** — FaceLab tracks consecutive frames containing at least one `unknown` match. When the streak hits 3 (and at least 30s since last alert), it POSTs to new `POST /api/v1/face/alerts/unknown-face` → backend inserts a `severity: "high"` alert ("Unrecognized entry — Unknown face detected over N consecutive frames") into `db.alerts`, audit-logged as `alerts.unknown_face_emitted`. End-to-end: webcam → InsightFace → alert → WS broadcast → Activity Stream → operator ACK.
+- ✅ **Camera health-check background task (06-26 night)** — new `_camera_health_loop()` in server lifespan runs every 60s. For each `is_enabled=true` camera, parses host:port from `rtsp_url` and opens a 3s TCP connection. Updates `status` to `active` / `offline`, sets `last_health_check`. On `active → offline` transition, auto-emits a `"Camera offline"` alert (severity: medium). Verified: all 4 LAN-IP cameras flipped to `offline` within 60s of restart and a corresponding alert hit the Activity Stream.
 - ✅ **Admin enroll-faces flow (06-26 evening v2)** — Users screen → menu → "Enroll face" / "Re-enroll face" (label flips based on `has_face_embedding`). Webcam modal posts to `POST /api/v1/face/enroll` with `{image, user_id}`. Success overlay shows the detection score, then auto-closes + refreshes the user list (KPI tiles update enrolled/pending counts).
 - ✅ **Camera View modal — real live MJPEG (06-26 evening)** — `routers/camera_stream.py` generates synthetic CCTV-styled JPEG frames per camera (Pillow + numpy). Two endpoints: `GET /api/v1/cameras/{id}/preview.jpg` (single frame) and `GET /api/v1/cameras/{id}/stream.mjpeg` (10fps multipart). JWT via `?token=` query param. Frame: camera name + status dot + LIVE pill + scan-line + grid + corner brackets + timestamp + channel. View modal in `/cameras` embeds the stream.
 - ✅ **EnrollMyFace component (06-26 evening)** — Settings → Account → Biometrics card. Webcam → POST `/api/v1/face/enroll/me` → backend extracts InsightFace embedding → stores on user record. Audit-logged as `users.face.enroll.self`.
@@ -125,19 +126,43 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
 - ✅ **Persisted audit log (06-23)** — `db.audit_logs` collection with indexes on `created_at` + `actor_email`. `write_audit()` helper wired into: `auth.login`, `auth.login.failed`, `users.create`, `users.update`, `users.delete`, `settings.email.update`, `system.start`. `GET /api/v1/audit` supports `?actor=<substr>&action=<exact>&limit&offset`.
 - ✅ **Audit Log dashboard (06-23)** — `/audit` redesigned: color-coded action chips, actor + action filters, CSV export, IP/actor/detail JSON per row.
 - ✅ **Richer Agent Run Console `done` event (06-23)** — SSE final event now includes `output`, `finished_at`, `status`, `tool_calls_detail` so the UI updates history optimistically with zero follow-up GET.
+- ✅ **MongoDB Atlas migration (06-25)** — production cluster `visionaryx` DB.
+- ✅ **RTSP → HLS gateway (06-25)** — `routers/hls_gateway.py` spawns `ffmpeg` per camera, serves `/api/v1/cameras/{id}/hls/index.m3u8?token=<jwt>`. Falls back to synthetic MJPEG when LAN IP unreachable from cloud.
+- ✅ **Unknown-face auto-alerts + camera health-check loop (06-25)** — InsightFace pipeline, 60s background loop.
+- ✅ **HLS low-latency tuning (06-26)** — ffmpeg flags `nobuffer+low_delay+probesize 32+analyzeduration 0`, 1s segments, 3-window playlist, `hls.lowLatencyMode` on client. Confirmed working via testing agent.
+- ✅ **Reports / Analytics page (06-26)** — `routers/reports.py` (`/api/v1/reports/summary` + `/api/v1/reports/detections`) + `app/reports.tsx` with window chips (7d/30d/90d), status filter (all/known/unknown), search, KPI cards, SVG timeseries chart, hourly bar chart, top-cameras bar list, detection-records list, and one-click Excel export (CSV with `.xls` extension). Error banner for failed loads. **Tested 06-26**: 13/13 pytest tests pass + full frontend E2E passes (`/app/test_reports/iteration_5.json`).
+- ✅ **Hide "More" tab on mobile (06-26)** — `href: null` on `(tabs)/more.tsx` — confirmed via mobile viewport test (390x844) showing 4-tab bar without "More".
+- ✅ **Polish + Phone-as-camera MVP (06-26)** — second pass:
+  - Camera View modal: SYNTHETIC PREVIEW badge moved to bottom-left to clear baked-in title; synthetic frame no longer paints a misleading red "LIVE" when status≠active (shows grey "OFFLINE" pill instead).
+  - Reports KPI labels: bumped from `textFaint` → `textMuted` for a11y.
+  - RN-Web `animation` shorthand warning: dead `scanLine` style removed.
+  - Excel export: real `.xlsx` via dynamic-imported SheetJS (`xlsx` pkg, lazy-loaded only on click).
+  - Activity Stream: confirmed already shipping 15s auto-poll + inline ACK + RE-RUN.
+  - **Phone-as-camera MVP**: new `routers/phone_camera.py` (pair-token mint, QR PNG, public `/pair-info`, WS `/ws/ingest` with 2MB frame cap, MJPEG re-stream from in-memory buffer). New public `app/pair.tsx` (getUserMedia + WS frame push @ ~6fps). `cameras.tsx` got a "Wireless" button + QR pair modal + WIRELESS badge + skip-HLS-probe for `kind='phone'`. Reports added to desktop side-nav (`testID='nav-reports'`).
+  - **Tests**: 14 new tests in `backend/tests/test_phone_camera.py` (100% pass) + 13 reports/HLS regression (100% pass). Frontend testing agent verified 100% on all flows (`/app/test_reports/iteration_6.json`).
+- ✅ **Phone-as-camera prod hardening + Mobile drawer (06-26)** — third pass:
+  - Frame buffer moved from process-local dict → MongoDB `phone_frames` collection (multi-worker safe across uvicorn workers / horizontal scale).
+  - WS ingest rate-limited to ≤10 fps per camera (server-side min frame interval 100ms).
+  - MJPEG generator polls `request.is_disconnected()` every 500ms — idle clients release resources cleanly.
+  - QR endpoint fallback chain: `?base` → `REACT_APP_BACKEND_URL` env → `request.base_url`. URL-scheme allowlist (http/https only) prevents `javascript:`/`data:` embed in QR.
+  - WS pre-accept close → accept-then-close so phone clients see real 4010 / 4004 close codes on the wire (not a generic 403 handshake-fail).
+  - New `components/MobileNavDrawer.tsx`: floating hamburger FAB (top-left) on screens <1024px, slide-in drawer with OPERATIONS (Detections/Analytics/Reports/Users/Audit/Settings) + AI·STUDIO (AI Studio/Bot Reply/Agents/Automations/Models/RAG/MCP Servers) sections. Auto-hides on desktop, on `/pair`, and when unauthenticated.
+  - **Tests**: 23 passed + 1 skipped (`pyzbar` optional QR decode) — `test_phone_camera.py` (14) + `test_phone_camera_hardening.py` (4) + `test_phone_camera_iter7_extras.py` (5). 13/13 reports regression still green. Frontend mobile-drawer E2E verified 100% (`/app/test_reports/iteration_7.json`).
 
 ## Backlog
-**P2 — Polish + production**
-- Real persisted audit log (currently stub returns one hard-coded entry)
-- Persist known/unknown split for `detection-status-trends` (currently random)
-- DB-aggregated `object-stats` (currently static array)
-- Split `server.py` (~1000 lines) into routers/{auth,analytics,cameras,…}
-- Migrate RN-Web deprecated `shadow*` → `boxShadow`
+**P1 — Audit + security (next on user's list)**
+- AI-infrastructure audit pass: inventory existing Automations / MCP Servers / LLM Models / RAG Docs / Agents / Bot Replies / Plugins / Connectors / AI Skills / MCP Tools / GenAI Runs across `ai_studio.py` + frontend `/ai/*` screens. Dependency CVE scan (`pip-audit`, `yarn audit`). Open-source enhancement recommendations (scraping + agent frameworks).
 
-**P3 — Heavy AI pipeline (deferred)**
-- Re-introduce InsightFace + OpenCV face recognition (needs Linux worker + persistent storage)
-- Multi-camera HLS streaming via `expo-video`
-- Light-mode toggle (Mist palette already in tokens)
+**P1 — UI polish (carry)**
+- Migrate `props.pointerEvents` → `style.pointerEvents` for RN-Web compat.
+
+**P2 — Activity Stream**
+- Revert action for `audit` rows (out-of-scope inverse-operation; needs per-action handler map).
+
+**P3 — Phone-as-camera v2**
+- Switch from MJPEG re-stream to WebRTC SFU once we have STUN/TURN infra → sub-200ms latency.
+- TTL index on `phone_frames` collection so stale docs auto-evict after 60s (currently they're overwritten in place but never deleted on disconnect).
+- Per-camera rate-limit also enforced as a `MinFrameInterval` config in the Pair modal so admins can choose 2/5/10/15 fps.
 
 ## Honest status
 - All 12 screens render in the new brand on both web (RN-Web) and mobile (RN)

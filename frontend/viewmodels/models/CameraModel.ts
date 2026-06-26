@@ -4,4 +4,5 @@ export interface CameraModel {
   rtsp_url: string;
   is_enabled: boolean;
   status: 'active' | 'offline' | string;
+  kind?: 'rtsp' | 'phone';
 }

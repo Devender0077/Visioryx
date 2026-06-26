@@ -22,7 +22,7 @@ from typing import Any
 
 import jwt
 import numpy as np
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response, StreamingResponse
 
 from deps import JWT_ALGORITHM, JWT_SECRET, get_db
@@ -97,11 +97,16 @@ def _render_frame(name: str, status: str, frame_n: int) -> bytes:
     draw.ellipse((20, 50, 28, 58), fill=status_color)
     draw.text((34, 47), f"NODE · {status.upper()}", fill=status_color, font=font_sm)
 
-    # LIVE pill top-right
-    live_x = W - 90
-    draw.rounded_rectangle((live_x, 18, W - 18, 38), radius=10, fill=(239, 68, 68))
-    draw.ellipse((live_x + 7, 24, live_x + 14, 31), fill=(255, 255, 255))
-    draw.text((live_x + 20, 21), "LIVE", fill=(255, 255, 255), font=font_sm)
+    # Status pill top-right — red LIVE only if active, otherwise grey OFFLINE.
+    pill_x = W - 96
+    if status == "active":
+        draw.rounded_rectangle((pill_x, 18, W - 18, 38), radius=10, fill=(239, 68, 68))
+        draw.ellipse((pill_x + 7, 24, pill_x + 14, 31), fill=(255, 255, 255))
+        draw.text((pill_x + 20, 21), "LIVE", fill=(255, 255, 255), font=font_sm)
+    else:
+        draw.rounded_rectangle((pill_x, 18, W - 18, 38), radius=10, fill=(60, 60, 70))
+        draw.ellipse((pill_x + 7, 24, pill_x + 14, 31), fill=(160, 160, 170))
+        draw.text((pill_x + 12, 21), "OFFLINE", fill=(200, 200, 210), font=font_sm)
 
     # Bottom overlay: timestamp
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -121,6 +126,14 @@ async def camera_preview(camera_id: str, token: str | None = Query(None)) -> Res
     cam = await db.cameras.find_one({"_id": camera_id})
     if cam is None:
         raise HTTPException(status_code=404, detail="Camera not found")
+    # Phone-camera → re-serve latest captured frame.
+    if cam.get("kind") == "phone":
+        from routers.phone_camera import get_frame
+        body, _age = await get_frame(camera_id)
+        if body is not None:
+            return Response(content=body, media_type="image/jpeg",
+                            headers={"Cache-Control": "no-cache, no-store"})
+        # else fall through to synthetic
     name = cam.get("camera_name", "Camera")
     status = cam.get("status", "offline")
     frame_n = int(time.time() * 10) % 4096
@@ -130,9 +143,13 @@ async def camera_preview(camera_id: str, token: str | None = Query(None)) -> Res
 
 
 @router.get("/{camera_id}/stream.mjpeg")
-async def camera_mjpeg(camera_id: str, token: str | None = Query(None)) -> StreamingResponse:
-    """Synthetic 10 fps MJPEG stream. The connection stays open and we yield a
-    fresh frame every 100 ms until the client disconnects."""
+async def camera_mjpeg(request: Request, camera_id: str, token: str | None = Query(None)) -> StreamingResponse:
+    """Synthetic 10 fps MJPEG stream. Yields a fresh frame every 100 ms until
+    the client disconnects (`request.is_disconnected()` polled every 500 ms).
+
+    For phone-cameras frames come from the MongoDB-backed phone_frames buffer
+    (populated by the phone's WebSocket). Falls back to synthetic if stale.
+    """
     await _auth_from_query(token)
     db = get_db()
     cam = await db.cameras.find_one({"_id": camera_id})
@@ -140,14 +157,28 @@ async def camera_mjpeg(camera_id: str, token: str | None = Query(None)) -> Strea
         raise HTTPException(status_code=404, detail="Camera not found")
     name = cam.get("camera_name", "Camera")
     status = cam.get("status", "offline")
+    is_phone = cam.get("kind") == "phone"
 
     boundary = b"--vxframe"
 
     async def gen():
+        from routers.phone_camera import get_frame as _get_frame
         frame_n = 0
+        last_disconnect_check = 0.0
         try:
             while True:
-                body = _render_frame(name, status, frame_n)
+                now = time.time()
+                if now - last_disconnect_check > 0.5:
+                    last_disconnect_check = now
+                    if await request.is_disconnected():
+                        return
+                body: bytes | None = None
+                if is_phone:
+                    entry_bytes, _age = await _get_frame(camera_id)
+                    if entry_bytes is not None:
+                        body = entry_bytes
+                if body is None:
+                    body = _render_frame(name, status, frame_n)
                 yield (boundary + b"\r\nContent-Type: image/jpeg\r\n"
                        + b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
                        + body + b"\r\n")
