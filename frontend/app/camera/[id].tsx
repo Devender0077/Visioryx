@@ -7,13 +7,12 @@ import { getStoredToken, streamMjpegUrl, api } from '@/lib/api';
 import { Stitch, FontFamily } from '@/constants/stitchTheme';
 
 type CameraDetails = {
-  id: number;
+  id: string;
   camera_name: string;
 };
 
 export default function CameraViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const cameraId = Number(id);
   const router = useRouter();
   const { height, width } = useWindowDimensions();
   const [uri, setUri] = useState<string | null>(null);
@@ -25,12 +24,12 @@ export default function CameraViewerScreen() {
       try {
         const [token, details] = await Promise.all([
           getStoredToken(),
-          api<CameraDetails>(`/api/v1/cameras/${cameraId}`)
+          api<CameraDetails>(`/api/v1/cameras/${id}`)
         ]);
         if (cancelled) return;
         setCam(details);
         if (token) {
-          setUri(streamMjpegUrl(cameraId, token));
+          setUri(streamMjpegUrl(id, token));
         }
       } catch (e) {
         console.error('Failed to load camera', e);
@@ -39,7 +38,7 @@ export default function CameraViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [cameraId]);
+  }, [id]);
 
   return (
     <View style={[styles.root, { backgroundColor: Stitch.surface }]}>
