@@ -35,6 +35,4 @@ ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
 
-RUN chmod +x scripts/pre-start.sh 2>/dev/null || true
-
-CMD ["sh", "-c", "scripts/pre-start.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
