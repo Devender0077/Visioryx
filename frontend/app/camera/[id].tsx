@@ -73,7 +73,7 @@ export default function CameraViewerScreen() {
       
       {/* Controls */}
       <View style={styles.controls}>
-         <Pressable style={styles.controlBtn} onPress={() => router.back()}>
+         <Pressable style={styles.controlBtn} onPress={() => router.replace('/(tabs)/cameras')}>
             <MaterialCommunityIcons name="chevron-left" size={28} color="#fff" />
             <Text style={styles.controlText}>Back</Text>
          </Pressable>
