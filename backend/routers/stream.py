@@ -40,10 +40,15 @@ def _verify_surveillance_token(token: str | None) -> bool:
 _FFMPEG_CMD = [
     "ffmpeg",
     "-rtsp_transport", "tcp",
+    "-fflags", "nobuffer",
+    "-flags", "low_delay",
+    "-analyzeduration", "0",
+    "-probesize", "32",
+    "-flush_packets", "1",
     "-i", "__RTSP_URL__",
     "-f", "image2pipe",
     "-vcodec", "mjpeg",
-    "-q:v", "2",
+    "-q:v", "10",
     "-",
 ]
 
