@@ -71,8 +71,24 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
 | ViewModel | `useLoginViewModel`, `useDashboardViewModel`, `useAlertsViewModel`, `useCamerasViewModel`, `useDetectionsViewModel`, `useUsersViewModel` | State, actions, derived vals |
 | View | All screens in `app/` | Layout + styling only |
 
-## What's been implemented (2026-06-17 / 06-18 / 06-23)
-- ✅ MongoDB FastAPI on port 8001, 34/34 pytest pass
+## What's been implemented (2026-06-17 / 06-18 / 06-23 / 06-24 / 06-26)
+- ✅ **Camera View modal — real live MJPEG (06-26 evening)** — `routers/camera_stream.py` generates synthetic CCTV-styled JPEG frames per camera (Pillow + numpy, no GPU). Two endpoints: `GET /api/v1/cameras/{id}/preview.jpg` (single frame, ~20KB) and `GET /api/v1/cameras/{id}/stream.mjpeg` (10fps multipart/x-mixed-replace). JWT via `?token=` query param so `<img>` tags can authenticate. Frame shows camera name + status dot + LIVE pill + moving violet scan-line + grid + corner brackets + live timestamp + cycling channel #. View modal in `/cameras` now embeds this stream — confirmed rendering live with timestamp ticking.
+- ✅ **RTSP → HLS gateway (06-26 evening v2)** — `routers/hls_gateway.py` spawns `ffmpeg -rtsp_transport tcp -i {rtsp} -c:v copy -f hls` per camera on demand, writes HLS segments to `/tmp/vx-hls/{camera_id}/`, serves `/api/v1/cameras/{id}/hls/index.m3u8` + `.ts` segments. Idle-reaper kills ffmpeg after 60s of no fetches. **URL-safety**: auto-encodes `@` in passwords (common bug with Dahua/Hikvision creds). View modal probes HLS first and auto-falls-back to synthetic MJPEG with a colored stream-mode badge (`● LIVE HLS` cyan, `SYNTHETIC PREVIEW` amber). Frontend uses `hls.js` for non-Safari browsers + native HLS on Safari/iOS. Requires backend to have network reachability to the camera (LAN cameras on `192.168.x.x` only work when backend runs on the same network or via VPN).
+- ✅ **Admin enroll-faces flow (06-26 evening v2)** — Users screen → menu → "Enroll face" / "Re-enroll face" (label flips based on `has_face_embedding`). Webcam modal posts to `POST /api/v1/face/enroll` with `{image, user_id}`. Success overlay shows the detection score, then auto-closes + refreshes the user list (KPI tiles update enrolled/pending counts).
+- ✅ **Camera View modal — real live MJPEG (06-26 evening)** — `routers/camera_stream.py` generates synthetic CCTV-styled JPEG frames per camera (Pillow + numpy). Two endpoints: `GET /api/v1/cameras/{id}/preview.jpg` (single frame) and `GET /api/v1/cameras/{id}/stream.mjpeg` (10fps multipart). JWT via `?token=` query param. Frame: camera name + status dot + LIVE pill + scan-line + grid + corner brackets + timestamp + channel. View modal in `/cameras` embeds the stream.
+- ✅ **EnrollMyFace component (06-26 evening)** — Settings → Account → Biometrics card. Webcam → POST `/api/v1/face/enroll/me` → backend extracts InsightFace embedding → stores on user record. Audit-logged as `users.face.enroll.self`.
+   • `POST /api/v1/face/detect` — base64 image → face bboxes + landmarks
+   • `POST /api/v1/face/match` — base64 image → matches against `db.users.face_embedding`
+   • `POST /api/v1/face/enroll` (admin) — store embedding for any user
+   • `POST /api/v1/face/enroll/me` — self-enroll
+   • `GET /api/v1/face/status` — model readiness
+   Lazy-loaded on first request (~2-3s cold start). Cosine similarity threshold 0.35.
+- ✅ **FaceLab UI (06-26)** — `/components/FaceLab.tsx` mounted on Live screen. Webcam → JPEG capture every 500ms → backend match → animated bounding-box overlay with **linear interpolation between frames** (no jumpy boxes). Corner-bracket "tracker" style, label with name + confidence %, mirror-flipped. Stats row: faces / latency / enrolled / status. Native shows web-only placeholder card.
+- ✅ **Camera row: View + Edit + Delete (06-26)** — three icon buttons per row. View modal shows live-preview placeholder + status + URL metadata + "Edit" jump. Edit modal allows rename + URL change + enabled toggle, calls new `useCamerasViewModel.update()`.
+- ✅ **Side menu width: 260 → 288 (06-26)** — wider, more comfortable nav rail.
+- ✅ **Activity Stream auto-refresh (06-26)** — polls every 15s + WS-tick refresh. Inline actions: **ACK** button on alerts (PATCH `/alerts/{id}/read`), **RE-RUN** button on agent runs (routes to console).
+- ✅ **MongoDB Atlas migration (06-24)** — backend running on `visionaryx.ld24mza.mongodb.net`. ⚠️ Credentials shared in chat — **rotate them**.
+- ✅ MongoDB FastAPI on port 8001, 34/34 pytest pass (legacy local-Mongo tests)
 - ✅ Seeded admin/operator + 6 demo cameras + 24 alerts + 30 days of trend data
 - ✅ Replaced Next.js frontend with Expo Router; `/app/_legacy_frontend_nextjs` archived
 - ✅ Single React Native + RN-Web codebase serves iOS / Android / Web from `yarn start` (Expo Web on port 3000)

@@ -2,7 +2,7 @@
  * Dashboard ActivityStream — unified chronological feed of audit + agent runs
  * + alerts.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -52,19 +52,51 @@ export function ActivityStream({ limit = 12 }: { limit?: number }) {
   const colors = useColors();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const fetchRef = useRef<number>(0);
 
+  const fetchRows = useCallback(async () => {
+    const myFetch = ++fetchRef.current;
+    try {
+      const r = await api<Row[]>(`/api/v1/activity?limit=${limit}`);
+      if (fetchRef.current === myFetch) {
+        setRows(r);
+        setLoading(false);
+      }
+    } catch {
+      if (fetchRef.current === myFetch) setLoading(false);
+    }
+  }, [limit]);
+
+  // Initial + WS-tick driven refresh.
+  useEffect(() => { void fetchRows(); }, [fetchRows, tick]);
+
+  // Auto-poll every 15 s.
   useEffect(() => {
-    let active = true;
-    api<Row[]>(`/api/v1/activity?limit=${limit}`).then((r) => {
-      if (active) { setRows(r); setLoading(false); }
-    }).catch(() => { if (active) setLoading(false); });
-    return () => { active = false; };
-  }, [limit, tick]);
+    const t = setInterval(() => { void fetchRows(); }, 15000);
+    return () => clearInterval(t);
+  }, [fetchRows]);
 
   const navTo = (row: Row) => {
     if (row.kind === 'alert') router.push('/(tabs)/alerts' as any);
     else if (row.kind === 'audit') router.push('/audit' as any);
     else if (row.kind === 'agent_run') router.push('/ai/agents' as any);
+  };
+
+  const acknowledge = async (row: Row) => {
+    if (row.kind !== 'alert') return;
+    setBusyId(row.id);
+    try {
+      await api(`/api/v1/alerts/${row.ref}/read`, { method: 'PATCH' });
+      await fetchRows();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const rerun = (row: Row) => {
+    if (row.kind !== 'agent_run') return;
+    router.push('/ai/agents' as any);
   };
 
   return (
@@ -138,6 +170,30 @@ export function ActivityStream({ limit = 12 }: { limit?: number }) {
                       </Text>
                     ) : null}
                     {r.ip ? <Text style={[styles.metaText, { color: colors.textFaint }]}>{r.ip}</Text> : null}
+
+                    {/* Inline actions */}
+                    <View style={{ flex: 1 }} />
+                    {r.kind === 'alert' ? (
+                      <Pressable
+                        onPress={(e) => { e.stopPropagation?.(); void acknowledge(r); }}
+                        disabled={busyId === r.id}
+                        style={[styles.actBtn, { borderColor: colors.success, backgroundColor: colors.successFaint }]}
+                        testID={`activity-act-ack-${r.id}`}
+                      >
+                        <MaterialCommunityIcons name="check" size={10} color={colors.success} />
+                        <Text style={[styles.actBtnText, { color: colors.success }]}>ACK</Text>
+                      </Pressable>
+                    ) : null}
+                    {r.kind === 'agent_run' ? (
+                      <Pressable
+                        onPress={(e) => { e.stopPropagation?.(); rerun(r); }}
+                        style={[styles.actBtn, { borderColor: colors.electricViolet, backgroundColor: colors.primaryFaint }]}
+                        testID={`activity-act-rerun-${r.id}`}
+                      >
+                        <MaterialCommunityIcons name="replay" size={10} color={colors.electricViolet} />
+                        <Text style={[styles.actBtnText, { color: colors.electricViolet }]}>RE-RUN</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
               </Pressable>
@@ -196,4 +252,10 @@ const styles = StyleSheet.create({
   },
   kindChipText: { ...TextStyles.label, fontSize: 8, letterSpacing: 1 },
   metaText: { ...TextStyles.caption, fontFamily: F.mono, fontSize: 10 },
+  actBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Radius.full, borderWidth: 1,
+  },
+  actBtnText: { ...TextStyles.label, fontSize: 9, letterSpacing: 0.8 },
 });
