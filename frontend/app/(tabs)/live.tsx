@@ -12,6 +12,7 @@ import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles, Breakpoin
 import { useRealtimeConnected } from '@/contexts/RealtimeContext';
 import { CommandBackground } from '@/components/CommandBackground';
 import { SectionEyebrow, ScreenTitle, ScreenSub, VxCard } from '@/components/vx';
+import { FaceLab } from '@/components/FaceLab';
 
 export default function LiveScreen() {
   const vm = useCamerasViewModel();
@@ -53,6 +54,11 @@ export default function LiveScreen() {
           {vm.items.length === 0 && !vm.loading ? (
             <Text style={styles.empty}>No cameras configured yet. Add one from the Cameras tab.</Text>
           ) : null}
+        </View>
+
+        {/* Face Lab — real webcam + InsightFace pipeline (web only) */}
+        <View style={{ marginTop: Space.xl }}>
+          <FaceLab />
         </View>
       </ScrollView>
     </View>

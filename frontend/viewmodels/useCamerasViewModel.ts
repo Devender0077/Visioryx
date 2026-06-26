@@ -14,6 +14,7 @@ export interface CamerasViewModel {
   refresh: () => Promise<void>;
   toggle: (id: string, enabled: boolean) => Promise<void>;
   add: (body: { camera_name: string; rtsp_url: string }) => Promise<void>;
+  update: (id: string, patch: { camera_name?: string; rtsp_url?: string; is_enabled?: boolean }) => Promise<void>;
   remove: (id: string) => Promise<void>;
   // derived
   filtered: CameraModel[];
@@ -66,6 +67,14 @@ export function useCamerasViewModel(): CamerasViewModel {
     await load();
   }, [load]);
 
+  const update = useCallback(
+    async (id: string, patch: { camera_name?: string; rtsp_url?: string; is_enabled?: boolean }) => {
+      await CamerasRepository.patch(id, patch);
+      await load();
+    },
+    [load],
+  );
+
   const remove = useCallback(async (id: string) => {
     await CamerasRepository.remove(id);
     await load();
@@ -93,6 +102,7 @@ export function useCamerasViewModel(): CamerasViewModel {
     refresh,
     toggle,
     add,
+    update,
     remove,
     filtered,
     totalActive,

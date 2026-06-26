@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   shell: { flex: 1, flexDirection: 'row', backgroundColor: C.bg },
   main: { flex: 1, overflow: 'hidden' },
   side: {
-    width: 260,
+    width: 288,
     backgroundColor: C.surface,
     borderRightWidth: 1,
     borderRightColor: C.border,

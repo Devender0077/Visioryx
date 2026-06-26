@@ -71,8 +71,19 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
 | ViewModel | `useLoginViewModel`, `useDashboardViewModel`, `useAlertsViewModel`, `useCamerasViewModel`, `useDetectionsViewModel`, `useUsersViewModel` | State, actions, derived vals |
 | View | All screens in `app/` | Layout + styling only |
 
-## What's been implemented (2026-06-17 / 06-18 / 06-23 / 06-24)
-- ✅ **MongoDB Atlas migration (06-24)** — backend now points to dedicated Atlas cluster `visionaryx.ld24mza.mongodb.net`. Seed populated admin + operator + 6 cameras + 24 alerts + 30 days of trend data + audit log. All 12 router endpoints verified `200 OK` against Atlas. Connection: `mongodb+srv://...@visionaryx.ld24mza.mongodb.net/?appName=VisionaryX&retryWrites=true&w=majority`. **⚠️ Credentials shared in chat — should be rotated.**
+## What's been implemented (2026-06-17 / 06-18 / 06-23 / 06-24 / 06-26)
+- ✅ **Face recognition pipeline (06-26)** — InsightFace `buffalo_sc` + OpenCV + ONNX Runtime on backend. New `routers/face.py`:
+   • `POST /api/v1/face/detect` — base64 image → face bboxes + landmarks
+   • `POST /api/v1/face/match` — base64 image → matches against `db.users.face_embedding`
+   • `POST /api/v1/face/enroll` (admin) — store embedding for any user
+   • `POST /api/v1/face/enroll/me` — self-enroll
+   • `GET /api/v1/face/status` — model readiness
+   Lazy-loaded on first request (~2-3s cold start). Cosine similarity threshold 0.35.
+- ✅ **FaceLab UI (06-26)** — `/components/FaceLab.tsx` mounted on Live screen. Webcam → JPEG capture every 500ms → backend match → animated bounding-box overlay with **linear interpolation between frames** (no jumpy boxes). Corner-bracket "tracker" style, label with name + confidence %, mirror-flipped. Stats row: faces / latency / enrolled / status. Native shows web-only placeholder card.
+- ✅ **Camera row: View + Edit + Delete (06-26)** — three icon buttons per row. View modal shows live-preview placeholder + status + URL metadata + "Edit" jump. Edit modal allows rename + URL change + enabled toggle, calls new `useCamerasViewModel.update()`.
+- ✅ **Side menu width: 260 → 288 (06-26)** — wider, more comfortable nav rail.
+- ✅ **Activity Stream auto-refresh (06-26)** — polls every 15s + WS-tick refresh. Inline actions: **ACK** button on alerts (PATCH `/alerts/{id}/read`), **RE-RUN** button on agent runs (routes to console).
+- ✅ **MongoDB Atlas migration (06-24)** — backend running on `visionaryx.ld24mza.mongodb.net`. ⚠️ Credentials shared in chat — **rotate them**.
 - ✅ MongoDB FastAPI on port 8001, 34/34 pytest pass (legacy local-Mongo tests)
 - ✅ Seeded admin/operator + 6 demo cameras + 24 alerts + 30 days of trend data
 - ✅ Replaced Next.js frontend with Expo Router; `/app/_legacy_frontend_nextjs` archived
