@@ -217,13 +217,6 @@ export default function CamerasScreen() {
                     testID="add-wireless-camera-btn"
                   />
                 </>
-                <VxButton
-                  label="Add"
-                  icon={<MaterialCommunityIcons name="plus" size={14} color="#fff" />}
-                  onPress={() => setAddOpen(true)}
-                  testID="add-camera-btn"
-                  size="md"
-                />
               ) : null}
             </View>
 
@@ -231,50 +224,21 @@ export default function CamerasScreen() {
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
-        renderItem={({ item }) => {
-          const live = item.is_enabled && item.status === 'active';
-          return (
-            <View
-              style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              testID={`camera-row-${item.id}`}
-            >
-              <View style={[styles.statusBlock, { backgroundColor: live ? colors.success : colors.warning }]} />
-              <View style={[styles.iconWrap, { backgroundColor: colors.primaryFaint }]}>
-                <MaterialCommunityIcons
-                  name={item.kind === 'phone' ? 'cellphone-link' : 'cctv'}
-                  size={18}
-                  color={colors.primaryAccent}
-                />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.rowName, { color: colors.text }]} numberOfLines={1}>{item.camera_name}</Text>
-                  {item.kind === 'phone' ? (
-                    <View style={[styles.kindChip, { borderColor: colors.cyan, backgroundColor: colors.cyanFaint }]} testID={`camera-kind-phone-${item.id}`}>
-                      <Text style={[styles.kindChipText, { color: colors.cyan }]}>WIRELESS</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={[styles.rowUrl, { color: colors.textMuted }]} numberOfLines={1}>{item.rtsp_url}</Text>
-              </View>
-
-              {/* Action cluster: View / Edit / Toggle / Delete */}
-              <Pressable
-                onPress={() => setViewing(item)}
-                style={[styles.iconBtn, { borderColor: colors.border }]}
-                hitSlop={6}
-                testID={`camera-view-${item.id}`}
-                accessibilityLabel="View camera"
-              >
-                <MaterialCommunityIcons name="eye-outline" size={15} color={colors.primaryAccent} />
         renderItem={({ item }) => (
           <View style={styles.row} testID={`camera-row-${item.id}`}>
             <View style={[styles.statusBlock, { backgroundColor: item.is_enabled && item.status === 'active' ? C.success : C.warning }]} />
             <View style={styles.iconWrap}>
-              <MaterialCommunityIcons name="cctv" size={18} color={C.primaryAccent} />
+              <MaterialCommunityIcons name={item.kind === 'phone' ? 'cellphone-link' : 'cctv'} size={18} color={C.primaryAccent} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowName} numberOfLines={1}>{item.camera_name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.rowName} numberOfLines={1}>{item.camera_name}</Text>
+                {item.kind === 'phone' ? (
+                  <View style={[styles.kindChip, { borderColor: C.cyan, backgroundColor: C.cyanFaint }]} testID={`camera-kind-phone-${item.id}`}>
+                    <Text style={[styles.kindChipText, { color: C.cyan }]}>WIRELESS</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={styles.rowUrl} numberOfLines={1}>{item.rtsp_url}</Text>
             </View>
             <View style={styles.actionRow}>
