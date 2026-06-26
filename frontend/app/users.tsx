@@ -13,6 +13,7 @@ import { getApiBase } from '@/lib/config';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 import { CommandBackground } from '@/components/CommandBackground';
 import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner } from '@/components/vx';
+import MobileBackButton from '@/components/MobileBackButton';
 
 const ROLES = [
   { value: 'admin', label: 'Admin', desc: 'Full system access' },
@@ -93,6 +94,7 @@ export default function UsersScreen() {
     return (
       <View style={styles.root}>
         <CommandBackground />
+        <MobileBackButton />
         <View style={styles.pad}>
           <SectionEyebrow>Access</SectionEyebrow>
           <ScreenTitle>Admin only</ScreenTitle>
@@ -105,6 +107,7 @@ export default function UsersScreen() {
   return (
     <View style={styles.root} testID="users-screen">
       <CommandBackground />
+      <MobileBackButton />
       <FlatList
         data={vm.filtered}
         keyExtractor={(i) => i.id}

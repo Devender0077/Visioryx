@@ -13,6 +13,7 @@ import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/
 import { CommandBackground } from '@/components/CommandBackground';
 import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, VxCard } from '@/components/vx';
 import { EnrollMyFace } from '@/components/EnrollMyFace';
+import MobileBackButton from '@/components/MobileBackButton';
 
 interface EmailSettings {
   provider: string;
@@ -201,6 +202,7 @@ export default function SettingsScreen() {
   return (
     <View style={styles.root} testID="settings-screen">
       <CommandBackground />
+      <MobileBackButton />
       <ScrollView contentContainerStyle={styles.pad}>
         <SectionEyebrow>Workspace</SectionEyebrow>
         <ScreenTitle>Settings</ScreenTitle>
