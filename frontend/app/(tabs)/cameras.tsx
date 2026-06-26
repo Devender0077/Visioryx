@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,182,107,0.18)',
     zIndex: 2,
   },
-  streamModeBadgeLeft: { right: undefined, left: 10, backgroundColor: 'rgba(255,182,107,0.22)' },
+  streamModeBadgeLeft: { right: undefined, left: 10, top: undefined, bottom: 36, backgroundColor: 'rgba(255,182,107,0.22)' },
   streamModeBadgeText: { ...TextStyles.label, color: '#FFB66B', fontSize: 9, letterSpacing: 1.2 },
   metaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Space.md, marginTop: Space.lg },
   metaCell: { flexBasis: 140, flexGrow: 1 },
@@ -552,8 +552,9 @@ const styles = StyleSheet.create({
   kindChipText: { ...TextStyles.label, fontSize: 8, letterSpacing: 1 },
   pairBlurb: { ...TextStyles.body, fontSize: 13, marginTop: Space.sm, lineHeight: 19 },
   qrFrame: {
-    alignSelf: 'center', marginTop: Space.lg, padding: Space.sm,
+    alignSelf: 'center', marginTop: Space.lg, padding: Space.md,
     backgroundColor: '#fff', borderRadius: Radius.md,
+    borderWidth: 3, borderColor: '#0B0716',
   },
   pairUrl: {
     ...TextStyles.caption, fontFamily: F.mono, fontSize: 11,

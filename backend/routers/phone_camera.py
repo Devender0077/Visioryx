@@ -149,13 +149,17 @@ async def ws_ingest(ws: WebSocket, token: str = Query(...)):
 
     camera_id = cam["_id"]
     await ws.accept()
+    MAX_FRAME_BYTES = 2 * 1024 * 1024  # 2MB safety cap per frame
     # Mark camera active.
     await db.cameras.update_one({"_id": camera_id}, {"$set": {"status": "active"}})
     try:
         while True:
             msg = await ws.receive()
             if "bytes" in msg and msg["bytes"]:
-                _FRAME_BUFFER[camera_id] = {"bytes": msg["bytes"], "ts": time.time()}
+                frame = msg["bytes"]
+                if len(frame) > MAX_FRAME_BYTES:
+                    continue  # drop oversized frames
+                _FRAME_BUFFER[camera_id] = {"bytes": frame, "ts": time.time()}
             elif msg.get("type") == "websocket.disconnect":
                 break
     except WebSocketDisconnect:

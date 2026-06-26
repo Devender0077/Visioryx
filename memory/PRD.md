@@ -132,23 +132,30 @@ User then uploaded the official **VisionaryX AI Brand book v1** (Geist + IBM Ple
 - ✅ **HLS low-latency tuning (06-26)** — ffmpeg flags `nobuffer+low_delay+probesize 32+analyzeduration 0`, 1s segments, 3-window playlist, `hls.lowLatencyMode` on client. Confirmed working via testing agent.
 - ✅ **Reports / Analytics page (06-26)** — `routers/reports.py` (`/api/v1/reports/summary` + `/api/v1/reports/detections`) + `app/reports.tsx` with window chips (7d/30d/90d), status filter (all/known/unknown), search, KPI cards, SVG timeseries chart, hourly bar chart, top-cameras bar list, detection-records list, and one-click Excel export (CSV with `.xls` extension). Error banner for failed loads. **Tested 06-26**: 13/13 pytest tests pass + full frontend E2E passes (`/app/test_reports/iteration_5.json`).
 - ✅ **Hide "More" tab on mobile (06-26)** — `href: null` on `(tabs)/more.tsx` — confirmed via mobile viewport test (390x844) showing 4-tab bar without "More".
+- ✅ **Polish + Phone-as-camera MVP (06-26)** — second pass:
+  - Camera View modal: SYNTHETIC PREVIEW badge moved to bottom-left to clear baked-in title; synthetic frame no longer paints a misleading red "LIVE" when status≠active (shows grey "OFFLINE" pill instead).
+  - Reports KPI labels: bumped from `textFaint` → `textMuted` for a11y.
+  - RN-Web `animation` shorthand warning: dead `scanLine` style removed.
+  - Excel export: real `.xlsx` via dynamic-imported SheetJS (`xlsx` pkg, lazy-loaded only on click).
+  - Activity Stream: confirmed already shipping 15s auto-poll + inline ACK + RE-RUN.
+  - **Phone-as-camera MVP**: new `routers/phone_camera.py` (pair-token mint, QR PNG, public `/pair-info`, WS `/ws/ingest` with 2MB frame cap, MJPEG re-stream from in-memory buffer). New public `app/pair.tsx` (getUserMedia + WS frame push @ ~6fps). `cameras.tsx` got a "Wireless" button + QR pair modal + WIRELESS badge + skip-HLS-probe for `kind='phone'`. Reports added to desktop side-nav (`testID='nav-reports'`).
+  - **Tests**: 14 new tests in `backend/tests/test_phone_camera.py` (100% pass) + 13 reports/HLS regression (100% pass). Frontend testing agent verified 100% on all flows (`/app/test_reports/iteration_6.json`).
 
 ## Backlog
-**P1 — UI polish (LOW priority from iteration_5)**
-- Camera View modal: when streaming, prevent the LIVE / SYNTHETIC PREVIEW badges from overlapping during transition; render only one based on resolved mode.
-- Reports KPI labels: bump opacity for TOTAL/KNOWN/UNKNOWN/KNOWN % uppercase labels for a11y contrast.
-- Migrate RN-Web `animation: ...` shorthand → `animationKeyframes` to silence console warnings.
-- Migrate `props.pointerEvents` → `style.pointerEvents` for RN-Web compat.
+**P1 — UI polish (remaining)**
+- (carry) Migrate `props.pointerEvents` → `style.pointerEvents` for RN-Web compat.
+
+**P2 — Phone-as-camera prod hardening**
+- Move `_FRAME_BUFFER` from process-local dict to Redis so phone WS + frame.jpg can land on different workers.
+- Per-camera rate-limit on WS ingest (min frame interval ≥ 100ms).
+- Add `request.is_disconnected()` poll inside long-lived MJPEG generator so idle phone-camera clients release resources.
+- QR endpoint: fall back to `request.url` scheme/host when env not set.
 
 **P2 — Activity Stream**
-- 15s auto-refresh polling on Dashboard Activity widget.
-- Inline action buttons on Activity rows (acknowledge / re-run / revert).
+- Revert action for `audit` rows (out-of-scope inverse-operation; needs per-action handler map).
 
-**P2 — Phone-as-camera MVP (discussed, not started)**
-- Browser MediaStream → WS ingest, QR-code pairing flow, register paired device as a "virtual" camera in inventory.
-
-**P3 — Excel export polish**
-- Switch from `.xls` (HTML-table) to real `.xlsx` blob via SheetJS for production cleanliness (~500KB bundle hit).
+**P3 — Mobile navigation**
+- Mobile users currently can't reach /reports, /audit, /users, /settings, /detections (no "More" tab + no side-nav). Add a slide-out drawer or move missing entries into the bottom tab bar.
 
 ## Honest status
 - All 12 screens render in the new brand on both web (RN-Web) and mobile (RN)

@@ -98,11 +98,16 @@ def _render_frame(name: str, status: str, frame_n: int) -> bytes:
     draw.ellipse((20, 50, 28, 58), fill=status_color)
     draw.text((34, 47), f"NODE · {status.upper()}", fill=status_color, font=font_sm)
 
-    # LIVE pill top-right
-    live_x = W - 90
-    draw.rounded_rectangle((live_x, 18, W - 18, 38), radius=10, fill=(239, 68, 68))
-    draw.ellipse((live_x + 7, 24, live_x + 14, 31), fill=(255, 255, 255))
-    draw.text((live_x + 20, 21), "LIVE", fill=(255, 255, 255), font=font_sm)
+    # Status pill top-right — red LIVE only if active, otherwise grey OFFLINE.
+    pill_x = W - 96
+    if status == "active":
+        draw.rounded_rectangle((pill_x, 18, W - 18, 38), radius=10, fill=(239, 68, 68))
+        draw.ellipse((pill_x + 7, 24, pill_x + 14, 31), fill=(255, 255, 255))
+        draw.text((pill_x + 20, 21), "LIVE", fill=(255, 255, 255), font=font_sm)
+    else:
+        draw.rounded_rectangle((pill_x, 18, W - 18, 38), radius=10, fill=(60, 60, 70))
+        draw.ellipse((pill_x + 7, 24, pill_x + 14, 31), fill=(160, 160, 170))
+        draw.text((pill_x + 12, 21), "OFFLINE", fill=(200, 200, 210), font=font_sm)
 
     # Bottom overlay: timestamp
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
