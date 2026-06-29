@@ -604,6 +604,54 @@ def build_ai_router(api_prefix: str, current_user, require_admin, get_db) -> API
         await db.ai_rag_documents.delete_one({"_id": doc_id})
         return {"ok": True}
 
+    # -----------------------------------------------------------------------
+    # Google Knowledge Graph
+    # -----------------------------------------------------------------------
+    KG_API_KEY = os.environ.get("GOOGLE_KG_API_KEY", "")
+    KG_ENDPOINT = "https://kgsearch.googleapis.com/v1/entities:search"
+
+    class KgQuery(BaseModel):
+        query: str = Field(..., description="Search term (person, place, object, etc.)")
+        limit: int = Field(default=5, ge=1, le=20)
+        languages: str = Field(default="en")
+
+    class KgResult(BaseModel):
+        query: str
+        items: list[dict] = []
+
+    @r.post("/knowledge-graph", response_model=KgResult)
+    async def query_knowledge_graph(body: KgQuery, _: dict = Depends(current_user)):
+        if not KG_API_KEY:
+            raise HTTPException(status_code=501, detail="GOOGLE_KG_API_KEY not configured on server")
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                KG_ENDPOINT,
+                params={
+                    "query": body.query,
+                    "key": KG_API_KEY,
+                    "limit": body.limit,
+                    "languages": body.languages,
+                },
+                timeout=10.0,
+            )
+            if resp.status_code != 200:
+                raise HTTPException(status_code=502, detail=f"Knowledge Graph API error: {resp.status_code}")
+            data = resp.json()
+            items = []
+            for elem in data.get("itemListElement", []):
+                r = elem.get("result", {})
+                items.append({
+                    "name": r.get("name"),
+                    "description": r.get("description"),
+                    "detailedDescription": r.get("detailedDescription"),
+                    "url": r.get("url"),
+                    "image": r.get("image"),
+                    "types": r.get("@type", []),
+                    "score": elem.get("resultScore"),
+                    "id": r.get("@id"),
+                })
+            return KgResult(query=body.query, items=items)
+
     return r
 
 

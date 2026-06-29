@@ -56,6 +56,9 @@ export default function SettingsScreen() {
   const [bridgeTokenLoading, setBridgeTokenLoading] = useState(false);
   const [bridgeCopyLabel, setBridgeCopyLabel] = useState('Copy');
 
+  const [detLoading, setDetLoading] = useState(false);
+  const [detState, setDetState] = useState({ face: true, yolo: false, person: false });
+
   const load = useCallback(async () => {
     if (!isAdmin) { setLoading(false); return; }
     try {
@@ -82,7 +85,40 @@ export default function SettingsScreen() {
     finally { setBridgeLoading(false); }
   }, [isAdmin]);
 
-  useEffect(() => { void load(); void loadBridge(); }, [load, loadBridge]);
+  const loadDetection = useCallback(async () => {
+    try {
+      const data = await api<{
+        face_detection_enabled: boolean;
+        yolo_object_detection_enabled: boolean;
+        person_detection_enabled: boolean;
+        can_edit: boolean;
+      }>('/api/v1/settings');
+      setDetState({
+        face: data.face_detection_enabled,
+        yolo: data.yolo_object_detection_enabled,
+        person: data.person_detection_enabled,
+      });
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleDetection = async (key: 'face' | 'yolo' | 'person', value: boolean) => {
+    if (!isAdmin) return;
+    setDetState((s) => ({ ...s, [key]: value }));
+    setDetLoading(true);
+    try {
+      const payload: Record<string, unknown> = {};
+      if (key === 'face') payload.face_detection_enabled = value;
+      if (key === 'yolo') payload.yolo_object_detection_enabled = value;
+      if (key === 'person') payload.person_detection_enabled = value;
+      await api('/api/v1/settings', { method: 'PATCH', body: JSON.stringify(payload) });
+    } catch {
+      await loadDetection(); // revert on error
+    } finally {
+      setDetLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); void loadBridge(); void loadDetection(); }, [load, loadBridge, loadDetection]);
 
   const save = async () => {
     if (!form.from_email.trim()) {
@@ -397,9 +433,19 @@ export default function SettingsScreen() {
                 />
               </View>
             </>
-          )}
-        </VxCard>
-      </ScrollView>
+        )}
+      </VxCard>
+
+      {/* Detection overlay toggles */}
+      <DetectionCard
+        faceEnabled={detState.face}
+        yoloEnabled={detState.yolo}
+        personEnabled={detState.person}
+        loading={detLoading}
+        isAdmin={isAdmin}
+        onToggle={(key, v) => toggleDetection(key, v)}
+      />
+    </ScrollView>
     </View>
   );
 }
@@ -447,6 +493,96 @@ function AppearanceCard() {
     </VxCard>
   );
 }
+
+function DetectionCard({
+  faceEnabled,
+  yoloEnabled,
+  personEnabled,
+  loading,
+  isAdmin,
+  onToggle,
+}: {
+  faceEnabled: boolean;
+  yoloEnabled: boolean;
+  personEnabled: boolean;
+  loading: boolean;
+  isAdmin: boolean;
+  onToggle: (key: 'face' | 'yolo' | 'person', value: boolean) => void;
+}) {
+  return (
+    <VxCard style={{ marginTop: Space.xl, gap: Space.md }} testID="detection-card">
+      <View>
+        <Text style={detectionStyles.title}>Detection overlays</Text>
+        <Text style={detectionStyles.sub}>Toggle face detection, YOLO object detection, and person (HOG) detection on live MJPEG streams.</Text>
+      </View>
+
+      <View style={detectionStyles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={detectionStyles.toggleLbl}>Face detection</Text>
+          <Text style={detectionStyles.toggleDesc}>
+            Draw green (known) / red (unknown) boxes around detected faces. Uses OpenCV Haar on macOS, InsightFace on Linux.
+          </Text>
+        </View>
+        <Switch
+          value={faceEnabled}
+          onValueChange={(v) => onToggle('face', v)}
+          trackColor={{ false: C.surface3, true: C.primary }}
+          thumbColor="#fff"
+          disabled={!isAdmin || loading}
+          testID="detection-face-toggle"
+        />
+      </View>
+
+      <View style={detectionStyles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={detectionStyles.toggleLbl}>YOLO object detection</Text>
+          <Text style={detectionStyles.toggleDesc}>
+            Detect cars, bags, animals, etc. using YOLOv8. CPU-intensive; keep off on weak servers.
+          </Text>
+        </View>
+        <Switch
+          value={yoloEnabled}
+          onValueChange={(v) => onToggle('yolo', v)}
+          trackColor={{ false: C.surface3, true: C.primary }}
+          thumbColor="#fff"
+          disabled={!isAdmin || loading}
+          testID="detection-yolo-toggle"
+        />
+      </View>
+
+      <View style={detectionStyles.toggleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={detectionStyles.toggleLbl}>Person (HOG) detection</Text>
+          <Text style={detectionStyles.toggleDesc}>
+            OpenCV HOG-based full-body person detection. Lightweight but less accurate than YOLO.
+          </Text>
+        </View>
+        <Switch
+          value={personEnabled}
+          onValueChange={(v) => onToggle('person', v)}
+          trackColor={{ false: C.surface3, true: C.primary }}
+          thumbColor="#fff"
+          disabled={!isAdmin || loading}
+          testID="detection-person-toggle"
+        />
+      </View>
+
+      {loading ? <ActivityIndicator color={C.primaryAccent} style={{ marginTop: Space.sm }} /> : null}
+    </VxCard>
+  );
+}
+
+const detectionStyles = StyleSheet.create({
+  title: { ...TextStyles.h4, color: C.text },
+  sub: { ...TextStyles.caption, color: C.textMuted, marginTop: 2 },
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: Space.sm,
+    borderTopWidth: 1, borderTopColor: C.border,
+  },
+  toggleLbl: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
+  toggleDesc: { ...TextStyles.caption, color: C.textMuted, marginTop: 2 },
+});
 
 const appearanceStyles = StyleSheet.create({
   title: { ...TextStyles.h4, color: C.text },
