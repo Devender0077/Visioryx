@@ -81,11 +81,31 @@ export function LiveStreamToolbar({
   );
 }
 
-export function DetectionsOverlay({ detections }: { detections: any[] }) {
+function normalizeBbox(raw: any): { x: number; y: number; w: number; h: number } | null {
+  if (!raw) return null;
+  // Format 1: {x1, y1, x2, y2} pixel coords from backend
+  if (raw.x1 !== undefined && raw.y1 !== undefined && raw.x2 !== undefined && raw.y2 !== undefined) {
+    return { x: raw.x1, y: raw.y1, w: raw.x2 - raw.x1, h: raw.y2 - raw.y1 };
+  }
+  // Format 2: {x, y, w, h} already normalized
+  if (typeof raw.x === 'number' && typeof raw.y === 'number' && typeof raw.w === 'number' && typeof raw.h === 'number') {
+    return { x: raw.x, y: raw.y, w: raw.w, h: raw.h };
+  }
+  return null;
+}
+
+export function DetectionsOverlay({
+  detections,
+  frameWidth = 1280,
+  frameHeight = 720,
+}: {
+  detections: any[];
+  frameWidth?: number;
+  frameHeight?: number;
+}) {
   const [activeDetections, setActiveDetections] = useState<any[]>([]);
 
   useEffect(() => {
-    // Keep only detections from the last 2 seconds to avoid stale boxes
     const now = Date.now();
     const recent = detections.filter(d => (now - new Date(d.timestamp).getTime()) < 2000);
     setActiveDetections(recent);
@@ -98,40 +118,45 @@ export function DetectionsOverlay({ detections }: { detections: any[] }) {
     return () => clearInterval(timer);
   }, [detections]);
 
+  const viewBox = `0 0 ${frameWidth} ${frameHeight}`;
+
   return (
-    <svg className="absolute inset-0 w-full h-full pointer-events-none z-30" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <svg className="absolute inset-0 w-full h-full pointer-events-none z-30" viewBox={viewBox} preserveAspectRatio="none">
       {activeDetections.map((d) => {
-        const bbox = d.bbox;
-        if (!bbox || typeof bbox.x === 'undefined') return null;
-        
+        const b = normalizeBbox(d.bbox);
+        if (!b || b.w <= 0 || b.h <= 0) return null;
+
         const isKnown = d.status === 'known';
         const isObject = d.status === 'object';
-        const color = isKnown ? '#22c55e' : isObject ? '#3b82f6' : '#ef4444'; // Green, Blue, Red
-        
+        const color = isKnown ? '#22c55e' : isObject ? '#3b82f6' : '#ef4444';
+
+        // Scale stroke/label sizes relative to viewBox for readability
+        const strokeW = Math.max(1, frameWidth / 500);
+
         return (
           <g key={d.id} className="fade-in animate-in">
             <rect
-              x={bbox.x}
-              y={bbox.y}
-              width={bbox.w}
-              height={bbox.h}
+              x={b.x}
+              y={b.y}
+              width={b.w}
+              height={b.h}
               fill="transparent"
               stroke={color}
-              strokeWidth="0.5"
+              strokeWidth={strokeW}
               className="drop-shadow-md"
             />
             <rect
-              x={bbox.x}
-              y={Math.max(0, bbox.y - 4)}
-              width={Math.min(100 - bbox.x, (d.label?.length || 5) * 2 + 4)}
-              height="4"
+              x={b.x}
+              y={Math.max(0, b.y - frameHeight * 0.025)}
+              width={Math.min(frameWidth - b.x, (d.label?.length || 5) * frameWidth * 0.015 + 4)}
+              height={frameHeight * 0.025}
               fill={color}
               opacity="0.8"
             />
             <text
-              x={bbox.x + 0.5}
-              y={Math.max(3, bbox.y - 1)}
-              fontSize="2.5"
+              x={b.x + strokeW}
+              y={Math.max(frameHeight * 0.02, b.y - 1)}
+              fontSize={frameHeight * 0.028}
               fontWeight="bold"
               fill="white"
               fontFamily="Inter, sans-serif"

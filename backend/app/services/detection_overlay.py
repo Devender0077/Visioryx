@@ -137,23 +137,33 @@ def _draw_detections(frame: np.ndarray, faces: list[dict], objects: list[dict]) 
         
         # Calculate text size for proper positioning
         (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 2)
+        pad = 3
         
-        # Position text inside box at top-left if box is large enough, else above
-        if (x2 - x1) > text_w + 10 and (y2 - y1) > text_h + 15:
-            # Put text inside box
-            text_x = x1 + 4
-            text_y = y1 + text_h + 4
-        else:
-            # Put text above box
-            text_x = x1
-            text_y = max(y1 - 5, text_h + 5)
-            # Adjust if text would go off right edge
-            if text_x + text_w > x2:
-                text_x = max(x2 - text_w - 2, 0)
+        # Always place label above the box so it never covers the face.
+        # If there's no room above, place below.
+        text_x = x1
+        text_y = y1 - pad  # Baseline just above the box top
+        if text_y - text_h < 0:
+            # No room above frame — place below the box
+            text_y = y2 + text_h + pad
         
-        # Draw background for text readability
-        cv2.rectangle(out, (text_x - 2, text_y - text_h - 2), (text_x + text_w + 2, text_y + 2), (0, 0, 0), -1)
-        cv2.putText(out, label, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+        # Clamp horizontally so text doesn't spill off the frame edge
+        if text_x + text_w > w:
+            text_x = max(w - text_w - pad, 0)
+        if text_x < 0:
+            text_x = 0
+        
+        # Draw semi-transparent label background (75% opacity over original pixels)
+        bg_x1 = max(text_x - pad, 0)
+        bg_y1 = max(text_y - text_h - pad, 0)
+        bg_x2 = min(text_x + text_w + pad, w)
+        bg_y2 = min(text_y + pad, h)
+        if bg_x2 > bg_x1 and bg_y2 > bg_y1:
+            roi = out[bg_y1:bg_y2, bg_x1:bg_x2]
+            dark = np.full_like(roi, (30, 30, 30), dtype=np.uint8)
+            out[bg_y1:bg_y2, bg_x1:bg_x2] = cv2.addWeighted(roi, 0.25, dark, 0.75, 0)
+        
+        cv2.putText(out, label, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 2)
         
     for o in objects:
         bbox = o.get("bbox")
@@ -169,18 +179,29 @@ def _draw_detections(frame: np.ndarray, faces: list[dict], objects: list[dict]) 
         cv2.rectangle(out, (x1, y1), (x2, y2), (255, 128, 0), 2)
         
         (text_w, text_h), _ = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        pad = 3
         
-        if (x2 - x1) > text_w + 10 and (y2 - y1) > text_h + 15:
-            text_x = x1 + 4
-            text_y = y1 + text_h + 4
-        else:
-            text_x = x1
-            text_y = max(y1 - 5, text_h + 5)
-            if text_x + text_w > x2:
-                text_x = max(x2 - text_w - 2, 0)
+        # Always place label above the box so it never covers the object.
+        text_x = x1
+        text_y = y1 - pad
+        if text_y - text_h < 0:
+            text_y = y2 + text_h + pad
         
-        cv2.rectangle(out, (text_x - 2, text_y - text_h - 2), (text_x + text_w + 2, text_y + 2), (0, 0, 0), -1)
-        cv2.putText(out, name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 128, 0), 1)
+        if text_x + text_w > w:
+            text_x = max(w - text_w - pad, 0)
+        if text_x < 0:
+            text_x = 0
+        
+        bg_x1 = max(text_x - pad, 0)
+        bg_y1 = max(text_y - text_h - pad, 0)
+        bg_x2 = min(text_x + text_w + pad, w)
+        bg_y2 = min(text_y + pad, h)
+        if bg_x2 > bg_x1 and bg_y2 > bg_y1:
+            roi = out[bg_y1:bg_y2, bg_x1:bg_x2]
+            dark = np.full_like(roi, (30, 30, 30), dtype=np.uint8)
+            out[bg_y1:bg_y2, bg_x1:bg_x2] = cv2.addWeighted(roi, 0.25, dark, 0.75, 0)
+        
+        cv2.putText(out, name, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     return out
 
 
