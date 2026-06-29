@@ -1,8 +1,8 @@
 /**
  * Audit log — admin-only chronological action feed with filters + CSV export.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { api } from '@/lib/api';
@@ -43,24 +43,48 @@ export default function AuditScreen() {
   const [items, setItems] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [actorFilter, setActorFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
+  const offsetRef = useRef(0);
+  const pageSize = 100;
+
+  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+    const params = new URLSearchParams({ limit: String(pageSize), offset: String(offset) });
+    if (actorFilter.trim()) params.set('actor', actorFilter.trim());
+    if (actionFilter.trim()) params.set('action', actionFilter.trim());
+    const r = await api<{ items: Row[]; total: number }>(`/api/v1/audit?${params.toString()}`);
+    if (append) {
+      setItems((prev) => [...prev, ...r.items]);
+    } else {
+      setItems(r.items);
+    }
+    setTotal(r.total);
+    return r;
+  }, [actorFilter, actionFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
+    offsetRef.current = 0;
     try {
-      const params = new URLSearchParams({ limit: '200', offset: '0' });
-      if (actorFilter.trim()) params.set('actor', actorFilter.trim());
-      if (actionFilter.trim()) params.set('action', actionFilter.trim());
-      const r = await api<{ items: Row[]; total: number }>(`/api/v1/audit?${params.toString()}`);
-      setItems(r.items);
-      setTotal(r.total);
+      await fetchPage(0, false);
     } catch {
       setItems([]);
     } finally {
       setLoading(false);
     }
-  }, [actorFilter, actionFilter]);
+  }, [fetchPage]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || items.length >= total) return;
+    setLoadingMore(true);
+    const nextOffset = offsetRef.current + pageSize;
+    try {
+      await fetchPage(nextOffset, true);
+      offsetRef.current = nextOffset;
+    } catch { /* ignore */ }
+    finally { setLoadingMore(false); }
+  }, [fetchPage, loadingMore, items.length, total]);
 
   useEffect(() => { void load(); }, [load, tick]);
 
@@ -103,6 +127,19 @@ export default function AuditScreen() {
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.pad}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.primaryAccent} />}
+        onEndReached={() => { if (items.length < total) loadMore(); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          loadingMore ? (
+            <ActivityIndicator color={C.primaryAccent} style={{ paddingVertical: Space.lg }} />
+          ) : items.length < total ? (
+            <Pressable onPress={() => loadMore()} style={{ paddingVertical: Space.md, alignItems: 'center' as any }}>
+              <Text style={styles.loadMoreText}>Show more ({total - items.length} remaining)</Text>
+            </Pressable>
+          ) : items.length > 0 ? (
+            <Text style={styles.loadMoreText}>All {total} entries loaded</Text>
+          ) : null
+        }
         ItemSeparatorComponent={() => <View style={{ height: Space.xs }} />}
         ListHeaderComponent={
           <View>
@@ -237,4 +274,5 @@ const styles = StyleSheet.create({
   detail: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, marginTop: 2, fontSize: 10 },
   time: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, fontSize: 10 },
   empty: { ...TextStyles.body, color: C.textMuted, padding: Space.xxl, textAlign: 'center' },
+  loadMoreText: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, textAlign: 'center' },
 });

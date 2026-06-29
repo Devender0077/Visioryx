@@ -105,15 +105,28 @@ export default function UsersScreen() {
       <CommandBackground />
       <MobileBackButton />
       <FlatList
-        data={vm.filtered}
+        data={vm.items}
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.pad}
         refreshControl={<RefreshControl refreshing={vm.loading} onRefresh={vm.refresh} tintColor={C.primaryAccent} />}
+        onEndReached={() => { if (vm.hasMore) vm.loadMore(); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          vm.loadingMore ? (
+            <ActivityIndicator color={C.primaryAccent} style={{ paddingVertical: Space.lg }} />
+          ) : vm.hasMore ? (
+            <Pressable onPress={() => vm.loadMore()} style={styles.loadMoreBtn}>
+              <Text style={styles.loadMoreText}>Show more ({vm.total - vm.items.length} remaining)</Text>
+            </Pressable>
+          ) : vm.items.length > 0 ? (
+            <Text style={styles.loadMoreText}>All {vm.total} users loaded</Text>
+          ) : null
+        }
         ListHeaderComponent={
           <View>
             <SectionEyebrow>Directory</SectionEyebrow>
             <ScreenTitle>User management</ScreenTitle>
-            <ScreenSub>Operators, enrollees, and biometric enrollment status.</ScreenSub>
+            <ScreenSub>{vm.total} users · Operators, enrollees, and biometric enrollment status.</ScreenSub>
 
             <View style={styles.searchRow}>
               <View style={styles.searchWrap}>
@@ -500,4 +513,6 @@ const styles = StyleSheet.create({
   roleCardActive: { borderColor: C.primary, backgroundColor: C.primaryFaint },
   roleCardLabel: { ...TextStyles.bodySmall, color: C.text, fontFamily: F.bodySemibold },
   roleCardDesc: { ...TextStyles.caption, color: C.textMuted, marginTop: 2 },
+  loadMoreBtn: { paddingVertical: Space.md, alignItems: 'center' },
+  loadMoreText: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, textAlign: 'center' },
 });

@@ -1,7 +1,7 @@
 /**
  * Detections forensic table — MVVM via `useDetectionsViewModel`.
  */
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useDetectionsViewModel, type DetectionItem } from '@/viewmodels';
@@ -26,6 +26,19 @@ export default function DetectionsScreen() {
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.pad}
         refreshControl={<RefreshControl refreshing={vm.loading} onRefresh={vm.refresh} tintColor={C.primaryAccent} />}
+        onEndReached={() => { if (vm.hasMore) vm.loadMore(); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          vm.loadingMore ? (
+            <ActivityIndicator color={C.primaryAccent} style={{ paddingVertical: Space.lg }} />
+          ) : vm.hasMore ? (
+            <Pressable onPress={() => vm.loadMore()} style={styles.loadMoreBtn}>
+              <Text style={styles.loadMoreText}>Show more ({vm.total - vm.items.length} remaining)</Text>
+            </Pressable>
+          ) : vm.items.length > 0 ? (
+            <Text style={styles.loadMoreText}>All {vm.total} results loaded</Text>
+          ) : null
+        }
         ListHeaderComponent={
           <View>
             <SectionEyebrow>Forensics</SectionEyebrow>
@@ -134,4 +147,6 @@ const styles = StyleSheet.create({
   confText: { ...TextStyles.dataSmall, fontFamily: F.monoSemibold },
 
   empty: { ...TextStyles.body, color: C.textMuted, padding: Space.xxl, textAlign: 'center' },
+  loadMoreBtn: { paddingVertical: Space.md, alignItems: 'center' },
+  loadMoreText: { ...TextStyles.caption, color: C.textFaint, fontFamily: F.mono, textAlign: 'center' },
 });

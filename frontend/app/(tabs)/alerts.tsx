@@ -122,6 +122,19 @@ export default function AlertsScreen() {
         refreshControl={
           <RefreshControl refreshing={vm.loading} onRefresh={vm.refresh} tintColor={C.primaryAccent} />
         }
+        onEndReached={() => { if (vm.hasMore) vm.loadMore(); }}
+        onEndReachedThreshold={0.3}
+        ListFooterComponent={
+          vm.loadingMore ? (
+            <ActivityIndicator color={C.primaryAccent} style={{ paddingVertical: Space.lg }} />
+          ) : vm.hasMore ? (
+            <Pressable onPress={() => vm.loadMore()} style={{ paddingVertical: Space.md, alignItems: 'center' as any }}>
+              <Text style={styles.empty}>Show more ({vm.total - vm.items.length} remaining)</Text>
+            </Pressable>
+          ) : vm.items.length > 0 ? (
+            <Text style={styles.empty}>All {vm.total} alerts loaded</Text>
+          ) : null
+        }
         ItemSeparatorComponent={() => <View style={{ height: Space.sm }} />}
         renderItem={({ item }) => <AlertRow item={item} onRead={() => vm.markRead(item.id)} />}
         ListEmptyComponent={
