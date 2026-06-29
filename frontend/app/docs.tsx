@@ -97,7 +97,7 @@ export default function DocsScreen() {
           <P><Text style={styles.bold}>macOS:</Text></P>
           <Code>ipconfig getifaddr en0</Code>
           <P><Text style={styles.bold}>Linux:</Text></P>
-          <Code>hostname -I | awk '{print $1}'</Code>
+          <Code>{`hostname -I | awk '{print $1}'`}</Code>
           <P><Text style={styles.bold}>Windows:</Text></P>
           <Code>ipconfig  (look for IPv4 Address)</Code>
           <P>Your frontend URL is: http://&lt;IP&gt;:8081 (Expo dev) or your production domain.</P>
