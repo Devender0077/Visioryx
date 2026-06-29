@@ -6,9 +6,10 @@
  * time and override the StyleSheet-baked colors inline, so light mode
  * works on both platforms for components that go through these primitives.
  */
-import { ReactNode, forwardRef } from 'react';
+import { ReactNode, forwardRef, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   PressableProps,
   StyleProp,
@@ -263,8 +264,172 @@ const styles = StyleSheet.create({
     ...TextStyles.bodySmall,
     flex: 1,
   },
+
+  // Modal / Dialog
+  modalScrim: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Space.lg,
+  },
+  modalSheet: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    padding: Space.lg,
+    gap: Space.md,
+  },
+  modalTitle: {
+    ...TextStyles.h4,
+    fontFamily: F.heading,
+  },
+  modalMsg: {
+    ...TextStyles.body,
+    lineHeight: 22,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Space.sm,
+    justifyContent: 'flex-end',
+    marginTop: Space.sm,
+  },
 });
 
 // Re-export the static palette for keys that don't change between themes
 // (primary, cyan, etc) and components that already access them directly.
 export { C };
+
+// ---------- Confirm modal (themed, works on web + native) ----------
+interface VxConfirmProps {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'danger' | 'primary';
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function VxConfirm({
+  open,
+  title,
+  message,
+  confirmLabel = 'Delete',
+  cancelLabel = 'Cancel',
+  variant = 'danger',
+  busy,
+  onConfirm,
+  onCancel,
+}: VxConfirmProps) {
+  const c = useColors();
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onCancel}>
+      <Pressable style={styles.modalScrim} onPress={onCancel}>
+        <View
+          style={[styles.modalSheet, { backgroundColor: c.surface, borderColor: c.border }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <Text style={[styles.modalTitle, { color: c.text }]}>{title}</Text>
+          <Text style={[styles.modalMsg, { color: c.textMuted }]}>{message}</Text>
+          <View style={styles.modalActions}>
+            <VxButton
+              label={cancelLabel}
+              variant="secondary"
+              onPress={onCancel}
+              disabled={busy}
+            />
+            <VxButton
+              label={confirmLabel}
+              variant={variant}
+              onPress={onConfirm}
+              busy={busy}
+            />
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ---------- Alert modal (themed, single OK button) ----------
+interface VxAlertProps {
+  open: boolean;
+  title: string;
+  message: string;
+  okLabel?: string;
+  onClose: () => void;
+}
+
+export function VxAlert({ open, title, message, okLabel = 'OK', onClose }: VxAlertProps) {
+  const c = useColors();
+  return (
+    <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalScrim} onPress={onClose}>
+        <View
+          style={[styles.modalSheet, { backgroundColor: c.surface, borderColor: c.border }]}
+          onStartShouldSetResponder={() => true}
+        >
+          <Text style={[styles.modalTitle, { color: c.text }]}>{title}</Text>
+          <Text style={[styles.modalMsg, { color: c.textMuted }]}>{message}</Text>
+          <View style={styles.modalActions}>
+            <VxButton label={okLabel} variant="primary" onPress={onClose} fullWidth />
+          </View>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ---------- Hook: returns a confirm dialog trigger ----------
+export function useConfirm() {
+  const [state, setState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    variant: 'danger' | 'primary';
+    confirmLabel: string;
+    resolve: ((v: boolean) => void) | null;
+  }>({ open: false, title: '', message: '', variant: 'danger', confirmLabel: 'Delete', resolve: null });
+
+  const confirm = useCallback(
+    (title: string, message: string, opts?: { variant?: 'danger' | 'primary'; confirmLabel?: string }) =>
+      new Promise<boolean>((resolve) => {
+        setState({
+          open: true,
+          title,
+          message,
+          variant: opts?.variant ?? 'danger',
+          confirmLabel: opts?.confirmLabel ?? 'Delete',
+          resolve,
+        });
+      }),
+    [],
+  );
+
+  const handleConfirm = () => {
+    state.resolve?.(true);
+    setState((s) => ({ ...s, open: false }));
+  };
+  const handleCancel = () => {
+    state.resolve?.(false);
+    setState((s) => ({ ...s, open: false }));
+  };
+
+  const ConfirmDialog = (
+    <VxConfirm
+      open={state.open}
+      title={state.title}
+      message={state.message}
+      variant={state.variant}
+      confirmLabel={state.confirmLabel}
+      onConfirm={handleConfirm}
+      onCancel={handleCancel}
+    />
+  );
+
+  return { confirm, ConfirmDialog };
+}

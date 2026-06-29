@@ -3,12 +3,12 @@
  * Keeps each screen file small and consistent.
  */
 import { ReactNode, useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { CommandBackground } from '@/components/CommandBackground';
 import { GlassCard, GlowOrb } from '@/components/glass';
-import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner } from '@/components/vx';
+import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner, useConfirm } from '@/components/vx';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 
 export interface FieldDef { key: string; label: string; placeholder?: string; multiline?: boolean }
@@ -26,6 +26,8 @@ export function AiCrudScreen<T extends { id: string }>(props: {
   deleter: (id: string) => Promise<unknown>;
   renderRow: (item: T, actions: { remove: () => void; extra?: ReactNode }) => ReactNode;
   customActionButton?: ReactNode;
+  deleteConfirmTitle?: string;
+  deleteConfirmMsg?: string;
 }) {
   const router = useRouter();
   const [items, setItems] = useState<T[]>([]);
@@ -33,6 +35,8 @@ export function AiCrudScreen<T extends { id: string }>(props: {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const load = () => props.fetcher().then(setItems).catch((e) => setError(e.message));
   useEffect(() => { void load(); }, []); // eslint-disable-line
@@ -51,9 +55,8 @@ export function AiCrudScreen<T extends { id: string }>(props: {
   };
 
   const onDelete = async (id: string) => {
-    if (Platform.OS === 'web') {
-      if (!window.confirm('Delete this item?')) return;
-    }
+    const ok = await confirm(props.deleteConfirmTitle ?? 'Delete item', props.deleteConfirmMsg ?? 'Delete this item?');
+    if (!ok) return;
     try { await props.deleter(id); await load(); } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : 'Failed');
     }
@@ -126,6 +129,7 @@ export function AiCrudScreen<T extends { id: string }>(props: {
           </GlassCard>
         </View>
       </Modal>
+      {ConfirmDialog}
     </View>
   );
 }

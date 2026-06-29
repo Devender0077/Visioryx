@@ -2,13 +2,13 @@
  * Agents — list + create with MCP server tool-binding.
  */
 import { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AiRepository, type AgentModel, type McpServerModel, type ModelInfo } from '@/viewmodels/repositories/aiRepository';
 import { CommandBackground } from '@/components/CommandBackground';
 import { GlassCard, GlowOrb } from '@/components/glass';
-import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner } from '@/components/vx';
+import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner, useConfirm } from '@/components/vx';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 
 export default function AgentsScreen() {
@@ -19,6 +19,8 @@ export default function AgentsScreen() {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const { confirm, ConfirmDialog } = useConfirm();
 
   // Form
   const [name, setName] = useState('');
@@ -59,7 +61,8 @@ export default function AgentsScreen() {
   };
 
   const remove = async (id: string) => {
-    if (Platform.OS === 'web' && !window.confirm('Delete this agent?')) return;
+    const ok = await confirm('Delete agent', 'Delete this agent?');
+    if (!ok) return;
     try { await AiRepository.deleteAgent(id); await load(); } catch (e) { Alert.alert('Error', String(e)); }
   };
 
@@ -200,6 +203,7 @@ export default function AgentsScreen() {
           </GlassCard>
         </View>
       </Modal>
+      {ConfirmDialog}
     </View>
   );
 }

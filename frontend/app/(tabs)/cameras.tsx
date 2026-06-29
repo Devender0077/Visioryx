@@ -17,7 +17,7 @@ import { getStoredToken } from '@/lib/api';
 import { getApiBase } from '@/lib/config';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 import { CommandBackground } from '@/components/CommandBackground';
-import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner } from '@/components/vx';
+import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner, useConfirm } from '@/components/vx';
 import { HlsPlayer } from '@/components/HlsPlayer';
 
 export default function CamerasScreen() {
@@ -38,6 +38,8 @@ export default function CamerasScreen() {
 
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState('');
+
+  const { confirm, ConfirmDialog } = useConfirm();
   const [url, setUrl] = useState('');
 
   const [editName, setEditName] = useState('');
@@ -123,17 +125,11 @@ export default function CamerasScreen() {
     }
   };
 
-  const onRemove = (cam: CameraModel) => {
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      if (window.confirm(`Remove ${cam.camera_name}?`)) {
-        vm.remove(cam.id).catch((e) => Alert.alert('Error', e?.message));
-      }
-      return;
+  const onRemove = async (cam: CameraModel) => {
+    const ok = await confirm('Remove camera', `Remove ${cam.camera_name}?`, { confirmLabel: 'Remove' });
+    if (ok) {
+      vm.remove(cam.id).catch((e) => Alert.alert('Error', e?.message));
     }
-    Alert.alert('Remove camera', `Remove ${cam.camera_name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => vm.remove(cam.id) },
-    ]);
   };
 
   const onPairCreate = async () => {
@@ -478,6 +474,7 @@ export default function CamerasScreen() {
           </View>
         </View>
       </Modal>
+      {ConfirmDialog}
     </View>
   );
 }

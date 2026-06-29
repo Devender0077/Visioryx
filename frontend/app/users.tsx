@@ -12,7 +12,7 @@ import { getStoredToken } from '@/lib/api';
 import { getApiBase } from '@/lib/config';
 import { PaletteDark as C, FontFamily as F, Radius, Space, TextStyles } from '@/constants/visionTheme';
 import { CommandBackground } from '@/components/CommandBackground';
-import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner } from '@/components/vx';
+import { SectionEyebrow, ScreenTitle, ScreenSub, VxButton, VxInput, ErrorBanner, useConfirm, VxAlert } from '@/components/vx';
 import MobileBackButton from '@/components/MobileBackButton';
 
 const ROLES = [
@@ -36,6 +36,8 @@ export default function UsersScreen() {
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [roleFor, setRoleFor] = useState<UserItem | null>(null);
   const [enrollFor, setEnrollFor] = useState<UserItem | null>(null);
+
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const closeMenu = () => { setMenuFor(null); setMenuPos(null); };
 
@@ -66,18 +68,12 @@ export default function UsersScreen() {
     }
   };
 
-  const onDelete = (u: UserItem) => {
+  const onDelete = async (u: UserItem) => {
     setMenuFor(null);
-    if (typeof window !== 'undefined' && typeof window.confirm === 'function') {
-      if (window.confirm(`Remove ${u.email}?`)) {
-        vm.remove(u.id).catch((e) => Alert.alert('Error', e?.message));
-      }
-      return;
+    const ok = await confirm('Delete user', `Remove ${u.email}?`);
+    if (ok) {
+      vm.remove(u.id).catch((e) => Alert.alert('Error', e?.message));
     }
-    Alert.alert('Delete user', `Remove ${u.email}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => vm.remove(u.id) },
-    ]);
   };
 
   const onSendLink = async (u: UserItem) => {
@@ -302,6 +298,7 @@ export default function UsersScreen() {
         onClose={() => setEnrollFor(null)}
         onSuccess={() => { setEnrollFor(null); vm.refresh(); }}
       />
+      {ConfirmDialog}
     </View>
   );
 }
