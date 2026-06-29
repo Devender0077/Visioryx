@@ -26,6 +26,7 @@ services:
       DATABASE_URL_SYNC: postgresql://postgres:postgres@db:5432/visioryx
       CORS_ORIGINS: https://visionaryx.forgetechno.com,https://api.visionaryx.forgetechno.com
       PUBLIC_DASHBOARD_URL: https://visionaryx.forgetechno.com
+      PUBLIC_FRONTEND_URL: https://visionaryx.forgetechno.com
       PUBLIC_API_URL: https://api.visionaryx.forgetechno.com
     volumes:
       - backend-storage:/app/storage
