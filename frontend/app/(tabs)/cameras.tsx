@@ -484,8 +484,12 @@ const styles = StyleSheet.create({
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
   searchRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.lg, marginBottom: Space.md, alignItems: 'center', flexWrap: 'wrap' },
-  searchWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Space.xs, minWidth: 200 },
-  searchInput: { paddingLeft: Space.sm },
+  searchWrap: {
+    flex: 1, minWidth: 200, flexDirection: 'row', alignItems: 'center', gap: Space.sm,
+    borderRadius: Radius.sm, borderWidth: 1,
+    paddingHorizontal: Space.md, paddingVertical: 10,
+  },
+  searchInput: { flex: 1, paddingLeft: Space.sm, outline: 'none' as any },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

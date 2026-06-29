@@ -93,16 +93,18 @@ export default function AlertsScreen() {
         </View>
 
         {/* Search */}
-        <View style={styles.searchWrap}>
-          <MaterialCommunityIcons name="magnify" size={16} color={C.textMuted} />
-          <TextInput
-            placeholder="Search alerts, messages…"
-            placeholderTextColor={C.textFaint}
-            style={styles.searchInput}
-            value={vm.query}
-            onChangeText={vm.setQuery}
-            testID="alerts-search"
-          />
+        <View style={styles.searchRow}>
+          <View style={styles.searchWrap}>
+            <MaterialCommunityIcons name="magnify" size={16} color={C.textMuted} />
+            <TextInput
+              placeholder="Search alerts, messages…"
+              placeholderTextColor={C.textFaint}
+              style={styles.searchInput}
+              value={vm.query}
+              onChangeText={vm.setQuery}
+              testID="alerts-search"
+            />
+          </View>
         </View>
       </View>
     ),
@@ -187,19 +189,13 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: C.primaryFaint, borderColor: C.primary },
   chipText: { ...TextStyles.label, color: C.textMuted, fontSize: 10 },
 
+  searchRow: { flexDirection: 'row', gap: Space.sm, alignItems: 'center', marginTop: Space.md, marginBottom: Space.sm, flexWrap: 'wrap' },
   searchWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Space.sm,
-    marginTop: Space.md,
-    paddingHorizontal: Space.md,
-    paddingVertical: 4,
-    backgroundColor: C.surface,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: C.border,
+    flex: 1, minWidth: 200, flexDirection: 'row', alignItems: 'center', gap: Space.sm,
+    paddingHorizontal: Space.md, paddingVertical: 10,
+    backgroundColor: C.surface, borderRadius: Radius.sm, borderWidth: 1, borderColor: C.border,
   },
-  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 10 },
+  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 8, outline: 'none' as any },
 
   row: {
     flexDirection: 'row',

@@ -444,13 +444,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
 
-  searchRow: { flexDirection: 'row', gap: Space.sm, alignItems: 'center', marginTop: Space.lg },
+  searchRow: { flexDirection: 'row', gap: Space.sm, alignItems: 'center', marginTop: Space.lg, marginBottom: Space.md, flexWrap: 'wrap' },
   searchWrap: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: Space.sm,
+    flex: 1, minWidth: 200, flexDirection: 'row', alignItems: 'center', gap: Space.sm,
     backgroundColor: C.surface, borderRadius: Radius.sm, borderWidth: 1, borderColor: C.border,
-    paddingHorizontal: Space.md, paddingVertical: 4,
+    paddingHorizontal: Space.md, paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 10 },
+  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 8, outline: 'none' as any },
 
   kpiRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.md, marginBottom: Space.md },
   kpiTile: { flex: 1, backgroundColor: C.surface, borderRadius: Radius.md, padding: Space.md, borderWidth: 1 },

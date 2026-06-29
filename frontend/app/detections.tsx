@@ -34,16 +34,18 @@ export default function DetectionsScreen() {
               Search across <Text style={styles.mono}>{vm.total}</Text> events. Filter by camera, identity or confidence.
             </ScreenSub>
 
-            <View style={styles.searchWrap}>
-              <MaterialCommunityIcons name="magnify" size={16} color={C.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                value={vm.query}
-                onChangeText={vm.setQuery}
-                placeholder="Search by camera, name, id…"
-                placeholderTextColor={C.textFaint}
-                testID="detections-search"
-              />
+            <View style={styles.searchRow}>
+              <View style={styles.searchWrap}>
+                <MaterialCommunityIcons name="magnify" size={16} color={C.textMuted} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={vm.query}
+                  onChangeText={vm.setQuery}
+                  placeholder="Search by camera, name, id…"
+                  placeholderTextColor={C.textFaint}
+                  testID="detections-search"
+                />
+              </View>
             </View>
 
             <View style={styles.statRow}>
@@ -103,12 +105,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: 'transparent' },
   pad: { padding: Space.lg, paddingBottom: 100, maxWidth: 1200, width: '100%', alignSelf: 'center' },
   mono: { fontFamily: F.mono, color: C.text },
+  searchRow: { flexDirection: 'row', gap: Space.sm, alignItems: 'center', marginTop: Space.lg, marginBottom: Space.md, flexWrap: 'wrap' },
   searchWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: Space.sm,
-    marginTop: Space.lg, paddingHorizontal: Space.md, paddingVertical: 6,
+    flex: 1, minWidth: 200, flexDirection: 'row', alignItems: 'center', gap: Space.sm,
+    paddingHorizontal: Space.md, paddingVertical: 10,
     backgroundColor: C.surface, borderRadius: Radius.sm, borderWidth: 1, borderColor: C.border,
   },
-  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 10 },
+  searchInput: { flex: 1, color: C.text, fontFamily: F.body, fontSize: 14, paddingVertical: 8, outline: 'none' as any },
   statRow: { flexDirection: 'row', gap: Space.sm, marginTop: Space.md, marginBottom: Space.md },
   statChip: { flexDirection: 'row', alignItems: 'center', gap: Space.xs, paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radius.sm, borderWidth: 1 },
   dot: { width: 6, height: 6, borderRadius: 3 },
