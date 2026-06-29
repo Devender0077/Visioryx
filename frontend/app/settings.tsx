@@ -58,6 +58,9 @@ export default function SettingsScreen() {
 
   const [detLoading, setDetLoading] = useState(false);
   const [detState, setDetState] = useState({ face: true, yolo: false, person: false });
+  const [kgApiKey, setKgApiKey] = useState('');
+  const [kgConfigured, setKgConfigured] = useState(false);
+  const [kgSaving, setKgSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!isAdmin) { setLoading(false); return; }
@@ -92,14 +95,34 @@ export default function SettingsScreen() {
         yolo_object_detection_enabled: boolean;
         person_detection_enabled: boolean;
         can_edit: boolean;
+        google_kg_api_key_configured?: boolean;
       }>('/api/v1/settings');
       setDetState({
         face: data.face_detection_enabled,
         yolo: data.yolo_object_detection_enabled,
         person: data.person_detection_enabled,
       });
+      setKgConfigured(!!data.google_kg_api_key_configured);
     } catch { /* ignore */ }
   }, []);
+
+  const saveKgKey = async () => {
+    if (!isAdmin) return;
+    setKgSaving(true);
+    try {
+      await api('/api/v1/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({ google_kg_api_key: kgApiKey }),
+      });
+      setKgConfigured(true);
+      setKgApiKey('');
+      Alert.alert('Saved', 'Google Knowledge Graph API key updated.');
+    } catch (e) {
+      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setKgSaving(false);
+    }
+  };
 
   const toggleDetection = async (key: 'face' | 'yolo' | 'person', value: boolean) => {
     if (!isAdmin) return;
@@ -445,6 +468,37 @@ export default function SettingsScreen() {
         isAdmin={isAdmin}
         onToggle={(key, v) => toggleDetection(key, v)}
       />
+
+      {/* Google Knowledge Graph API key */}
+      <VxCard style={{ marginTop: Space.md, gap: Space.md }}>
+        <View>
+          <Text style={detectionStyles.title}>Google Knowledge Graph</Text>
+          <Text style={detectionStyles.sub}>
+            Enrich detection data with entity information from Google's Knowledge Graph. Get an API key from Google Cloud Console.
+          </Text>
+        </View>
+        {kgConfigured ? (
+          <Text style={{ ...TextStyles.caption, color: C.success, fontFamily: F.mono }}>
+            API key is configured. Update below if needed.
+          </Text>
+        ) : null}
+        <VxInput
+          label="API key"
+          placeholder={kgConfigured ? 'Enter new key to update' : 'Paste your Google KG API key'}
+          value={kgApiKey}
+          onChangeText={setKgApiKey}
+          autoCapitalize="none"
+          secureTextEntry={!!kgConfigured}
+          testID="kg-api-key"
+        />
+        <VxButton
+          label={kgConfigured ? 'Update key' : 'Save key'}
+          onPress={saveKgKey}
+          busy={kgSaving}
+          disabled={!kgApiKey.trim()}
+          testID="kg-save-key"
+        />
+      </VxCard>
     </ScrollView>
     </View>
   );

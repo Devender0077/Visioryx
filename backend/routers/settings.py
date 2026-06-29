@@ -18,6 +18,7 @@ async def get_all_settings(_: dict[str, Any] = Depends(require_admin)) -> dict[s
     """Aggregate all detection settings for the settings dashboard."""
     db = get_db()
     doc = await db.settings.find_one({"_id": "detection_overlays"}) or {}
+    kg_doc = await db.settings.find_one({"_id": "ai_integrations"}) or {}
     return {
         "face_detection_enabled": doc.get("face_detection_enabled", True),
         "face_detection_from_database": bool(doc.get("face_detection_enabled") is not None),
@@ -33,6 +34,7 @@ async def get_all_settings(_: dict[str, Any] = Depends(require_admin)) -> dict[s
         "mediamtx_ws_url": "",
         "mediamtx_api_url": "",
         "public_api_url": "",
+        "google_kg_api_key_configured": bool(kg_doc.get("google_kg_api_key")),
     }
 
 
@@ -40,6 +42,7 @@ class AppSettingsPatch(BaseModel):
     yolo_object_detection_enabled: bool | None = None
     face_detection_enabled: bool | None = None
     person_detection_enabled: bool | None = None
+    google_kg_api_key: str | None = None
     use_environment_default_for_yolo: bool = False
     use_environment_default_for_face: bool = False
     use_environment_default_for_person: bool = False
@@ -71,7 +74,19 @@ async def patch_all_settings(
             {"$set": update},
             upsert=True,
         )
+
+    # Save KG API key separately
+    kg_configured = False
+    if body.google_kg_api_key is not None:
+        await db.settings.update_one(
+            {"_id": "ai_integrations"},
+            {"$set": {"google_kg_api_key": body.google_kg_api_key}},
+            upsert=True,
+        )
+        kg_configured = True
+
     doc = await db.settings.find_one({"_id": "detection_overlays"}) or {}
+    kg_doc = await db.settings.find_one({"_id": "ai_integrations"}) or {}
     return {
         "face_detection_enabled": doc.get("face_detection_enabled", True),
         "face_detection_from_database": bool("face_detection_enabled" in doc),
@@ -87,6 +102,7 @@ async def patch_all_settings(
         "mediamtx_ws_url": "",
         "mediamtx_api_url": "",
         "public_api_url": "",
+        "google_kg_api_key_configured": kg_configured or bool(kg_doc.get("google_kg_api_key")),
     }
 
 

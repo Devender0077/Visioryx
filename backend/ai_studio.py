@@ -607,8 +607,21 @@ def build_ai_router(api_prefix: str, current_user, require_admin, get_db) -> API
     # -----------------------------------------------------------------------
     # Google Knowledge Graph
     # -----------------------------------------------------------------------
-    KG_API_KEY = os.environ.get("GOOGLE_KG_API_KEY", "")
     KG_ENDPOINT = "https://kgsearch.googleapis.com/v1/entities:search"
+
+    def _get_kg_api_key() -> str:
+        """Read KG API key from MongoDB settings, fall back to env var."""
+        try:
+            db = get_db()
+            import asyncio as _a
+            doc = _a.get_event_loop().run_until_complete(
+                db.settings.find_one({"_id": "ai_integrations"})
+            )
+            if doc and doc.get("google_kg_api_key"):
+                return doc["google_kg_api_key"]
+        except Exception:
+            pass
+        return os.environ.get("GOOGLE_KG_API_KEY", "")
 
     class KgQuery(BaseModel):
         query: str = Field(..., description="Search term (person, place, object, etc.)")
@@ -621,14 +634,15 @@ def build_ai_router(api_prefix: str, current_user, require_admin, get_db) -> API
 
     @r.post("/knowledge-graph", response_model=KgResult)
     async def query_knowledge_graph(body: KgQuery, _: dict = Depends(current_user)):
-        if not KG_API_KEY:
+        api_key = _get_kg_api_key()
+        if not api_key:
             raise HTTPException(status_code=501, detail="GOOGLE_KG_API_KEY not configured on server")
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 KG_ENDPOINT,
                 params={
                     "query": body.query,
-                    "key": KG_API_KEY,
+                    "key": api_key,
                     "limit": body.limit,
                     "languages": body.languages,
                 },
