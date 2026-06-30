@@ -130,7 +130,7 @@ async def create_phone_camera(
         "rtsp_url": f"phone://{cam_id}",
         "kind": "phone",
         "pair_token": pair_token,
-        "pair_expires_at": datetime.now(timezone.utc).timestamp() + 86400,  # 24h
+        "pair_expires_at": datetime.now(timezone.utc).timestamp() + (86400 * 30),  # 30d
         "is_enabled": True,
         "status": "offline",
         "created_at": datetime.now(timezone.utc),
@@ -144,6 +144,31 @@ async def create_phone_camera(
         "kind": "phone",
         "is_enabled": True,
         "status": "offline",
+    }
+
+
+@router.post("/{camera_id}/regenerate-token")
+async def regenerate_token(
+    camera_id: str,
+    _: dict[str, Any] = Depends(require_admin),
+) -> dict[str, Any]:
+    """Regenerate the pair token for a phone camera (fixes expired tokens)."""
+    db = get_db()
+    cam = await db.cameras.find_one({"_id": camera_id, "kind": "phone"})
+    if not cam:
+        raise HTTPException(status_code=404, detail="Phone camera not found")
+    new_token = secrets.token_urlsafe(24)
+    await db.cameras.update_one(
+        {"_id": camera_id},
+        {"$set": {
+            "pair_token": new_token,
+            "pair_expires_at": datetime.now(timezone.utc).timestamp() + (86400 * 30),
+        }},
+    )
+    return {
+        "camera_id": camera_id,
+        "pair_token": new_token,
+        "pair_url_path": f"/pair?token={new_token}",
     }
 
 
@@ -197,8 +222,9 @@ async def pair_info(token: str = Query(...)) -> dict[str, Any]:
     cam = await db.cameras.find_one({"pair_token": token, "kind": "phone"})
     if not cam:
         raise HTTPException(status_code=404, detail="Invalid pairing token")
-    if cam.get("pair_expires_at", 0) < datetime.now(timezone.utc).timestamp():
-        raise HTTPException(status_code=410, detail="Pairing token expired")
+    token_expiry = cam.get("pair_expires_at")
+    if token_expiry is not None and float(token_expiry) < datetime.now(timezone.utc).timestamp():
+        raise HTTPException(status_code=410, detail="Pairing token expired (regenerate from dashboard)")
     return {
         "camera_id": cam["_id"],
         "camera_name": cam["camera_name"],
@@ -218,7 +244,8 @@ async def ws_ingest(ws: WebSocket, token: str = Query(...)):
     if not cam:
         await ws.close(code=4004)
         return
-    if cam.get("pair_expires_at", 0) < datetime.now(timezone.utc).timestamp():
+    token_expiry = cam.get("pair_expires_at")
+    if token_expiry is not None and float(token_expiry) < datetime.now(timezone.utc).timestamp():
         await ws.close(code=4010)
         return
 

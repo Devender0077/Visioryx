@@ -372,6 +372,30 @@ export default function CamerasScreen() {
                     {pairBaseUrl || (typeof window !== 'undefined' ? window.location.origin : getApiBase())}/pair?token=
                   </Text>
                 </View>
+                <VxButton
+                  label="Regenerate token"
+                  variant="ghost"
+                  onPress={async () => {
+                    if (!token) return;
+                    try {
+                      const r = await fetch(`${getApiBase()}/api/v1/phone-cameras/${viewing.id}/regenerate-token`, {
+                        method: 'POST',
+                        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+                      });
+                      if (r.ok) {
+                        vm.refresh();
+                        setViewing(null);
+                        Alert.alert('Done', 'Pairing token regenerated. Open the camera detail again to scan the new QR.');
+                      } else {
+                        throw new Error(`HTTP ${r.status}`);
+                      }
+                    } catch (e) {
+                      Alert.alert('Error', 'Failed to regenerate token');
+                    }
+                  }}
+                  icon={<MaterialCommunityIcons name="refresh" size={14} color={colors.text} />}
+                  testID="regenerate-pair-token"
+                />
               </View>
             ) : null}
             <View style={styles.modalActions}>
