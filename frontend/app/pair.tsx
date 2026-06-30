@@ -11,7 +11,7 @@
  * scope for the MVP since the use-case is "any web-browser-enabled device".
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -24,10 +24,10 @@ interface PairInfo {
   ws_path: string;
 }
 
-type Phase = 'resolving' | 'ready' | 'requesting-camera' | 'streaming' | 'error';
+type Phase = 'resolving' | 'ready' | 'requesting-camera' | 'streaming' | 'switching' | 'error';
 
-const FRAME_INTERVAL_MS = 100;   // 10 fps
-const JPEG_QUALITY = 0.7;
+const FRAME_INTERVAL_MS = 66;    // ~15 fps
+const JPEG_QUALITY = 0.65;
 const FRAME_WIDTH = 640;
 
 export default function PairScreen() {
@@ -192,6 +192,7 @@ export default function PairScreen() {
               <Text style={styles.overlayText}>
                 {phase === 'resolving' ? 'Resolving pair token…' :
                  phase === 'ready' ? 'Tap "Start" to share this device as a camera.' :
+                 phase === 'switching' ? 'Switching camera…' :
                  phase === 'requesting-camera' ? 'Allow camera access in your browser.' :
                  'Cannot stream.'}
               </Text>
@@ -209,8 +210,8 @@ export default function PairScreen() {
                   onPress={() => {
                     facingRef.current = facingRef.current === 'environment' ? 'user' : 'environment';
                     stopStream();
-                    setPhase('ready');
-                    setTimeout(() => start(), 150);
+                    setPhase('switching');
+                    setTimeout(() => start(), 600);
                   }}
                   testID="pair-flip"
                 >
@@ -227,6 +228,8 @@ export default function PairScreen() {
                 </Pressable>
               </View>
             </>
+          ) : phase === 'switching' ? (
+            <ActivityIndicator size="small" color={C.primaryAccent} />
           ) : (
             <Pressable
               style={[styles.btn, { backgroundColor: info ? C.primaryAccent : C.surface3, opacity: info ? 1 : 0.5 }]}
