@@ -67,7 +67,7 @@ export default function CamerasScreen() {
         setStreamSrc(`${base}/api/v1/cameras/${viewing.id}/stream.mjpeg?token=${tokenQp}`);
         return;
       }
-      // 1. Probe the HLS playlist endpoint. 200 = ffmpeg up & camera reachable.
+      // RTSP camera: try HLS gateway first (real ffmpeg → HLS).
       try {
         const probe = await fetch(`${base}/api/v1/cameras/${viewing.id}/hls/index.m3u8?token=${tokenQp}`, {
           method: 'GET',
@@ -79,9 +79,10 @@ export default function CamerasScreen() {
           return;
         }
       } catch {/* fall through */}
+      // Fallback: real ffmpeg-based MJPEG (not synthetic preview).
       if (active) {
         setStreamMode('mjpeg');
-        setStreamSrc(`${base}/api/v1/cameras/${viewing.id}/stream.mjpeg?token=${tokenQp}`);
+        setStreamSrc(`${base}/api/v1/stream/${viewing.id}/mjpeg?token=${tokenQp}`);
       }
     })();
     return () => { active = false; };

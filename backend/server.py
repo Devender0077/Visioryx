@@ -10,8 +10,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import random
-import secrets
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
@@ -216,22 +214,6 @@ class CameraPatch(BaseModel):
 # ---------------------------------------------------------------------------
 # Seed
 # ---------------------------------------------------------------------------
-DEMO_CAMERAS = [
-    ("Front Gate", "rtsp://10.0.1.21:554/stream/main"),
-    ("Lobby East", "rtsp://10.0.1.22:554/stream/main"),
-    ("Parking A1", "rtsp://10.0.1.23:554/stream/main"),
-    ("Server Room", "rtsp://10.0.1.24:554/stream/main"),
-    ("Loading Bay", "rtsp://10.0.1.25:554/stream/main"),
-    ("Rooftop North", "rtsp://10.0.1.26:554/stream/main"),
-]
-DEMO_ALERT_TYPES = [
-    ("Unrecognized entry", "high", "Unknown person detected at perimeter"),
-    ("Camera offline", "medium", "Stream lost — auto-reconnect attempted"),
-    ("Face match", "info", "Known operator entered restricted area"),
-    ("Loitering detected", "medium", "Subject lingering > 60s near node"),
-    ("System maintenance", "low", "Background indexing complete"),
-    ("Forced entry", "critical", "Tamper attempt on locked node"),
-]
 
 
 async def seed(db: AsyncIOMotorDatabase) -> None:
@@ -267,57 +249,6 @@ async def seed(db: AsyncIOMotorDatabase) -> None:
             }
         )
 
-    # cameras
-    if await db.cameras.count_documents({}) == 0:
-        await db.cameras.insert_many(
-            [
-                {
-                    "_id": str(uuid.uuid4()),
-                    "camera_name": name,
-                    "rtsp_url": url,
-                    "is_enabled": idx not in (4,),  # one disabled
-                    "status": "active" if idx not in (3, 4) else "offline",
-                    "created_at": datetime.now(timezone.utc),
-                }
-                for idx, (name, url) in enumerate(DEMO_CAMERAS)
-            ]
-        )
-
-    # alerts (last 48 hours, ~24 items)
-    if await db.alerts.count_documents({}) == 0:
-        now = datetime.now(timezone.utc)
-        camera_docs = await db.cameras.find().to_list(None)
-        docs = []
-        for i in range(24):
-            t, sev, msg = random.choice(DEMO_ALERT_TYPES)
-            cam = random.choice(camera_docs)
-            docs.append(
-                {
-                    "_id": str(uuid.uuid4()),
-                    "alert_type": t,
-                    "severity": sev,
-                    "message": msg,
-                    "is_read": i > 7,
-                    "timestamp": now - timedelta(minutes=random.randint(2, 60 * 48)),
-                    "camera_id": cam["_id"],
-                    "camera_name": cam["camera_name"],
-                }
-            )
-        await db.alerts.insert_many(docs)
-
-    # detection trend (last 30 days)
-    if await db.detection_trends.count_documents({}) == 0:
-        now = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-        docs = [
-            {
-                "_id": str(uuid.uuid4()),
-                "date": (now - timedelta(days=i)).isoformat(),
-                "count": random.randint(40, 380),
-            }
-            for i in range(30)
-        ]
-        await db.detection_trends.insert_many(docs)
-
 
 # ---------------------------------------------------------------------------
 # App / lifespan
@@ -349,18 +280,15 @@ async def lifespan(_: FastAPI):
         })
     except Exception:
         pass
-    demo_task = asyncio.create_task(_demo_event_loop())
     health_task = asyncio.create_task(_camera_health_loop())
     try:
         yield
     finally:
-        demo_task.cancel()
         health_task.cancel()
-        for t in (demo_task, health_task):
-            try:
-                await t
-            except Exception:
-                pass
+        try:
+            await health_task
+        except Exception:
+            pass
         if _client is not None:
             _client.close()
 
@@ -627,44 +555,6 @@ async def _camera_health_loop() -> None:
         except Exception:
             pass
         await asyncio.sleep(60)
-
-
-async def _demo_event_loop() -> None:
-    """Emit a fake alert every 45s so the UI demonstrably reacts even without the AI pipeline."""
-    await asyncio.sleep(15)
-    while True:
-        try:
-            if broadcaster.connections:
-                t, sev, msg = random.choice(DEMO_ALERT_TYPES)
-                db = get_db()
-                cams = await db.cameras.aggregate([{"$sample": {"size": 1}}]).to_list(1)
-                cam = cams[0] if cams else None
-                doc = {
-                    "_id": str(uuid.uuid4()),
-                    "alert_type": t,
-                    "severity": sev,
-                    "message": msg,
-                    "is_read": False,
-                    "timestamp": datetime.now(timezone.utc),
-                    "camera_id": cam["_id"] if cam else None,
-                    "camera_name": cam["camera_name"] if cam else None,
-                }
-                await db.alerts.insert_one(doc)
-                await broadcaster.broadcast(
-                    {
-                        "type": "alert",
-                        "data": {
-                            "id": doc["_id"],
-                            "alert_type": t,
-                            "severity": sev,
-                            "camera_name": doc["camera_name"],
-                            "timestamp": doc["timestamp"].isoformat(),
-                        },
-                    }
-                )
-        except Exception:
-            pass
-        await asyncio.sleep(45)
 
 
 # ---------------------------------------------------------------------------

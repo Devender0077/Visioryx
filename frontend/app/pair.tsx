@@ -26,8 +26,8 @@ interface PairInfo {
 
 type Phase = 'resolving' | 'ready' | 'requesting-camera' | 'streaming' | 'error';
 
-const FRAME_INTERVAL_MS = 160;   // ~6.25 fps
-const JPEG_QUALITY = 0.6;
+const FRAME_INTERVAL_MS = 100;   // 10 fps
+const JPEG_QUALITY = 0.7;
 const FRAME_WIDTH = 640;
 
 export default function PairScreen() {
@@ -45,6 +45,7 @@ export default function PairScreen() {
   const wsRef = useRef<WebSocket | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bytesAcc = useRef({ b: 0, t: Date.now() });
+  const facingRef = useRef<'user' | 'environment'>('environment');
 
   // 1. Resolve pair-info
   useEffect(() => {
@@ -88,8 +89,9 @@ export default function PairScreen() {
     setPhase('requesting-camera');
     setError(null);
     try {
+      const facing = facingRef.current;
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: FRAME_WIDTH } },
+        video: { facingMode: { ideal: facing }, width: { ideal: FRAME_WIDTH } },
         audio: false,
       });
       streamRef.current = stream;
@@ -201,14 +203,29 @@ export default function PairScreen() {
           {phase === 'streaming' ? (
             <>
               <Text style={styles.stat} testID="pair-stats">{stats.frames} frames · {stats.kbps} kbps</Text>
-              <Pressable
-                style={[styles.btn, { backgroundColor: C.danger }]}
-                onPress={() => { stopStream(); setPhase('ready'); }}
-                testID="pair-stop"
-              >
-                <MaterialCommunityIcons name="stop" size={16} color="#fff" />
-                <Text style={styles.btnText}>Stop</Text>
-              </Pressable>
+              <View style={styles.streamActions}>
+                <Pressable
+                  style={[styles.btn, { backgroundColor: C.surface2 }]}
+                  onPress={() => {
+                    facingRef.current = facingRef.current === 'environment' ? 'user' : 'environment';
+                    stopStream();
+                    setPhase('ready');
+                    setTimeout(() => start(), 150);
+                  }}
+                  testID="pair-flip"
+                >
+                  <MaterialCommunityIcons name="camera-flip-outline" size={16} color="#fff" />
+                  <Text style={styles.btnText}>Flip</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.btn, { backgroundColor: C.danger }]}
+                  onPress={() => { stopStream(); setPhase('ready'); }}
+                  testID="pair-stop"
+                >
+                  <MaterialCommunityIcons name="stop" size={16} color="#fff" />
+                  <Text style={styles.btnText}>Stop</Text>
+                </Pressable>
+              </View>
             </>
           ) : (
             <Pressable
@@ -253,6 +270,7 @@ const styles = StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: Space.sm, padding: Space.lg },
   overlayText: { ...TextStyles.caption, color: C.textMuted, textAlign: 'center' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Space.md, justifyContent: 'space-between' },
+  streamActions: { flexDirection: 'row', gap: Space.sm },
   stat: { ...TextStyles.caption, fontFamily: F.mono, color: C.textMuted },
   btn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, paddingVertical: 10, borderRadius: Radius.full },
   btnText: { color: '#fff', fontFamily: F.bodySemibold, fontSize: 13 },

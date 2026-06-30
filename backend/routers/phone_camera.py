@@ -65,21 +65,37 @@ def _public_base_url(req: Request | None) -> str:
 
 
 # -------------------------------------------------------------------- frame buffer
+# Dual storage: in-memory cache for low-latency MJPEG, MongoDB for persistence.
 # Stored in MongoDB collection `phone_frames`:
 #   { "_id": <camera_id>, "bytes": <Binary>, "ts": <float epoch> }
-# We do NOT use Motor's GridFS — frames are small (~50KB) and well under the
-# 16MB BSON limit, so a single doc upsert is cheaper and atomic.
+_phone_frame_cache: dict[str, tuple[bytes, float]] = {}
+_phone_frame_lock = asyncio.Lock()
+
 async def _put_frame(camera_id: str, frame: bytes) -> None:
+    ts = time.time()
+    # Update in-memory cache immediately (zero-latency for MJPEG readers).
+    async with _phone_frame_lock:
+        _phone_frame_cache[camera_id] = (frame, ts)
+    # Persist to MongoDB asynchronously (don't block the ingest).
     db = get_db()
     await db.phone_frames.update_one(
         {"_id": camera_id},
-        {"$set": {"bytes": frame, "ts": time.time()}},
+        {"$set": {"bytes": frame, "ts": ts}},
         upsert=True,
     )
 
 
 async def _get_frame(camera_id: str) -> tuple[bytes | None, float | None]:
-    """Return the latest cached frame for a phone camera if it's fresh."""
+    """Return the latest cached frame for a phone camera if it's fresh.
+    Reads from in-memory cache first (fast path), falls back to MongoDB."""
+    async with _phone_frame_lock:
+        cached = _phone_frame_cache.get(camera_id)
+        if cached is not None:
+            body, ts = cached
+            age = time.time() - ts
+            if age <= STALE_AFTER_S:
+                return body, age
+    # Fallback: check MongoDB (e.g. after server restart).
     db = get_db()
     doc = await db.phone_frames.find_one({"_id": camera_id})
     if not doc:
@@ -87,7 +103,11 @@ async def _get_frame(camera_id: str) -> tuple[bytes | None, float | None]:
     age = time.time() - doc["ts"]
     if age > STALE_AFTER_S:
         return None, age
-    return bytes(doc["bytes"]), age
+    body = bytes(doc["bytes"])
+    # Warm the cache.
+    async with _phone_frame_lock:
+        _phone_frame_cache[camera_id] = (body, doc["ts"])
+    return body, age
 
 
 async def get_frame(camera_id: str) -> tuple[bytes | None, float | None]:
@@ -264,21 +284,21 @@ async def phone_camera_mjpeg(
         last_ts = 0.0
         last_disconnect_check = 0.0
         while True:
-            # Disconnect check every ~500 ms.
             now = time.time()
             if now - last_disconnect_check > 0.5:
                 last_disconnect_check = now
                 if await request.is_disconnected():
                     return
-            db = get_db()
-            doc = await db.phone_frames.find_one({"_id": camera_id})
-            if doc and doc["ts"] != last_ts:
-                last_ts = doc["ts"]
-                body = bytes(doc["bytes"])
+            # Read from in-memory cache (no MongoDB query per frame).
+            async with _phone_frame_lock:
+                cached = _phone_frame_cache.get(camera_id)
+            if cached and cached[1] != last_ts:
+                last_ts = cached[1]
+                body = cached[0]
                 yield (boundary + b"\r\nContent-Type: image/jpeg\r\n"
                        + b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
                        + body + b"\r\n")
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.05)  # 20 fps poll (camera sends at ~10fps)
 
     return StreamingResponse(
         gen(),

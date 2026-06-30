@@ -22,12 +22,12 @@ _HAS_FACE_DETECTION = False
 _FACE_DETECTOR = None
 _FACE_MATCHER = None
 _DRAW_DETECTIONS = None
-_AI_ENABLED = os.environ.get("STREAM_ENABLE_AI_OVERLAY", "").lower() in ("1", "true", "yes")
-_AI_FACE_ENABLED_DB: bool = True  # Overridden by MongoDB detection_overlays.face_detection_enabled
+_AI_FACE_ENABLED_DB: bool | None = None  # Overridden by MongoDB detection_overlays.face_detection_enabled
 _AI_FACE_LAST_CHECK = 0.0
 
 async def _refresh_ai_face_enabled():
-    """Read face_detection_enabled from MongoDB settings (refreshes every 5s)."""
+    """Read face_detection_enabled from MongoDB settings (refreshes every 5s).
+    Falls back to STREAM_ENABLE_AI_OVERLAY env var if no DB override."""
     global _AI_FACE_ENABLED_DB, _AI_FACE_LAST_CHECK
     now = time.time()
     if now - _AI_FACE_LAST_CHECK < 5:
@@ -39,23 +39,29 @@ async def _refresh_ai_face_enabled():
         if doc is not None and "face_detection_enabled" in doc:
             _AI_FACE_ENABLED_DB = bool(doc["face_detection_enabled"])
         else:
-            _AI_FACE_ENABLED_DB = True  # default: on
+            _AI_FACE_ENABLED_DB = None  # use env fallback
     except Exception:
         pass
 
-if _AI_ENABLED:
-    try:
-        from app.ai.face_detector import detect_faces as _detect_faces
-        from app.ai.face_matcher import find_best_match as _find_best_match
-        from app.services.detection_overlay import _draw_detections as _draw
-        import cv2
-        _HAS_FACE_DETECTION = True
-        _FACE_DETECTOR = _detect_faces
-        _FACE_MATCHER = _find_best_match
-        _DRAW_DETECTIONS = _draw
-        logger.info("Face detection overlay ENABLED")
-    except Exception as exc:
-        logger.warning("Face detection modules not available: %s", exc)
+def _face_detection_effective_enabled() -> bool:
+    """True when face detection should run. DB override takes priority;
+    defaults to True (enabled) when no explicit DB setting exists."""
+    if _AI_FACE_ENABLED_DB is not None:
+        return _AI_FACE_ENABLED_DB
+    return True
+
+try:
+    from app.ai.face_detector import detect_faces as _detect_faces
+    from app.ai.face_matcher import find_best_match as _find_best_match
+    from app.services.detection_overlay import _draw_detections as _draw
+    import cv2
+    _HAS_FACE_DETECTION = True
+    _FACE_DETECTOR = _detect_faces
+    _FACE_MATCHER = _find_best_match
+    _DRAW_DETECTIONS = _draw
+    logger.info("Face detection overlay ENABLED")
+except Exception as exc:
+    logger.warning("Face detection modules not available: %s", exc)
 
 router = APIRouter(tags=["stream"])
 
@@ -178,10 +184,7 @@ def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
     if not _HAS_FACE_DETECTION:
         return jpeg_bytes
 
-    if not _AI_ENABLED and not _AI_FACE_ENABLED_DB:
-        return jpeg_bytes
-
-    if not _AI_FACE_ENABLED_DB:
+    if not _face_detection_effective_enabled():
         return jpeg_bytes
 
     # Run detection every 3rd frame to save CPU
@@ -230,8 +233,8 @@ async def _frame_grabber(rtsp_url: str, camera_id: str):
     """Background ffmpeg: H264 → MJPEG, signals _frame_events on each frame."""
     import subprocess
 
-    # Load face embeddings on first run
-    if _AI_ENABLED and _HAS_FACE_DETECTION and not _ai_embeddings:
+    # Load face embeddings on first run (if detection is effectively enabled)
+    if _HAS_FACE_DETECTION and not _ai_embeddings:
         _load_ai_embeddings()
 
     while True:

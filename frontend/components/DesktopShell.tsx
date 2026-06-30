@@ -37,7 +37,6 @@ const PRIMARY: NavItem[] = [
   { href: '/(tabs)/cameras', label: 'Cameras', icon: 'cctv', testID: 'nav-cameras', hideForEnrollee: true },
   { href: '/(tabs)/alerts', label: 'Alerts', icon: 'bell-outline', iconActive: 'bell-ring', testID: 'nav-alerts', hideForEnrollee: true },
   { href: '/(tabs)/enroll', label: 'Enrollment', icon: 'face-recognition', testID: 'nav-enroll', enrolleeOnly: true },
-  { href: '/(tabs)/more', label: 'More', icon: 'dots-horizontal', testID: 'nav-more' },
 ];
 
 const SECONDARY: NavItem[] = [
