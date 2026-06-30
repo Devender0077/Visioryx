@@ -224,7 +224,12 @@ async def pair_info(token: str = Query(...)) -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="Invalid pairing token")
     token_expiry = cam.get("pair_expires_at")
     if token_expiry is not None and float(token_expiry) < datetime.now(timezone.utc).timestamp():
-        raise HTTPException(status_code=410, detail="Pairing token expired (regenerate from dashboard)")
+        # Auto-extend expired token — never block a genuine scan.
+        new_expiry = datetime.now(timezone.utc).timestamp() + (86400 * 30)
+        await db.cameras.update_one(
+            {"_id": cam["_id"]},
+            {"$set": {"pair_expires_at": new_expiry}},
+        )
     return {
         "camera_id": cam["_id"],
         "camera_name": cam["camera_name"],
@@ -246,8 +251,11 @@ async def ws_ingest(ws: WebSocket, token: str = Query(...)):
         return
     token_expiry = cam.get("pair_expires_at")
     if token_expiry is not None and float(token_expiry) < datetime.now(timezone.utc).timestamp():
-        await ws.close(code=4010)
-        return
+        # Auto-extend — don't block a genuine reconnect.
+        await db.cameras.update_one(
+            {"_id": cam["_id"]},
+            {"$set": {"pair_expires_at": datetime.now(timezone.utc).timestamp() + (86400 * 30)}},
+        )
 
     camera_id = cam["_id"]
     await db.cameras.update_one({"_id": camera_id}, {"$set": {"status": "active"}})
