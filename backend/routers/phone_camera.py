@@ -197,12 +197,27 @@ async def phone_camera_qr(
     cam = await db.cameras.find_one({"_id": camera_id, "kind": "phone"})
     if not cam:
         raise HTTPException(status_code=404, detail="Phone camera not found")
+
+    # Auto-regenerate token if expired — QR always shows a valid token.
+    pair_token = cam.get("pair_token")
+    pair_expiry = cam.get("pair_expires_at")
+    now_ts = datetime.now(timezone.utc).timestamp()
+    if pair_expiry is not None and float(pair_expiry) < now_ts:
+        pair_token = secrets.token_urlsafe(24)
+        await db.cameras.update_one(
+            {"_id": camera_id},
+            {"$set": {
+                "pair_token": pair_token,
+                "pair_expires_at": now_ts + (86400 * 30),
+            }},
+        )
+
     resolved_base = base or _public_base_url(request)
     # Defense-in-depth: only allow http/https scheme to prevent QR-embedded
     # `javascript:`/`data:` payloads (admin-only endpoint, but free hardening).
     if not (resolved_base.startswith("https://") or resolved_base.startswith("http://")):
         raise HTTPException(status_code=400, detail="base must be http(s) URL")
-    pair_url = f"{resolved_base.rstrip('/')}/pair?token={cam['pair_token']}"
+    pair_url = f"{resolved_base.rstrip('/')}/pair?token={pair_token}"
     qr = qrcode.QRCode(box_size=8, border=2)
     qr.add_data(pair_url)
     qr.make(fit=True)
