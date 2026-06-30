@@ -5,8 +5,8 @@
  * a CSV with a `.xlsx`-compatible content-type so Excel + Numbers open it
  * natively (full xlsx requires sheetjs which adds ~500KB; keeping it lean).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { api } from '@/lib/api';
@@ -36,7 +36,8 @@ interface Summary {
 }
 
 const WINDOW_OPTS = [7, 30, 90] as const;
-const PAGE_SIZE = 100;
+const PAGE_SIZES = [10, 25, 50] as const;
+const DEFAULT_PAGE_SIZE = 10;
 
 export default function ReportsScreen() {
   const colors = useColors();
@@ -47,21 +48,20 @@ export default function ReportsScreen() {
   const [items, setItems] = useState<Detection[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const offsetRef = useRef(0);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
+  const [page, setPage] = useState(0);
 
-  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+  const totalPages = total > 0 ? Math.ceil(total / pageSize) : 0;
+
+  const fetchPage = useCallback(async (pageNum: number, size: number) => {
     const since = new Date(Date.now() - days * 86400 * 1000).toISOString();
-    const params = new URLSearchParams({ start: since, limit: String(PAGE_SIZE), offset: String(offset) });
+    const offset = pageNum * size;
+    const params = new URLSearchParams({ start: since, limit: String(size), offset: String(offset) });
     if (person.trim()) params.set('person', person.trim());
     if (statusFilter !== 'all') params.set('status', statusFilter);
     const r = await api<{ items: Detection[]; total: number }>(`/api/v1/reports/detections?${params}`);
-    if (append) {
-      setItems((prev) => [...prev, ...r.items]);
-    } else {
-      setItems(r.items);
-    }
+    setItems(r.items);
     setTotal(r.total);
     return r;
   }, [days, person, statusFilter]);
@@ -69,34 +69,36 @@ export default function ReportsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    offsetRef.current = 0;
+    setPage(0);
     try {
       const [s] = await Promise.all([
         api<Summary>(`/api/v1/reports/summary?days=${days}`),
-        fetchPage(0, false),
+        fetchPage(0, pageSize),
       ]);
       setSummary(s);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load reports');
       setSummary(null);
       setItems([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  }, [days, fetchPage]);
+  }, [days, fetchPage, pageSize]);
 
-  const loadMore = useCallback(async () => {
-    if (loadingMore || items.length >= total) return;
-    setLoadingMore(true);
-    const nextOffset = offsetRef.current + PAGE_SIZE;
+  const goToPage = useCallback(async (pageNum: number) => {
+    setLoading(true);
+    setPage(pageNum);
     try {
-      await fetchPage(nextOffset, true);
-      offsetRef.current = nextOffset;
-    } catch {/* ignore */}
-    finally { setLoadingMore(false); }
-  }, [fetchPage, loadingMore, items.length, total]);
+      await fetchPage(pageNum, pageSize);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load page');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPage, pageSize]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load, days, pageSize]);
 
   const exportExcel = useCallback(async () => {
     if (Platform.OS !== 'web' || items.length === 0) return;
@@ -126,8 +128,6 @@ export default function ReportsScreen() {
         keyExtractor={(i) => i.id}
         contentContainerStyle={styles.pad}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={C.primaryAccent} />}
-        onEndReached={() => { if (items.length < total) loadMore(); }}
-        onEndReachedThreshold={0.3}
         ListHeaderComponent={
           <View>
             <View style={styles.headRow}>
@@ -243,9 +243,29 @@ export default function ReportsScreen() {
               ) : null}
             </View>
 
-            <Text style={[styles.tableHead, { color: colors.textFaint }]}>
-              {loading ? 'Loading…' : `Detection records · ${items.length} of ${total}`}
-            </Text>
+            <View style={styles.paginationBar}>
+              <Text style={[styles.tableHead, { color: colors.textFaint }]}>
+                {loading ? 'Loading…' : `${total} records · page ${total > 0 ? page + 1 : 0} of ${totalPages}`}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Space.sm }}>
+                <Text style={[styles.lbl, { color: colors.textFaint, marginBottom: 0 }]}>Per page</Text>
+                <View style={styles.chipRow}>
+                  {PAGE_SIZES.map((s) => {
+                    const active = pageSize === s;
+                    return (
+                      <Pressable
+                        key={s}
+                        onPress={() => { setPageSize(s); setPage(0); }}
+                        style={[styles.chip, { borderColor: colors.border, backgroundColor: colors.surfaceLow }, active && { borderColor: colors.primary, backgroundColor: colors.primaryFaint }]}
+                        testID={`report-page-size-${s}`}
+                      >
+                        <Text style={[styles.chipText, active && { color: colors.primary }]}>{s}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
           </View>
         }
         renderItem={({ item }) => (
@@ -264,14 +284,51 @@ export default function ReportsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: Space.xs }} />}
         ListEmptyComponent={!loading ? <Text style={[styles.empty, { color: colors.textMuted }]}>No detections in this window.</Text> : null}
         ListFooterComponent={
-          loadingMore ? (
-            <ActivityIndicator color={C.primaryAccent} style={{ paddingVertical: Space.lg }} />
-          ) : items.length < total ? (
-            <Pressable onPress={() => loadMore()} style={styles.loadMoreBtn}>
-              <Text style={styles.loadMoreText}>Show more ({total - items.length} remaining)</Text>
-            </Pressable>
-          ) : items.length > 0 ? (
-            <Text style={styles.loadMoreText}>All {total} records loaded</Text>
+          totalPages > 1 ? (
+            <View style={styles.pageNav}>
+              <Pressable
+                style={[styles.pageNavBtn, { borderColor: colors.border, backgroundColor: colors.surface, opacity: page > 0 ? 1 : 0.4 }]}
+                onPress={() => { if (page > 0) goToPage(page - 1); }}
+                disabled={page === 0}
+                testID="report-page-prev"
+              >
+                <MaterialCommunityIcons name="chevron-left" size={16} color={colors.text} />
+                <Text style={[styles.pageNavText, { color: colors.text }]}>Prev</Text>
+              </Pressable>
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                // Show pages around current page
+                let pageNum: number;
+                if (totalPages <= 7) {
+                  pageNum = i;
+                } else if (page < 4) {
+                  pageNum = i;
+                } else if (page > totalPages - 5) {
+                  pageNum = totalPages - 7 + i;
+                } else {
+                  pageNum = page - 3 + i;
+                }
+                const active = pageNum === page;
+                return (
+                  <Pressable
+                    key={pageNum}
+                    style={[styles.pageNumBtn, active && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                    onPress={() => { if (pageNum !== page) goToPage(pageNum); }}
+                    testID={`report-page-${pageNum}`}
+                  >
+                    <Text style={[styles.pageNumText, active && { color: '#fff' }]}>{pageNum + 1}</Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                style={[styles.pageNavBtn, { borderColor: colors.border, backgroundColor: colors.surface, opacity: page < totalPages - 1 ? 1 : 0.4 }]}
+                onPress={() => { if (page < totalPages - 1) goToPage(page + 1); }}
+                disabled={page >= totalPages - 1}
+                testID="report-page-next"
+              >
+                <Text style={[styles.pageNavText, { color: colors.text }]}>Next</Text>
+                <MaterialCommunityIcons name="chevron-right" size={16} color={colors.text} />
+              </Pressable>
+            </View>
           ) : null
         }
       />
@@ -373,4 +430,10 @@ const styles = StyleSheet.create({
   barVal: { ...TextStyles.caption, fontFamily: F.mono, fontSize: 11, minWidth: 30, textAlign: 'right' },
   loadMoreBtn: { alignItems: 'center', paddingVertical: Space.lg },
   loadMoreText: { ...TextStyles.caption, color: C.textMuted, fontFamily: F.mono, fontSize: 11, textAlign: 'center', paddingVertical: Space.lg },
+  paginationBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Space.xl, marginBottom: Space.sm, flexWrap: 'wrap', gap: Space.sm },
+  pageNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: Space.lg },
+  pageNavBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.sm, borderWidth: 1 },
+  pageNavText: { ...TextStyles.label, fontSize: 12 },
+  pageNumBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm, borderWidth: 1, borderColor: 'transparent' },
+  pageNumText: { ...TextStyles.label, fontSize: 12, color: C.textMuted },
 });
