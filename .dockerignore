@@ -29,3 +29,10 @@ mobile-builds/
 _legacy_frontend_nextjs/
 scripts/
 start-dev.sh
+# Runtime directories — can grow large and should NEVER be in build context
+backend/storage/
+backend/models/
+backend/__pycache__/
+frontend/.expo/
+frontend/dist/
+*.log
