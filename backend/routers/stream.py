@@ -203,6 +203,10 @@ _frame_events: dict[str, asyncio.Event] = {}
 # ---------------------------------------------------------------------------
 _ai_embeddings: list[tuple[str, list[float]]] = []
 _ai_counter: int = 0
+# Debounced detection logging: collect in _annotate_jpeg, flush in _frame_grabber.
+_pending_detections: dict[str, list[dict]] = {}
+_last_detection_logged: dict[str, float] = {}
+_DETECTION_LOG_COOLDOWN = 30  # seconds between alerts for same camera+person
 
 
 def _load_ai_embeddings():
@@ -233,9 +237,10 @@ def _load_ai_embeddings():
         logger.warning("Failed to load face embeddings: %s", exc)
 
 
-def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
-    """Decode JPEG → run face detection → draw boxes → re-encode."""
-    global _ai_counter
+def _annotate_jpeg(jpeg_bytes: bytes, camera_id: str = "") -> bytes:
+    """Decode JPEG → run face detection → draw boxes → re-encode.
+    Also collects detection info for logging via _pending_detections."""
+    global _ai_counter, _pending_detections, _last_detection_logged
     _ai_counter += 1
 
     if not _HAS_FACE_DETECTION:
@@ -249,9 +254,6 @@ def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
         return jpeg_bytes
 
     try:
-        import cv2
-
-        # Decode
         arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if frame is None:
@@ -260,6 +262,7 @@ def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
         # Detect faces
         faces = _FACE_DETECTOR(frame, for_embedding=False)
         annots = []
+        collected: list[dict] = []
 
         for f in faces:
             bbox = f["bbox"]
@@ -267,13 +270,32 @@ def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
                 continue
             status = "unknown"
             label = "Unknown"
+            user_id = None
+            confidence = float(f.get("det_score", 0.5))
             if _ai_embeddings and f.get("embedding"):
                 match = _FACE_MATCHER(f["embedding"], [(i, e) for i, (_, e) in enumerate(_ai_embeddings)])
                 if match is not None:
                     idx, score = match
                     status = "known"
-                    label = _ai_embeddings[idx][0] if idx < len(_ai_embeddings) else "Known"
+                    user_id = _ai_embeddings[idx][0] if idx < len(_ai_embeddings) else None
+                    label = _ai_embeddings[idx][1] if idx < len(_ai_embeddings) else "Known"
+                    confidence = score
             annots.append({"bbox": bbox, "status": status, "label": label})
+            # Collect for logging (debounced).
+            dedup_key = f"{camera_id}:{label}"
+            last_ts = _last_detection_logged.get(dedup_key, 0)
+            if camera_id and (time.time() - last_ts) > _DETECTION_LOG_COOLDOWN:
+                _last_detection_logged[dedup_key] = time.time()
+                collected.append({
+                    "camera_id": camera_id,
+                    "user_name": label,
+                    "status": status,
+                    "confidence": confidence,
+                    "bbox": bbox,
+                })
+
+        if collected and camera_id:
+            _pending_detections.setdefault(camera_id, []).extend(collected)
 
         if annots:
             frame = _draw_detections(frame, annots, [])
@@ -286,6 +308,35 @@ def _annotate_jpeg(jpeg_bytes: bytes) -> bytes:
         return jpeg_bytes
 
 
+async def _flush_detections(camera_id: str):
+    """Write collected detection alerts to MongoDB (debounced)."""
+    global _pending_detections
+    dets = _pending_detections.pop(camera_id, None)
+    if not dets:
+        return
+    try:
+        db = get_db()
+        cam = await db.cameras.find_one({"_id": camera_id})
+        cam_name = (cam or {}).get("camera_name", camera_id)
+        now = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        for det in dets:
+            await db.alerts.insert_one({
+                "_id": str(__import__("uuid").uuid4()),
+                "alert_type": "Face detected" if det["status"] == "known" else "Face detected (unknown)",
+                "severity": "info" if det["status"] == "known" else "medium",
+                "message": f"{det['user_name']} detected",
+                "user_name": det["user_name"],
+                "status": det["status"],
+                "confidence": det["confidence"],
+                "camera_id": camera_id,
+                "camera_name": cam_name,
+                "timestamp": now,
+                "is_read": False,
+            })
+    except Exception:
+        pass
+
+
 async def _frame_grabber(rtsp_url: str, camera_id: str):
     """Background ffmpeg: H264 → MJPEG, signals _frame_events on each frame."""
     import subprocess
@@ -294,6 +345,7 @@ async def _frame_grabber(rtsp_url: str, camera_id: str):
     if _HAS_FACE_DETECTION and not _ai_embeddings:
         _load_ai_embeddings()
 
+    _det_count = 0
     while True:
         cmd = [w if w != "__RTSP_URL__" else rtsp_url for w in _FFMPEG_MJPEG]
         process = await asyncio.create_subprocess_exec(
@@ -322,7 +374,12 @@ async def _frame_grabber(rtsp_url: str, camera_id: str):
                         loop.create_task(_refresh_ai_face_enabled())
                     except RuntimeError:
                         pass
-                _latest_frames[camera_id] = _annotate_jpeg(frame)
+                _latest_frames[camera_id] = _annotate_jpeg(frame, camera_id)
+                _det_count += 1
+                # Flush pending detections to MongoDB every 5 frames.
+                if _det_count % 5 == 0 and camera_id in _pending_detections:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(_flush_detections(camera_id))
                 ev = _frame_events.get(camera_id)
                 if ev is not None:
                     ev.set()

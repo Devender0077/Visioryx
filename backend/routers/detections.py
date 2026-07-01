@@ -27,14 +27,19 @@ async def list_detections(
             {"message": {"$regex": q, "$options": "i"}},
             {"camera_name": {"$regex": q, "$options": "i"}},
         ]
+    # Also search user_name field for detection alerts.
+    if q:
+        flt["$or"] = flt.get("$or", []) + [
+            {"user_name": {"$regex": q, "$options": "i"}},
+        ]
     docs = await db.alerts.find(flt).sort("timestamp", -1).skip(offset).limit(limit).to_list(limit)
     return {
         "items": [
             {
                 "id": d["_id"],
                 "camera_name": d.get("camera_name"),
-                "user_name": "Operator" if "Face" in d.get("alert_type", "") else None,
-                "status": "known" if "Face" in d.get("alert_type", "") else "unknown",
+                "user_name": d.get("user_name") or d.get("message") if "Face" in d.get("alert_type", "") else None,
+                "status": d.get("status") or ("known" if "Face" in d.get("alert_type", "") else "unknown"),
                 "confidence": d.get("confidence", 0.85),
                 "timestamp": d["timestamp"].isoformat() if isinstance(d["timestamp"], datetime) else d["timestamp"],
             }

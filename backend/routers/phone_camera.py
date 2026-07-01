@@ -52,20 +52,54 @@ except Exception:
 
 _phone_detection_counter: dict[str, int] = {}
 _PHONE_DETECT_EVERY = 3  # run detection every 3rd frame
+_phone_last_logged: dict[str, float] = {}
+_PHONE_LOG_COOLDOWN = 30  # seconds between alerts for same camera+person
 
 
-def _annotate_phone_frame(camera_id: str, jpeg_bytes: bytes) -> bytes:
-    """Decode JPEG → face detection → draw boxes → re-encode (phone camera)."""
+async def _create_detection_alert(camera_id: str, user_name: str, status: str, confidence: float):
+    """Create a detection alert record in MongoDB (fire-and-forget)."""
+    key = f"{camera_id}:{user_name}"
+    now = time.time()
+    if key in _phone_last_logged and (now - _phone_last_logged[key]) < _PHONE_LOG_COOLDOWN:
+        return
+    _phone_last_logged[key] = now
+    try:
+        db = get_db()
+        cam = await db.cameras.find_one({"_id": camera_id})
+        cam_name = (cam or {}).get("camera_name", camera_id)
+        import uuid as _uuid
+        from datetime import timezone as _tz
+        await db.alerts.insert_one({
+            "_id": str(_uuid.uuid4()),
+            "alert_type": "Face detected" if status == "known" else "Face detected (unknown)",
+            "severity": "info" if status == "known" else "medium",
+            "message": f"{user_name} detected",
+            "user_name": user_name,
+            "status": status,
+            "confidence": confidence,
+            "camera_id": camera_id,
+            "camera_name": cam_name,
+            "timestamp": __import__("datetime").datetime.now(_tz),
+            "is_read": False,
+        })
+    except Exception:
+        pass
+
+
+def _annotate_phone_frame(camera_id: str, jpeg_bytes: bytes) -> tuple[bytes, list[dict]]:
+    """Decode JPEG → face detection → draw boxes → re-encode.
+    Returns (annotated_jpeg, detections_list)."""
+    detections: list[dict] = []
     if not _HAS_FACE_DETECTION:
-        return jpeg_bytes
+        return jpeg_bytes, detections
     _phone_detection_counter[camera_id] = _phone_detection_counter.get(camera_id, 0) + 1
     if _phone_detection_counter[camera_id] % _PHONE_DETECT_EVERY != 0:
-        return jpeg_bytes
+        return jpeg_bytes, detections
     try:
         arr = np.frombuffer(jpeg_bytes, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if frame is None:
-            return jpeg_bytes
+            return jpeg_bytes, detections
         faces = _detect_faces(frame, for_embedding=False)
         annots = []
         for f in faces:
@@ -74,14 +108,20 @@ def _annotate_phone_frame(camera_id: str, jpeg_bytes: bytes) -> bytes:
                 continue
             status = "unknown"
             label = "Unknown"
+            confidence = float(f.get("det_score", 0.5))
             annots.append({"bbox": bbox, "status": status, "label": label})
+            detections.append({
+                "user_name": label,
+                "status": status,
+                "confidence": confidence,
+            })
         if annots:
             frame = _draw_annotations(frame, annots)
             _, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
-            return buf.tobytes()
+            return buf.tobytes(), detections
     except Exception:
         pass
-    return jpeg_bytes
+    return jpeg_bytes, detections
 
 
 def _draw_annotations(frame, faces: list):
@@ -423,7 +463,11 @@ async def phone_camera_mjpeg(
                 cached = _phone_frame_cache.get(camera_id)
             if cached is not None and cached[1] != last_ts:
                 last_ts = cached[1]
-                body = _annotate_phone_frame(camera_id, cached[0])
+                body, detections = _annotate_phone_frame(camera_id, cached[0])
+                for det in detections:
+                    asyncio.create_task(_create_detection_alert(
+                        camera_id, det["user_name"], det["status"], det["confidence"]
+                    ))
                 yield (boundary + b"\r\nContent-Type: image/jpeg\r\n"
                        + b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
                        + body + b"\r\n")
