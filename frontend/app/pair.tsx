@@ -107,33 +107,41 @@ export default function PairScreen() {
       wsRef.current = ws;
       ws.onopen = () => {
         setPhase('streaming');
-        // Start sampling
         const canvas = canvasRef.current!;
         canvas.width = FRAME_WIDTH;
         canvas.height = Math.round(FRAME_WIDTH * (videoRef.current!.videoHeight / Math.max(1, videoRef.current!.videoWidth)));
         const ctx = canvas.getContext('2d')!;
         let n = 0;
-        tickRef.current = setInterval(() => {
-          if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
-          try {
-            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob(
-              async (blob) => {
-                if (!blob || ws.readyState !== WebSocket.OPEN) return;
-                const buf = await blob.arrayBuffer();
-                ws.send(buf);
-                n += 1;
-                bytesAcc.current.b += buf.byteLength;
-                const dt = Date.now() - bytesAcc.current.t;
-                if (dt >= 1000) {
-                  setStats({ frames: n, kbps: Math.round(bytesAcc.current.b / dt * 8) });
-                  bytesAcc.current = { b: 0, t: Date.now() };
-                }
-              },
-              'image/jpeg', JPEG_QUALITY,
-            );
-          } catch {/* drop frame */}
-        }, FRAME_INTERVAL_MS);
+        let warmupFrames = 8; // skip first frames while sensor stabilizes
+        // Brief warmup delay for auto-exposure / white-balance to settle.
+        const startSending = () => {
+          tickRef.current = setInterval(() => {
+            if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
+            if (warmupFrames > 0) {
+              warmupFrames--;
+              return; // drop warmup frames
+            }
+            try {
+              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob(
+                async (blob) => {
+                  if (!blob || ws.readyState !== WebSocket.OPEN) return;
+                  const buf = await blob.arrayBuffer();
+                  ws.send(buf);
+                  n += 1;
+                  bytesAcc.current.b += buf.byteLength;
+                  const dt = Date.now() - bytesAcc.current.t;
+                  if (dt >= 1000) {
+                    setStats({ frames: n, kbps: Math.round(bytesAcc.current.b / dt * 8) });
+                    bytesAcc.current = { b: 0, t: Date.now() };
+                  }
+                },
+                'image/jpeg', JPEG_QUALITY,
+              );
+            } catch {/* drop frame */}
+          }, FRAME_INTERVAL_MS);
+        };
+        setTimeout(startSending, 800); // let sensor auto-exposure settle
       };
       ws.onerror = () => { setError('WebSocket error'); setPhase('error'); stopStream(); };
       ws.onclose = (e) => {

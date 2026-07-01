@@ -42,7 +42,7 @@ router = APIRouter(prefix="/phone-cameras", tags=["phone-cameras"])
 
 STALE_AFTER_S = 30                 # camera marked offline if no frame for this long
 MAX_FRAME_BYTES = 2 * 1024 * 1024  # 2 MB cap per frame
-MIN_FRAME_INTERVAL_S = 0.06        # ~16 fps max per camera
+MIN_FRAME_INTERVAL_S = 0.05        # ~20 fps max per camera (phone sends at ~15)
 
 
 class PhoneCameraCreate(BaseModel):
@@ -69,7 +69,6 @@ def _public_base_url(req: Request | None) -> str:
 # Stored in MongoDB collection `phone_frames`:
 #   { "_id": <camera_id>, "bytes": <Binary>, "ts": <float epoch> }
 _phone_frame_cache: dict[str, tuple[bytes, float]] = {}
-_phone_frame_events: dict[str, asyncio.Event] = {}
 _phone_frame_lock = asyncio.Lock()
 
 async def _put_frame(camera_id: str, frame: bytes) -> None:
@@ -77,16 +76,20 @@ async def _put_frame(camera_id: str, frame: bytes) -> None:
     # Update in-memory cache immediately (zero-latency for MJPEG readers).
     async with _phone_frame_lock:
         _phone_frame_cache[camera_id] = (frame, ts)
-        ev = _phone_frame_events.get(camera_id)
-    if ev is not None:
-        ev.set()  # wake MJPEG stream instantly
-    # Persist to MongoDB asynchronously (don't block the ingest).
+    # Persist to MongoDB in background — NEVER block the ingest loop.
     db = get_db()
-    await db.phone_frames.update_one(
-        {"_id": camera_id},
-        {"$set": {"bytes": frame, "ts": ts}},
-        upsert=True,
-    )
+    asyncio.create_task(_persist_frame(db, camera_id, frame, ts))
+
+async def _persist_frame(db, camera_id: str, frame: bytes, ts: float) -> None:
+    """Background task: flush frame to MongoDB without blocking ingest."""
+    try:
+        await db.phone_frames.update_one(
+            {"_id": camera_id},
+            {"$set": {"bytes": frame, "ts": ts}},
+            upsert=True,
+        )
+    except Exception:
+        pass
 
 
 async def _get_frame(camera_id: str) -> tuple[bytes | None, float | None]:
@@ -336,33 +339,18 @@ async def phone_camera_mjpeg(
 
     async def gen():
         last_ts = 0.0
-        ev = _phone_frame_events.setdefault(camera_id, asyncio.Event())
-        try:
-            while True:
-                # Wait for new frame via event (zero polling latency).
-                try:
-                    await asyncio.wait_for(ev.wait(), timeout=8.0)
-                except asyncio.TimeoutError:
-                    # Check if client still connected.
-                    if await request.is_disconnected():
-                        return
-                    continue
-                ev.clear()
-                if await request.is_disconnected():
-                    return
-                async with _phone_frame_lock:
-                    cached = _phone_frame_cache.get(camera_id)
-                if cached is None or cached[1] == last_ts:
-                    continue
+        while True:
+            if await request.is_disconnected():
+                return
+            async with _phone_frame_lock:
+                cached = _phone_frame_cache.get(camera_id)
+            if cached is not None and cached[1] != last_ts:
                 last_ts = cached[1]
                 body = cached[0]
                 yield (boundary + b"\r\nContent-Type: image/jpeg\r\n"
                        + b"Content-Length: " + str(len(body)).encode() + b"\r\n\r\n"
                        + body + b"\r\n")
-        except asyncio.CancelledError:
-            pass
-        finally:
-            _phone_frame_events.pop(camera_id, None)
+            await asyncio.sleep(0.04)  # ~25 fps check rate
 
     return StreamingResponse(
         gen(),
